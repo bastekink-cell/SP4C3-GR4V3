@@ -349,9 +349,16 @@ def build_table(tles):
     return pd.DataFrame(rows)
 
 
-with st.spinner(T("🚀 Hızlı veri yükleniyor...", "🚀 Loading data...")):
-    CAT = load_catalog()
-df_api = build_table(CAT["groups"]["visual"])
+CAT = load_catalog()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _table_cached(fetched, _tles):
+    # fetched yalnızca önbellek anahtarı; tablo 30 sn boyunca yeniden hesaplanmaz
+    return build_table(_tles)
+
+
+df_api = _table_cached(CAT["fetched"], CAT["groups"]["visual"])
 
 
 def _feed_label(s):
@@ -393,6 +400,35 @@ def _disp(df):
 
 def _enter_app():
     st.session_state.intro_passed = True
+    st.session_state.sg_just_entered = True
+
+
+LIVE_URL = "https://www.youtube.com/watch?v=tj4knR4r1UU"
+LIVE_THUMB = "https://i.ytimg.com/vi/tj4knR4r1UU/hqdefault.jpg"
+_fragment = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None) or (lambda f: f)
+
+
+def _live_set(on):
+    st.session_state.sg_live_on = on
+
+
+@_fragment
+def _live_player_ui(play_lbl, cap):
+    with _keyed("sg_livebox"):
+        if st.session_state.get("sg_live_on", False):
+            try:
+                st.video(LIVE_URL, autoplay=True)
+            except TypeError:
+                st.video(LIVE_URL)
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                st.button(T("✕ Oynatıcıyı kapat", "✕ Close player"), key="sg_live_close", on_click=_live_set, args=(False,))
+            with c2:
+                _yt_lbl = T("YouTube'da aç ↗", "Open on YouTube ↗")
+                st.markdown(f'<a class="sg-ghost" style="height:42px" href="{LIVE_URL}" target="_blank" rel="noopener">{_yt_lbl}</a>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="sg-poster"><img src="{LIVE_THUMB}" alt="ISS" loading="lazy"><span class="sg-poster-cap">{cap}</span></div>', unsafe_allow_html=True)
+            st.button("▶  " + play_lbl, key="sg_live_open", on_click=_live_set, args=(True,), **stretch(st.button))
 
 
 def _launch_from_url():
@@ -488,6 +524,10 @@ INTRO_CSS = """
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none !important; }
 .stApp { background:#040817; }
 [data-testid="stMain"], section.main, .main { scroll-behavior:smooth; }
+/* Canlı izlemeye geçerken eski giriş içeriği (soluk yazılar) ekranda kalmasın */
+.st-key-sg_fg [data-stale="true"], .st-key-sg_fg [data-stale="true"] * { visibility:hidden !important; }
+.stApp [data-testid="stAppViewContainer"] { overscroll-behavior:none; }
+.sg-card, .sg-faq details, .sg-metric { contain:layout style; }
 .block-container, [data-testid="stMainBlockContainer"] { max-width:1240px !important; padding:0 clamp(18px,3vw,40px) 40px !important; }
 
 /* Arka plan: tüm ekranı kaplayan sabit 3D Dünya */
@@ -498,8 +538,8 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 
 /* Sabit navigasyon */
 .sg-nav { position:fixed; top:0; left:0; right:0; height:64px; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:0 clamp(16px,3vw,40px); background:linear-gradient(180deg,rgba(4,8,23,.9),rgba(4,8,23,.55));
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--sg-line); font-family:'Inter','Segoe UI',sans-serif; }
+  padding:0 clamp(16px,3vw,40px); background:rgba(4,8,23,.88);
+  border-bottom:1px solid var(--sg-line); font-family:'Inter','Segoe UI',sans-serif; }
 .sg-logo { display:flex; align-items:center; gap:11px; color:#fff !important; text-decoration:none !important; font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; letter-spacing:.16em; font-size:15px; }
 .sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--sg-cyan); position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); }
 .sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--sg-red); top:-3px; right:1px; }
@@ -540,6 +580,14 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 
 /* Bölümler */
 .sg-sec { margin-top:clamp(80px,12vh,140px); scroll-margin-top:90px; font-family:'Inter','Segoe UI',sans-serif; }
+.st-key-sg_livebox { max-width:900px; margin:26px auto 0; }
+.sg-poster { position:relative; border-radius:18px; overflow:hidden; border:1px solid var(--sg-line); aspect-ratio:16/9; background:#060b1a; }
+.sg-poster img { width:100%; height:100%; object-fit:cover; display:block; opacity:.85; }
+.sg-poster-cap { position:absolute; left:14px; bottom:10px; color:#cbd5e1; font-size:12px; text-shadow:0 1px 4px #000; }
+.st-key-sg_livebox .stButton > button { height:48px; border-radius:999px; border:1px solid rgba(252,61,33,.9); background:linear-gradient(135deg,#fc3d21,#c42a12); margin-top:10px; }
+.st-key-sg_livebox .stButton > button p { color:#fff; font-weight:700; }
+.st-key-sg_livebox [data-testid="stVideo"], .st-key-sg_livebox iframe { border-radius:18px; overflow:hidden; }
+.sg-sec.sg-first { margin-top:clamp(56px,8vh,90px); }
 .sg-kicker { color:var(--sg-cyan); font-size:12px; letter-spacing:.22em; font-weight:700; text-transform:uppercase; }
 .sg-h2 { font-family:'Space Grotesk','Inter',sans-serif; font-size:clamp(26px,3vw,40px); color:#fff; font-weight:700; letter-spacing:-.015em; line-height:1.15; margin:10px 0 14px; max-width:780px; }
 .sg-p { color:#a9b8cc; font-size:15.5px; line-height:1.75; max-width:780px; margin:0 0 8px; }
@@ -547,8 +595,8 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-muted { color:#7f90a8; font-size:14px; }
 .sg-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin-top:30px; }
 .sg-card { padding:24px; border-radius:18px; background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); border:1px solid var(--sg-line);
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); transition:transform .25s ease, border-color .25s ease; }
-.sg-card:hover { transform:translateY(-3px); border-color:rgba(56,189,248,.45); }
+  transition:border-color .25s ease; }
+.sg-card:hover { border-color:rgba(56,189,248,.45); }
 .sg-stat { font-family:'Space Grotesk','Inter',sans-serif; font-size:34px; font-weight:700; color:var(--sg-cyan); letter-spacing:-.02em; }
 .sg-huge { font-size:clamp(44px,6vw,76px); }
 .sg-ct { color:#fff; font-size:16px; font-weight:600; margin:8px 0 8px; }
@@ -575,8 +623,8 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-foot { margin-top:70px; padding-top:20px; border-top:1px solid var(--sg-line); color:#64748b; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; text-align:center; font-family:'Inter','Segoe UI',sans-serif; }
 .sg-top { position:fixed; right:24px; bottom:54px; z-index:60; display:flex; align-items:center; gap:8px; padding:11px 18px; border-radius:999px;
   background:rgba(6,12,30,.82); border:1px solid rgba(56,189,248,.45); color:#e0f2fe !important; text-decoration:none !important;
-  font-family:'Inter','Segoe UI',sans-serif; font-size:13px; font-weight:600; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  box-shadow:0 8px 28px rgba(0,0,0,.5); transition:all .2s ease; }
+  font-family:'Inter','Segoe UI',sans-serif; font-size:13px; font-weight:600;
+  box-shadow:0 4px 14px rgba(0,0,0,.45); transition:all .2s ease; }
 .sg-top:hover { border-color:var(--sg-cyan); background:rgba(56,189,248,.18); transform:translateY(-2px); }
 
 @keyframes sgUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
@@ -612,9 +660,9 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
     const RE = 6378.137, TAU = Math.PI * 2;
     const RATE = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 12 : 80;   // simülasyon hızı (gerçek zamanın katı)
     const BASE = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/';
-    const PR = Math.min(window.devicePixelRatio || 1, 2);
+    const PR = Math.min(window.devicePixelRatio || 1, 1.25);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(PR);
     renderer.setClearColor(0x000000, 0);
     document.getElementById('c').appendChild(renderer.domElement);
@@ -810,6 +858,7 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
     let t = 0, last = performance.now();
     function frame(now) {
       requestAnimationFrame(frame);
+      if (now - last < 32) return;
       const dt = Math.min((now - last) / 1000, 0.1); last = now;
       t += dt * RATE;
       earth.rotation.y = D.gmst0 + D.omega * t;          // Greenwich meridyeni gerçek GMST'ye göre
@@ -823,6 +872,160 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
 })();
 </script></body></html>
 """
+
+
+# ===== Uzay çöpü tarihçesi (giriş sayfasının sonu) =====
+# (yıl, toplam, aktif uydu, uzay çöpü, çöp oranı %) · ESA MASTER (2026) ve NASA / USSTRATCOM derlemesi · yaklaşık değerler
+DEBRIS_HISTORY = [
+    (1960, 200, 15, 185, 92.5),
+    (1970, 1500, 150, 1350, 90.0),
+    (1980, 4200, 350, 3850, 91.7),
+    (1990, 5600, 450, 5150, 92.0),
+    (2000, 7800, 650, 7150, 91.7),
+    (2009, 18000, 950, 17050, 94.7),
+    (2016, 19200, 1450, 17750, 92.4),
+    (2020, 24500, 3300, 21200, 86.5),
+    (2022, 30500, 6700, 23800, 78.0),
+    (2024, 35000, 9800, 25200, 72.0),
+    (2025, 44964, 11300, 33664, 74.9),
+    (2026, 46650, 11300, 35350, 75.8),
+]
+
+
+def _dh_num(v, tr):
+    s = f"{v:,}"
+    return s.replace(",", ".") if tr else s
+
+
+def _dh_pct(r, tr):
+    return f"%{r:.1f}".replace(".", ",") if tr else f"{r:.1f}%"
+
+
+def _debris_bars_svg(tr):
+    W, H, pl, pr, pt, pb = 720, 300, 62, 12, 34, 34
+    cw, ch = W - pl - pr, H - pt - pb
+    vmax = 50000
+    base = pt + ch
+    slot = cw / len(DEBRIS_HISTORY)
+    bw = slot * 0.6
+    t_act = "Aktif uydu" if tr else "Active satellites"
+    t_deb = "Uzay çöpü" if tr else "Debris"
+    out = [f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;display:block" role="img">']
+    out.append(f'<rect x="{pl}" y="8" width="12" height="12" rx="2" fill="#06b6d4"/>')
+    out.append(f'<text x="{pl + 18}" y="18" fill="#cbd5e1" font-size="12">{t_act}</text>')
+    out.append(f'<rect x="{pl + 130}" y="8" width="12" height="12" rx="2" fill="#f97316"/>')
+    out.append(f'<text x="{pl + 148}" y="18" fill="#cbd5e1" font-size="12">{t_deb}</text>')
+    for v in range(0, vmax + 1, 10000):
+        yy = base - ch * v / vmax
+        out.append(f'<line x1="{pl}" x2="{W - pr}" y1="{yy:.1f}" y2="{yy:.1f}" stroke="rgba(148,163,184,.16)"/>')
+        out.append(f'<text x="{pl - 8}" y="{yy + 4:.1f}" text-anchor="end" fill="#64748b" font-size="11">{_dh_num(v, tr)}</text>')
+    for i, (yr, _tot, act, deb, _pct) in enumerate(DEBRIS_HISTORY):
+        x = pl + slot * i + (slot - bw) / 2
+        h_act = ch * act / vmax
+        h_deb = ch * deb / vmax
+        out.append(f'<rect x="{x:.1f}" y="{base - h_act:.1f}" width="{bw:.1f}" height="{h_act:.1f}" fill="#06b6d4"/>')
+        out.append(f'<rect x="{x:.1f}" y="{base - h_act - h_deb:.1f}" width="{bw:.1f}" height="{h_deb:.1f}" fill="#f97316" opacity=".85"/>')
+        out.append(f'<text x="{x + bw / 2:.1f}" y="{H - 10}" text-anchor="middle" fill="#94a3b8" font-size="11">{yr}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def _debris_table_html(tr):
+    heads = (["Yıl", "Toplam", "Aktif uydu", "Uzay çöpü", "Çöp oranı"] if tr
+             else ["Year", "Total", "Active satellites", "Debris", "Debris share"])
+    th = ("padding:8px 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;"
+          "color:#94a3b8;text-align:right;white-space:nowrap;border-bottom:1px solid rgba(56,189,248,.25)")
+    td = ("padding:7px 10px;text-align:right;color:#cbd5e1;font-size:13.5px;white-space:nowrap;"
+          "font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(56,189,248,.08)")
+    head_cells = []
+    for k, h in enumerate(heads):
+        align = "left" if k == 0 else "right"
+        head_cells.append(f'<th style="{th};text-align:{align}">{h}</th>')
+    body = []
+    for yr, tot, act, deb, pct in DEBRIS_HISTORY:
+        peak = yr == 2009
+        row_bg = "background:rgba(249,115,22,.08);" if peak else ""
+        pct_css = "color:#fb923c;font-weight:700;" if peak else ""
+        body.append(
+            f'<tr style="{row_bg}">'
+            f'<td style="{td};text-align:left;color:#fff;font-weight:600">{yr}</td>'
+            f'<td style="{td}">{_dh_num(tot, tr)}</td>'
+            f'<td style="{td}">{_dh_num(act, tr)}</td>'
+            f'<td style="{td}">{_dh_num(deb, tr)}</td>'
+            f'<td style="{td};{pct_css}">{_dh_pct(pct, tr)}</td>'
+            "</tr>"
+        )
+    head_html = "".join(head_cells)
+    body_html = "".join(body)
+    return ('<table style="width:100%;border-collapse:collapse;min-width:520px">'
+            f'<thead><tr>{head_html}</tr></thead>'
+            f'<tbody>{body_html}</tbody></table>')
+
+
+def _debris_cards_html(tr):
+    if tr:
+        items = [
+            ("1960", "Uzay çağı başlıyor", "İlk fırlatmalar ve roket gövdeleri; yörüngedeki nesne sayısı yaklaşık 200."),
+            ("2007", "Çin ASAT testi", "Fengyun-1C uydusunun bilinçli olarak vurulması binlerce enkaz parçası oluşturdu."),
+            ("2009", "İlk kazara çarpışma", "10 Şubat 2009'da 790 km irtifada aktif Iridium 33 ile işlevsiz Cosmos 2251 çarpıştı; 1.800'den fazla yeni enkaz izlendi."),
+            ("2020", "Mega takımyıldızlar", "2019 sonrasındaki Starlink benzeri yoğun fırlatımlarla aktif uydu sayısı 1.500'lerden 11.300'ün üzerine çıktı."),
+        ]
+    else:
+        items = [
+            ("1960", "Space age begins", "First launches and rocket bodies; about 200 objects in orbit."),
+            ("2007", "Chinese ASAT test", "The deliberate destruction of Fengyun-1C created thousands of debris fragments."),
+            ("2009", "First accidental collision", "On 10 February 2009 at 790 km, active Iridium 33 and defunct Cosmos 2251 collided; over 1,800 new debris pieces were tracked."),
+            ("2020", "Mega-constellations", "After 2019, Starlink-style launches raised active satellites from about 1,500 to over 11,300."),
+        ]
+    cards = [
+        f'<div class="sg-card"><div class="sg-stat">{yr}</div><div class="sg-ct">{ttl}</div><p class="sg-cp">{txt}</p></div>'
+        for yr, ttl, txt in items
+    ]
+    return "".join(cards)
+
+
+def _debris_history_html():
+    tr = st.session_state.lang == "tr"
+    if tr:
+        kicker = "Veri analizi"
+        title = "Uzay çöplerinin tarihçesi ve grafikleri"
+        lead = ("1960'ta yörüngede yaklaşık 200 nesne vardı; bugün bu sayı yaklaşık 46.650. "
+                "Uzay çöpü oranı 2009'da %94,7 ile zirveye ulaştı; aktif uydu sayısındaki hızlı artışla %75,8'e geriledi. "
+                "Oran düşse de uzay çöpü sayısı 2009'dan bu yana iki katından fazla arttı.")
+        cap_chart = "Yörüngedeki nesneler: aktif uydu ve uzay çöpü (yaklaşık)"
+        cap_table = "Yıllara göre sayılar"
+        note = ("Değerler kaynağa göre yaklaşıktır ve 10 cm'den büyük, kataloglanmış nesneleri yansıtır. "
+                "Vurgulanan satır çöp oranının zirvesidir.")
+        src_lbl = "Kaynaklar"
+    else:
+        kicker = "Data analysis"
+        title = "History of space debris and charts"
+        lead = ("In 1960 there were about 200 cataloged objects in orbit; today the count is roughly 46,650. "
+                "The debris share peaked at 94.7% in 2009 and fell to 75.8% as active satellites surged. "
+                "Even so, the number of debris objects has more than doubled since 2009.")
+        cap_chart = "Objects in orbit: active satellites and debris (approximate)"
+        cap_table = "Counts by year"
+        note = ("Values are approximate, per the source, and reflect cataloged objects larger than 10 cm. "
+                "The highlighted row marks the peak debris share.")
+        src_lbl = "Sources"
+    return f"""
+    <div id="history" class="sg-sec">
+      <div class="sg-kicker">{kicker}</div>
+      <div class="sg-h2">{title}</div>
+      <p class="sg-p">{lead}</p>
+      <div style="margin-top:28px;padding:22px 22px 14px;border-radius:18px;border:1px solid var(--sg-line);background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))">
+        <div class="sg-lbl">{cap_chart}</div>
+        {_debris_bars_svg(tr)}
+      </div>
+      <div style="margin-top:16px;padding:18px 18px 12px;border-radius:18px;border:1px solid var(--sg-line);background:rgba(8,14,32,.80)">
+        <div class="sg-lbl">{cap_table}</div>
+        <div style="overflow-x:auto">{_debris_table_html(tr)}</div>
+        <p class="sg-cp" style="margin-top:10px;font-size:12px">{note}</p>
+      </div>
+      <div class="sg-grid">{_debris_cards_html(tr)}</div>
+      <div class="sg-src">{src_lbl} <i>ESA MASTER (2026)</i><i>NASA / USSTRATCOM</i><i>NASA (2009)</i></div>
+    </div>
+    """
 
 
 def render_intro():
@@ -865,6 +1068,12 @@ def render_intro():
     """
 
     sections_html = """
+    <div id="threat" class="sg-sec sg-first">
+      <div class="sg-kicker">Uzay Çöpleri</div>
+      <div class="sg-h2">Yörüngedeki Sessiz Tehdit: Uzay Çöpleri</div>
+      <p class="sg-p">İlk uydu fırlatmalarıyla başlayan süreçte, görev ömrü biten araçlar ve üst roket kademeleri yörüngede bırakıldı; kataloglanan nesne sayısı 1990 itibarıyla 5.600 seviyesine ulaştı. 10 Şubat 2009 tarihinde ise bir dönüm noktası yaşandı. Iridium 33 &amp; Cosmos 2251 790 kilometre irtifada çarpıştı. Bu vaka, tarihteki ilk kasıtsız hiper hızlı uydu çarpışması olarak kayıtlara geçti. Tek bir olayda takip edilemeyen 200.000 civarında küçük parça ve 1.800'den fazla büyük parça yörüngeye saçıldı. Yörüngede başıboş dolaşan 6.000'den fazla işlevsiz uydu ve roket gövdeleri, aktif roldeki ticari filolar ve sigorta portföyleri için her yıl zincirleme çarpışma riskini artırıyor.</p>
+    </div>
+
     <div id="features" class="sg-sec">
       <div class="sg-kicker">Özellikler</div>
       <div class="sg-h2">Uzay kirliliği artık yalnızca teknik değil, finansal bir risk</div>
@@ -897,23 +1106,20 @@ def render_intro():
       <p class="sg-p">Farklı paydaş gruplarının ihtiyaçlarına özel kurgulanmış <b>3 kademeli (Tiered)</b> B2B fiyatlandırma modeli:</p>
       <div class="sg-price">
         <div class="sg-card sg-tier" style="--c:#3b82f6">
-          <div class="sg-tier-name">Basic / Standart</div>
-          <div><div class="sg-lbl">Hedef kitle</div><div class="sg-val">Küçük takımyıldız operatörleri<br>Üniversite / araştırma</div></div>
-          <div><div class="sg-lbl">Kapsam ve modellenen veri</div><div class="sg-val">Manevra maliyeti ve yakıt optimize edici<br>Kataloglanmış enkaz takibi</div></div>
-          <div><div class="sg-lbl">Fiyatlandırma mantığı</div><div class="sg-val">Flat-rate: uydu / takımyıldız başına aylık veya yıllık abonelik</div></div>
+          <div class="sg-tier-name">BASIC/STANDART</div>
+          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br><span style="color:var(--c)">☆</span> Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.</div></div>
+          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Standart Yörünge Risk Değerlendirme Karnesi <span style="color:var(--c)">✓</span><br>Sigorta süreçleri için temel çarpışma olasılığı ve enkaz analiz raporu <span style="color:var(--c)">✓</span></div></div>
         </div>
         <div class="sg-card sg-tier pop" style="--c:#06b6d4">
           <span class="sg-tag">Popüler</span>
-          <div class="sg-tier-name">Pro / Enterprise</div>
-          <div><div class="sg-lbl">Hedef kitle</div><div class="sg-val">Ticari uydu operatörleri<br>Filo yöneticileri</div></div>
-          <div><div class="sg-lbl">Kapsam ve modellenen veri</div><div class="sg-val">Anomali tespit ve risk tahminleme<br>Hizmet kesintisi süre / maliyet analizi</div></div>
-          <div><div class="sg-lbl">Fiyatlandırma mantığı</div><div class="sg-val">İzlenen aktif uydu sayısı ve gerçek zamanlı API çağrıları</div></div>
+          <div class="sg-tier-name">PRO / ENTERPRISE</div>
+          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Kesintisiz operasyon hedefleyen ticari uydu operatörleri<br><span style="color:var(--c)">☆</span> Yüksek yörünge trafiği yöneten filo operasyon merkezleri</div></div>
+          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Poliçe prim optimizasyonu sağlayan manevra ve yakıt verimliliği dokümantasyonu <span style="color:var(--c)">✓</span><br>Olası çarpışma ve hizmet kesintisi (BI) finansal etki projeksiyonu <span style="color:var(--c)">✓</span></div></div>
         </div>
         <div class="sg-card sg-tier" style="--c:#a855f7">
-          <div class="sg-tier-name">Institutional / InsurTech</div>
-          <div><div class="sg-lbl">Hedef kitle</div><div class="sg-val">Savunma ve uzay ajansları<br>Sigorta şirketleri</div></div>
-          <div><div class="sg-lbl">Kapsam ve modellenen veri</div><div class="sg-val">Kümülatif finansal risk ve senaryo modeli<br>Özel risk skorlama ve poliçe fiyatlandırma</div></div>
-          <div><div class="sg-lbl">Fiyatlandırma mantığı</div><div class="sg-val">Özel yıllık kontrat + kurulum + danışmanlık ücreti</div></div>
+          <div class="sg-tier-name">INSTITUTIONAL / INSURTECH</div>
+          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Ulusal uzay ajansları, kamu otoriteleri ve savunma sanayi kuruluşları<br><span style="color:var(--c)">☆</span> Uzay varlıklarını teminat altına alan sigorta ve reasürans şirketleri</div></div>
+          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Dinamik poliçe fiyatlandırma ve reasürans risk skorlaması <span style="color:var(--c)">✓</span><br>Kaza sonrası adli yörünge doğrulama ve kümülatif portföy simülasyonu <span style="color:var(--c)">✓</span></div></div>
         </div>
       </div>
       <div class="sg-faq">
@@ -975,6 +1181,12 @@ def render_intro():
         <div class="sg-src">Trusted data sources <i>CelesTrak</i><i>Space-Track</i><i>ESA DISCOS</i></div>
         """
         sections_html = """
+        <div id="threat" class="sg-sec sg-first">
+          <div class="sg-kicker">Space Debris</div>
+          <div class="sg-h2">The Silent Threat in Orbit: Space Debris</div>
+          <p class="sg-p">Since the first satellite launches, spacecraft at the end of their missions and spent upper rocket stages have been left in orbit; the number of cataloged objects reached 5,600 by 1990. On 10 February 2009 a turning point came: Iridium 33 and Cosmos 2251 collided at an altitude of 790 kilometers. The event went on record as the first accidental hypervelocity collision between two satellites. In that single event, about 200,000 small untrackable fragments and more than 1,800 large pieces were scattered into orbit. More than 6,000 defunct satellites and rocket bodies drifting in orbit raise the risk of a chain-reaction collision every year for active commercial fleets and insurance portfolios.</p>
+        </div>
+
         <div id="features" class="sg-sec">
           <div class="sg-kicker">Features</div>
           <div class="sg-h2">Space debris is no longer just a technical risk, it is a financial one</div>
@@ -1056,6 +1268,29 @@ def render_intro():
         <div class="sg-foot">NASA Space Apps Challenge · JPL Command Center · SP4C3 GR4V3 &nbsp;|&nbsp; Data: CelesTrak · Last update {CAT['fetched']}</div>
         """
 
+    _cut = sections_html.index('<div id="about"')
+    sections_html, tail_html = sections_html[:_cut], sections_html[_cut:]
+
+    # ISS canlı yayını: tıklanınca yüklenen hafif oynatıcı (açılışta hiçbir YouTube kaynağı indirilmez)
+    if st.session_state.lang == "en":
+        live_html = """
+        <div id="live" class="sg-sec">
+          <div class="sg-kicker">Live from orbit</div>
+          <div class="sg-h2">Watch the orbit we protect: live ISS view</div>
+          <p class="sg-p">The International Space Station circles Earth about 420 km up, in the same Low Earth Orbit region where Space Grave screens debris and close approaches, completing one orbit roughly every 90 minutes. Press play to watch the NASA external HD camera feed live and see the environment our platform is built to keep safe.</p>
+        </div>
+        """
+        live_play, live_cap = "Play live stream", "Live ISS view · NASA external cameras via afarTV"
+    else:
+        live_html = """
+        <div id="live" class="sg-sec">
+          <div class="sg-kicker">Yörüngeden canlı</div>
+          <div class="sg-h2">Koruduğumuz yörüngeyi canlı izleyin: ISS yayını</div>
+          <p class="sg-p">Uluslararası Uzay İstasyonu, Space Grave'in uzay çöpü ve yakın geçişleri taradığı Alçak Dünya Yörüngesi'nde (LEO), yaklaşık 420 km yükseklikte ve yaklaşık her 90 dakikada bir tur atar. Oynat'a basarak NASA'nın dış HD kamera yayınını canlı izleyin ve platformumuzun güvende tutmak için tasarlandığı ortamı yakından görün.</p>
+        </div>
+        """
+        live_play, live_cap = "Canlı yayını oynat", "Canlı ISS görüntüsü · NASA dış kameraları (afarTV)"
+
     st.markdown(INTRO_CSS, unsafe_allow_html=True)
     with (st.container(key="sg_fg") if keyed else st.container()):
         st.markdown(_flat(nav_html), unsafe_allow_html=True)
@@ -1069,6 +1304,10 @@ def render_intro():
                 st.markdown(f'<a class="sg-ghost" href="#features">{T("Özellikleri keşfet", "Explore features")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
+        st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
+        st.markdown(_flat(live_html), unsafe_allow_html=True)
+        _live_player_ui(live_play, live_cap)
+        st.markdown(_flat(tail_html), unsafe_allow_html=True)
         c1, c2, c3 = st.columns([1, 1.1, 1])
         with c2:
             st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch_2", type="primary", on_click=_enter_app, **stretch(st.button))
@@ -1078,6 +1317,7 @@ def render_intro():
 
 if not st.session_state.intro_passed and _launch_from_url():
     st.session_state.intro_passed = True
+    st.session_state.sg_just_entered = True
     try:
         st.query_params.clear()
     except Exception:
@@ -1086,6 +1326,10 @@ if not st.session_state.intro_passed and _launch_from_url():
 if not st.session_state.intro_passed:
     render_intro()
     st.stop()
+
+# Girişten ana sayfaya geçerken eski (bayat) giriş öğeleri soluk yazı olarak kalmasın
+if st.session_state.pop('sg_just_entered', False):
+    st.markdown("<style>[data-stale='true']{display:none !important}</style>", unsafe_allow_html=True)
 
 # --- ANA KOMUTA MERKEZİ ---
 MAIN_CSS = r"""
@@ -1159,6 +1403,391 @@ def _back_to_intro():
 
 
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
+
+# --- OPS TEMASI: NASA/JPL/ESA komuta merkezi estetiği (MAIN_CSS'in üzerine biner) ---
+OPS_CSS = r"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+:root{--ops-bg:#050B14;--ops-cy:#22d3ee;--ops-cy2:#67e8f9;--ops-amb:#f59e0b;--ops-red:#ef4444;--ops-grn:#34d399;--ops-mute:#8195b0;--ops-line:rgba(34,211,238,.16);--ops-card:rgba(8,16,30,.72);--ops-mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
+
+/* Derin uzay zemini + ince koordinat ızgarası */
+.stApp{
+  background:
+    linear-gradient(rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
+    linear-gradient(90deg,rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
+    radial-gradient(ellipse at 78% -10%,#0a1a33 0%,#050B14 46%,#03070e 100%) !important;
+  background-attachment:fixed !important;
+}
+.block-container,[data-testid="stMainBlockContainer"]{padding-top:7.6rem !important}
+
+/* Üst gezinme çubuğu */
+.sg-mnav{background:linear-gradient(180deg,rgba(5,11,20,.97),rgba(5,11,20,.86)) !important;border-bottom:1px solid var(--ops-line) !important}
+.sg-mlive{border-radius:4px !important;font-family:var(--ops-mono);font-size:10.5px !important;border-color:var(--ops-line) !important;background:rgba(8,16,30,.8) !important}
+
+/* Kayan telemetri şeridi (iframe, sabit) */
+.st-key-sg_ticker{position:fixed !important;top:64px;left:0;right:0;z-index:49;width:100vw !important;margin:0 !important;padding:0 !important}
+.st-key-sg_ticker>div,.st-key-sg_ticker .element-container,.st-key-sg_ticker [data-testid="stElementContainer"],.st-key-sg_ticker [data-testid="stIFrame"],.st-key-sg_ticker iframe{width:100vw !important;height:34px !important;max-width:none !important;margin:0 !important;border:0 !important;border-radius:0 !important}
+
+/* Görev başlığı */
+.ops-banner{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:4px 0 14px;margin-bottom:4px;border-bottom:1px solid var(--ops-line);position:relative}
+.ops-banner::after{content:"";position:absolute;left:0;bottom:-1px;width:140px;height:2px;background:linear-gradient(90deg,var(--ops-cy),transparent)}
+.ops-eyebrow{font-family:var(--ops-mono);font-size:11px;letter-spacing:.22em;color:var(--ops-cy);text-transform:uppercase}
+.ops-title{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:clamp(24px,2.8vw,38px);letter-spacing:.02em;color:#f1f5f9;margin:6px 0 2px;line-height:1.1}
+.ops-title span{color:var(--ops-cy);text-shadow:0 0 22px rgba(34,211,238,.45)}
+.ops-sub{font-size:13px;color:var(--ops-mute);letter-spacing:.04em}
+.ops-leds{display:flex;gap:8px;flex-wrap:wrap}
+.ops-led{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border:1px solid var(--ops-line);border-radius:3px;background:var(--ops-card);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:#cbd5e1;text-transform:uppercase}
+.ops-led::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,#34d399);box-shadow:0 0 8px var(--c,#34d399);animation:opsPulse 2s infinite}
+.ops-led.g{--c:#34d399}.ops-led.c{--c:#22d3ee}.ops-led.a{--c:#f59e0b}.ops-led.r{--c:#ef4444}
+@keyframes opsPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Durum şeridi */
+.ops-strip{display:flex;flex-wrap:wrap;gap:0;margin:10px 0 6px;border:1px solid var(--ops-line);border-radius:4px;background:var(--ops-card);overflow:hidden;font-family:var(--ops-mono)}
+.ops-strip span{display:flex;flex-direction:column;gap:2px;padding:8px 16px;border-right:1px solid var(--ops-line)}
+.ops-strip span:last-child{border-right:0}
+.ops-strip i{font-style:normal;font-size:9.5px;letter-spacing:.2em;color:var(--ops-mute);text-transform:uppercase}
+.ops-strip b{font-size:12.5px;font-weight:500;color:var(--ops-cy2)}
+
+/* Modül sekmeleri */
+[class*="st-key-sg_nav_"] .stButton>button{border-radius:3px !important;border:1px solid var(--ops-line) !important;background:rgba(8,16,30,.78) !important;min-height:42px !important;transform:none !important}
+[class*="st-key-sg_nav_"] .stButton>button p{font-family:var(--ops-mono) !important;font-size:12px !important;letter-spacing:.06em;color:#9fb3cc !important;font-weight:500 !important}
+[class*="st-key-sg_nav_"] .stButton>button:hover{border-color:var(--ops-cy) !important;background:rgba(34,211,238,.08) !important}
+
+/* İstatistik kartları: kompakt, sol hizalı, köşe işaretli */
+.stApp .nasa-glass-card{text-align:left !important;padding:12px 14px 12px 16px !important;border-radius:4px !important;margin-bottom:8px !important;
+  background:linear-gradient(160deg,rgba(10,20,36,.88),rgba(5,11,20,.94)) !important;border:1px solid var(--ops-line) !important;
+  box-shadow:inset 0 0 24px rgba(34,211,238,.04),0 6px 20px rgba(0,0,0,.45) !important;backdrop-filter:blur(10px)}
+.stApp .nasa-glass-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ops-cy);box-shadow:0 0 10px var(--ops-cy)}
+.stApp .nasa-glass-card.fin-card{border-color:rgba(245,158,11,.3) !important}
+.stApp .nasa-glass-card.fin-card::before{background:var(--ops-amb);box-shadow:0 0 10px var(--ops-amb)}
+.stApp .nasa-glass-card:hover{transform:none !important;border-color:rgba(34,211,238,.5) !important}
+.stApp .metric-title{font-family:var(--ops-mono) !important;font-size:9.5px !important;letter-spacing:.2em !important;color:var(--ops-mute) !important;font-weight:500 !important}
+.stApp .metric-value,.stApp .metric-value-fin{font-family:var(--ops-mono) !important;font-size:22px !important;font-weight:700 !important;letter-spacing:-.01em;margin-top:4px !important;font-variant-numeric:tabular-nums}
+.stApp .metric-value{text-shadow:0 0 14px rgba(34,211,238,.45) !important}
+.stApp .metric-value-fin{text-shadow:0 0 14px rgba(245,158,11,.4) !important}
+[data-testid="stMetric"]{border-radius:4px !important;background:var(--ops-card) !important;border-color:var(--ops-line) !important}
+[data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-family:var(--ops-mono) !important}
+
+/* Bölüm başlıkları */
+.stApp h4{font-family:'Space Grotesk','Inter',sans-serif !important;font-size:14px !important;font-weight:600 !important;letter-spacing:.14em !important;text-transform:uppercase;color:#e2e8f0;
+  padding:2px 0 2px 12px;border-left:2px solid var(--ops-cy);margin:20px 0 10px !important}
+.stApp h3{font-family:'Space Grotesk','Inter',sans-serif !important}
+
+/* Grafik / tablo çerçeveleri */
+[data-testid="stPlotlyChart"],[data-testid="stDataFrame"]{border:1px solid var(--ops-line) !important;border-radius:4px !important;background:var(--ops-card);backdrop-filter:blur(8px)}
+.stApp iframe{border-radius:4px}
+[data-testid="stAlert"]{border-radius:4px !important}
+.stApp hr{border-color:var(--ops-line) !important}
+
+/* Operasyon tablosu */
+.ops-tbl-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--ops-line);border-bottom:0;border-radius:4px 4px 0 0;background:rgba(8,16,30,.9);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:var(--ops-mute);text-transform:uppercase}
+.ops-tbl-bar b{color:var(--ops-cy2);font-weight:500}
+.ops-tbl-wrap{max-height:400px;overflow:auto;border:1px solid var(--ops-line);border-radius:0 0 4px 4px;background:rgba(5,11,20,.82);scrollbar-width:thin;scrollbar-color:#17314f #050B14}
+.ops-tbl{width:100%;border-collapse:collapse;font-family:var(--ops-mono);font-size:11.5px;color:#cbd5e1}
+.ops-tbl th{position:sticky;top:0;z-index:2;background:#08111f;color:var(--ops-cy2);font-weight:500;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid rgba(34,211,238,.3);white-space:nowrap}
+.ops-tbl td{padding:5px 10px;border-bottom:1px solid rgba(34,211,238,.07);white-space:nowrap}
+.ops-tbl tbody tr:nth-child(even){background:rgba(34,211,238,.022)}
+.ops-tbl tbody tr:hover{background:rgba(34,211,238,.09)}
+.ops-tbl .n{text-align:right;font-variant-numeric:tabular-nums}
+.ops-tbl th.n{text-align:right}
+.ops-tbl td.nm{font-family:'Inter',sans-serif;font-weight:500;color:#f1f5f9}
+.ops-chip{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:.08em;border:1px solid;font-weight:500}
+.ops-chip.ok{color:#34d399;border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}
+.ops-chip.warn{color:#f59e0b;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08)}
+.ops-chip.nom{color:#22d3ee;border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.06)}
+.ops-chip.crit{color:#ef4444;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)}
+@media (max-width:700px){.ops-strip span{padding:6px 10px}}
+</style>
+"""
+st.markdown(OPS_CSS, unsafe_allow_html=True)
+
+# Tüm plotly grafiklerine (template="plotly_dark") ortak operasyon stili
+try:
+    import plotly.io as pio
+    pio.templates["plotly_dark"].layout.update(
+        font=dict(family="JetBrains Mono, Consolas, monospace", color="#8195b0", size=11),
+        colorway=["#22d3ee", "#f59e0b", "#ef4444", "#34d399", "#a78bfa", "#67e8f9"],
+        xaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
+        yaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
+        hoverlabel=dict(bgcolor="#0a1424", bordercolor="#22d3ee", font=dict(family="JetBrains Mono, Consolas, monospace", color="#e2e8f0")),
+    )
+except Exception:
+    pass
+# =====================================================================
+# SP4C3 GR4V3 — YENİDEN GİRİŞ SİMÜLASYON MODU (izole / odak modu)
+# Simülasyon açıkken aşağıdaki sitenin geri kalanı (navigasyon, sayfalar, bot, taramalar)
+# HİÇ ÇALIŞTIRILMAZ: Python st.stop() ile durur, fizik ve çizim tarayıcıda (iframe/JS) koşar.
+# Böylece Streamlit yeniden çalıştırması olmaz, diğer modüllerin durumu (session_state) aynen korunur.
+# =====================================================================
+ATM = [(0, 1.225, 7.249), (25, 3.899e-2, 6.349), (30, 1.774e-2, 6.682), (40, 3.972e-3, 7.554),
+       (50, 1.057e-3, 8.382), (60, 3.206e-4, 7.714), (70, 8.770e-5, 6.549), (80, 1.905e-5, 5.799),
+       (90, 3.396e-6, 5.382), (100, 5.297e-7, 5.877), (110, 9.661e-8, 7.263), (120, 2.438e-8, 9.473),
+       (130, 8.484e-9, 12.636), (140, 3.845e-9, 16.149), (150, 2.070e-9, 22.523)]
+MATERIALS = {"Aluminum alloy": 0.97, "Stainless steel": 1.0, "Titanium": 1.15, "Carbon composite (CFRP/C-C)": 3.0}
+_MAT_TR = {"Aluminum alloy": "Alüminyum alaşımı", "Stainless steel": "Paslanmaz çelik", "Titanium": "Titanyum",
+           "Carbon composite (CFRP/C-C)": "Karbon kompozit (CFRP/C-C)"}
+REGIONS = [["Point Nemo (SPOUA) · kontrollü okyanus", "Point Nemo (SPOUA) · controlled ocean", -48.9, -123.4, 0.1],
+           ["Kuzey Pasifik açık deniz", "North Pacific open ocean", 30.0, -150.0, 0.1],
+           ["Güney Atlantik", "South Atlantic", -35.0, -20.0, 0.1],
+           ["Hint Okyanusu", "Indian Ocean", -25.0, 85.0, 0.1],
+           ["Avustralya iç kesimleri (ücra kara)", "Australian outback (remote land)", -26.0, 134.0, 0.3],
+           ["Kazak bozkırı (seyrek kara)", "Kazakh steppe (sparse land)", 48.0, 65.0, 5],
+           ["Orta Avrupa (yoğun kara)", "Central Europe (dense land)", 48.0, 10.0, 120],
+           ["Güney Asya deltası (çok yoğun)", "South Asian delta (very dense)", 24.0, 88.0, 1000]]
+SIM_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+*{box-sizing:border-box}body{margin:0;background:#020617;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
+.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:8px;padding:8px;height:auto}
+.box{position:relative;border:1px solid #0b3a6b;border-radius:12px;overflow:hidden;background:#050b1a}canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;top:26px;left:10px;background:rgba(3,7,18,.88);border:1px solid #003366;border-radius:10px;padding:8px 12px;line-height:1.6;color:#38bdf8;z-index:3}
+.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:28px;height:28px;margin-left:4px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:8px 10px;border-bottom:1px solid #0b3a6b;background:#050b1a}
+.ctl label{display:flex;flex-direction:column;gap:2px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
+.zc{border-radius:10px;padding:8px 10px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.45}.zc span{color:#fff;font-weight:600}
+.zc.r{background:rgba(239,68,68,.12);border-color:#ef4444}.zc.a{background:rgba(245,158,11,.12);border-color:#f59e0b}.zc.g{background:rgba(16,185,129,.12);border-color:#10b981}
+select,input[type=range]{width:100%;background:#0b1329;color:#e2e8f0;border:1px solid #1e3a5f;border-radius:6px;padding:3px}
+button{background:#fc3d21;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:bold;cursor:pointer;font-family:'Inter',sans-serif}
+button.s{background:#0f1b33;border:1px solid #1e3a5f}
+.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:10px}
+.rk{padding:8px;border-radius:8px;font-weight:bold;margin-bottom:8px;text-align:center}.red{background:#7f1d1d;color:#fecaca}.amber{background:#78350f;color:#fde68a}.green{background:#064e3b;color:#a7f3d0}
+.kv{display:flex;justify-content:space-between;border-bottom:1px solid #12315a;padding:4px 0}.kv span{color:#94a3b8}
+.note{margin:6px 0;padding:6px 8px;background:#0e2433;border-left:3px solid #38bdf8;border-radius:6px}
+table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:3px 4px;border-bottom:1px solid #12315a;font-size:11px}
+.bar{display:flex;align-items:center;gap:8px;padding:6px 10px}#scrub{flex:1}
+@media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px 300px 170px auto;height:auto}.side{grid-row:auto;grid-column:1}}
+#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 8px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
+<div class="ctl">
+<label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><input id="m" type="range" min="50" max="5000" step="10"></label>
+<label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><input id="ar" type="range" min="0.1" max="30" step="0.1"></label>
+<label><span data-i data-tr="Giriş açısı (120 km)" data-en="Entry angle (120 km)"></span><span><b id="anv"></b> °</span><input id="an" type="range" min="0.5" max="45" step="0.1"></label>
+<label><span data-i data-tr="Malzeme" data-en="Material"></span><select id="mt"></select></label>
+<label><span data-i data-tr="Hedef yüzey / düşüş bölgesi" data-en="Target surface / impact region"></span><select id="rg"></select></label>
+<label><span data-i data-tr="Düşüş bölgesi nüfus yoğunluğu" data-en="Impact-region population"></span><select id="pp"><option value="0.5">Ocean / Okyanus</option><option value="5">Remote / Ücra</option><option value="50">World avg / Dünya ort.</option><option value="300">Dense / Yoğun</option><option value="3000">Urban / Kent</option></select></label>
+<label><span data-i data-tr="Oynatma süresi (sn)" data-en="Playback length (s)"></span><select id="sp"><option value="60">60</option><option value="30" selected>30</option><option value="15">15</option></select></label>
+</div>
+<div class="bar"><button id="pl">⏯</button><button id="rs" class="s">↺</button><input id="scrub" type="range" min="0" max="1000" value="0"><b id="tt">0 s</b></div>
+<div class="g">
+<div class="box"><canvas id="side"></canvas><div class="hud">STATUS: <span id="st">—</span><br>ALT <span id="a">--</span> km · V <span id="v">--</span> km/s<br>TEMP <span id="t">--</span> °C · DECEL <span id="g">--</span> g<br>FLUX <span id="q">--</span> MW/m² · HEAT <span id="e">--</span></div><div class="zb"><button id="zi" class="s">+</button><button id="zo" class="s">−</button></div></div>
+<div class="box side"><div id="risk"></div></div>
+<div class="box" style="grid-row:2"><canvas id="chart"></canvas></div>
+</div>
+<div class="g" style="grid-template-rows:300px;height:auto;min-height:0;margin-top:-4px"><div class="box" style="grid-column:1/3"><canvas id="map"></canvas></div></div>
+<div id="zones"></div>
+<script>const D=__DATA__,TR=D.lang==='tr',tx=(a,b)=>TR?a:b,$=id=>document.getElementById(id);
+const RE=6371e3,MU=3.986004418e14,SB=5.670374e-8,REC=0.5,DEG=Math.PI/180;
+const rho=h=>{h=Math.max(h,0);for(let i=D.atm.length-1;i>=0;i--){const a=D.atm[i];if(h>=a[0])return a[1]*Math.exp(-(h-a[0])/a[2]);}return 1.225};
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const gauss=r=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r());
+function integ(s,m,A,cd,rn,eDem,hm,dt,pc){let{h,v,g,psi,t}=s,E=0,rows=[],nx=t,fate='lost';
+ for(let n=0;n<400000;n++){const r=RE+h,rh=rho(h/1e3),dr=.5*rh*cd*A*v*v/m,gr=MU/(r*r),q=1.7415e-4*Math.sqrt(rh/rn)*v**3,Tk=Math.max(Math.pow(q/(.8*SB),.25),250);
+  E+=q*A*hm*dt;
+  if(t>=nx-1e-9){rows.push([t,h/1e3,v/1e3,g/DEG,dr/9.80665,q/1e6,Tk-273.15,E/m/1e6,psi*RE/1e3]);nx+=REC}
+  if(E/m>=eDem*1e6||(pc&&.5*rh*v*v>=pc)){fate='demise';break}
+  v=Math.max(v+(-dr+gr*Math.sin(g))*dt,25);g+=(gr/v-v/r)*Math.cos(g)*dt;h-=v*Math.sin(g)*dt;psi+=v*Math.cos(g)/r*dt;t+=dt;
+  if(h<=0){fate='impact';break}}
+ return{rows,fate,m,A,end:rows[rows.length-1]}}
+const PARTS=[['Propellant tank (Ti)','Yakıt tankı (Ti)',.09,4.2,.55,1],['Reaction wheels / steel','Reaksiyon çarkı / çelik',.06,2.6,.5,1],
+['Primary bus structure','Ana gövde yapısı',.30,0,1,1],['Solar array','Güneş paneli',.18,.45,3.2,1],['Electronics box','Elektronik kutu',.13,.6,.8,1],
+['Antenna / boom','Anten / kol',.06,.5,2.4,1],['Small debris','Küçük parça',.18,.8,1.2,12]];
+const STARS=Array.from({length:90},(_,i)=>{const r=rng(i+5);return[r(),r(),.3+.6*r()]});
+let P={},S={},T=0,play=true,tb=0,last=performance.now(),flash=-1,zoom=1;
+function sim(){
+ const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat;
+ const main=integ({h:120e3,v:7800,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
+ let frags=[],xb=0,tbr=null;
+ if(main.fate==='demise'){tbr=main.end;const e=main.end;
+  const st={h:e[1]*1e3,v:e[2]*1e3,g:e[3]*DEG,psi:e[8]*1e3/RE,t:e[0]};tb=e[0];xb=e[8];
+  PARTS.forEach((p,k)=>{const nn=p[5]>1?Math.round(p[5]*Math.max(1,Math.sqrt(M/400))):1;for(let j=0;j<nn;j++){const f=p[2]/nn*(.7+.6*r()),m=Math.max(M*f,.05),a=Math.max(A*Math.pow(f,.67)*p[4]*(.8+.4*r()),.002);
+   const ed=(p[3]||E0)*(.8+.5*r()),cd=.7+1.6*r(),ff=integ({h:st.h,psi:st.psi,t:st.t,v:st.v+gauss(r)*28,g:Math.max(.003,st.g+gauss(r)*.012)},m,a,cd,.1+.3*Math.sqrt(a),ed,2,.1);ff.name=TR?p[1]:p[0];ff.k=k;frags.push(ff)}});
+ }else{tb=-1;main.name=tx('Nesne (bütün)','Intact object');frags=[main]}
+ const sv=frags.filter(f=>f.fate==='impact'),xs=sv.map(f=>f.end[8]);
+ let xmin=xb,xmax=xb;if(sv.length){xmin=Math.min(...xs);xmax=Math.max(...xs)}
+ const len=Math.max(xmax-xmin,5),w3=Math.max(6,.07*len),sg=w3/3;
+ let ec=0;sv.forEach(f=>{f.ke=.5*f.m*Math.pow(f.end[2]*1e3,2);f.vi=f.end[2]*1e3;f.cx=(r()-.5)*0+gauss(r)*sg;f.x=f.end[8];
+  f.ac=Math.pow(Math.sqrt(f.A)+.6,2);f.cas=f.ke>=15;if(f.cas)ec+=f.ac*P.pop/1e6});
+ const pcv=430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200));
+ S={tp:(main.rows.find(x=>.5*rho(x[1])*Math.pow(x[2]*1e3,2)>=.45*pcv)||main.end)[0],main,frags,sv,xb,xmin,xmax,len,w3,ec,tmax:Math.max(main.end[0],...frags.map(f=>f.end[0]))+5};ORGset()}
+let ORG={lat:0,lon:0};
+function ORGset(){const rg=P.reg>=0?D.regions[P.reg]:null;if(rg){const c=dest(rg[2],rg[3],D.az+Math.PI,(S.xmin+S.xmax)/2);ORG={lat:c[0],lon:c[1]};for(let i=0;i<3;i++){const q=geo((S.xmin+S.xmax)/2,0);ORG={lat:ORG.lat+rg[2]-q[0],lon:ORG.lon+rg[3]-q[1]}}}else ORG={lat:D.lat,lon:D.lon}}
+function at(rows,t,i){const f=Math.min(Math.max(t/REC,0),rows.length-1),a=Math.floor(f),b=Math.min(a+1,rows.length-1),u=f-a,ra=rows[a],rb=rows[b];return ra.map((x,k)=>x+(rb[k]-x)*u)[i]}
+function row(rows,t){const f=Math.min(Math.max((t-rows[0][0])/REC,0),rows.length-1),a=Math.floor(f),b=Math.min(a+1,rows.length-1),u=f-a;return rows[a].map((x,k)=>x+(rows[b][k]-x)*u)}
+function dest(la,lo,az,km){const d=km/6371,p=la*DEG,l=lo*DEG,b=az,p2=Math.asin(Math.sin(p)*Math.cos(d)+Math.cos(p)*Math.sin(d)*Math.cos(b)),l2=l+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p),Math.cos(d)-Math.sin(p)*Math.sin(p2));return[p2/DEG,l2/DEG]}
+function geo(x,off){const c=dest(ORG.lat,ORG.lon,D.az,x);if(!off)return c;return dest(c[0],c[1],D.az+Math.PI/2,off)}
+const U=(a,c)=>{while(a-c>180)a-=360;while(a-c<-180)a+=360;return a};
+const cs=$('side'),cm=$('map'),cc=$('chart'),X=cs.getContext('2d'),M2=cm.getContext('2d'),C=cc.getContext('2d');
+const tex=new Image();let texOK=false;tex.onload=()=>texOK=true;tex.src='https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg';
+function fit(c){const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=r.width*d;c.height=r.height*d;c.getContext('2d').setTransform(d,0,0,d,0,0);c.w=r.width;c.h=r.height}
+function heatCol(t){return t>2000?'#fff3c0':t>1400?'#ffb347':t>800?'#ff6a1a':t>400?'#b33a1a':'#8a96a8'}
+function sprite(c,x,y,sc,ang,hot,split){const b=Math.sqrt(P.area*.4)*sc,hg=Math.cbrt(P.mass/400)*sc*1.1,pw=Math.sqrt(P.area*.6)*sc,o=split*pw*1.6;
+ c.save();c.translate(x,y);c.rotate(ang);
+ [-1,1].forEach(sd=>{c.save();c.translate(sd*(b/2+pw*.75+o),sd*o*.5);c.rotate(sd*split*1.2);const w=pw*1.5,h=hg*.34,g=c.createLinearGradient(-w/2,0,w/2,0);g.addColorStop(0,'#1d4ed8');g.addColorStop(.5,'#3b82f6');g.addColorStop(1,'#1e3a8a');c.fillStyle=g;c.fillRect(-w/2,-h/2,w,h);c.strokeStyle='rgba(191,219,254,.6)';c.lineWidth=.6;for(let i=1;i<5;i++){c.beginPath();c.moveTo(-w/2+w*i/5,-h/2);c.lineTo(-w/2+w*i/5,h/2);c.stroke()}c.strokeRect(-w/2,-h/2,w,h);if(hot>.2){c.fillStyle=`rgba(255,120,30,${Math.min(.7,hot*.8)})`;c.fillRect(-w/2,-h/2,w,h)}c.restore()});
+ const g=c.createLinearGradient(-b/2,-hg/2,b/2,hg/2);g.addColorStop(0,'#f2d27a');g.addColorStop(.5,'#c89b35');g.addColorStop(1,'#8a6420');c.fillStyle=g;c.fillRect(-b/2,-hg/2,b,hg);
+ if(hot>.1){c.fillStyle=`rgba(255,${(170-hot*90)|0},40,${Math.min(.85,hot)})`;c.fillRect(-b/2,-hg/2,b,hg)}
+ c.strokeStyle='#e2e8f0';c.lineWidth=1;c.strokeRect(-b/2,-hg/2,b,hg);c.beginPath();c.arc(0,-hg/2-b*.12,b*.3,Math.PI,0);c.fillStyle='#e5e7eb';c.fill();c.restore()}
+let trailPts=[];
+function drawSide(t){const W=cs.w,H=cs.h,ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end,fx=ho[8],win=260/zoom,top=130,gy=H-34,sy=h=>gy-(h/top)*(gy-30),sx=x=>W/2+(x-fx)/win*W;
+ X.save();if(S.tb>0&&Math.abs(t-S.tb)<1.2)X.translate((Math.random()-.5)*6,(Math.random()-.5)*6);
+ const g=X.createLinearGradient(0,0,0,gy);g.addColorStop(0,'#000208');g.addColorStop(.45,'#030b22');g.addColorStop(.75,'#0b2a5e');g.addColorStop(.92,'#2f6db5');g.addColorStop(1,'#8ec5f0');X.fillStyle=g;X.fillRect(-10,-10,W+20,H+20);
+ STARS.forEach(s=>{X.fillStyle=`rgba(255,255,255,${s[2]})`;X.fillRect(s[0]*W,s[1]*H*.45,1.4,1.4)});
+ const R=W*2.6;X.save();X.beginPath();X.arc(W/2,gy+R,R,0,7);X.clip();const eg=X.createLinearGradient(0,gy,0,H);eg.addColorStop(0,'#2d6a4f');eg.addColorStop(1,'#0b2e1f');X.fillStyle=eg;X.fillRect(0,gy,W,H);
+ X.fillStyle='rgba(255,255,255,.22)';for(let i=-6;i<24;i++){X.beginPath();X.ellipse(sx(i*48+((i*37)%19)),gy+8+((i*53)%17),26+(i*7)%18,4,0,0,7);X.fill()}X.restore();
+ X.save();X.shadowColor='#7cc4ff';X.shadowBlur=22;X.strokeStyle='rgba(150,210,255,.85)';X.lineWidth=2.5;X.beginPath();X.arc(W/2,gy+R,R,Math.PI*1.2,Math.PI*1.8);X.stroke();X.restore();
+ X.font='10px Inter,sans-serif';X.textAlign='left';[[100,'100 km · '+tx('Karman hattı','Kármán line')],[80,'80 km'],[60,'60 km'],[40,'40 km'],[20,'20 km']].forEach(a=>{const y=sy(a[0]);X.strokeStyle='rgba(148,163,184,.22)';X.setLineDash([4,5]);X.beginPath();X.moveTo(0,y);X.lineTo(W,y);X.stroke();X.setLineDash([]);X.fillStyle='#a8b6cc';X.fillText(a[1],6,y-3)});
+ X.textAlign='right';X.fillStyle='rgba(203,213,225,.55)';[[110,tx('TERMOSFER','THERMOSPHERE')],[68,tx('MEZOSFER','MESOSPHERE')],[30,tx('STRATOSFER','STRATOSPHERE')]].forEach(a=>X.fillText(a[1],W-8,sy(a[0])));X.textAlign='left';
+ X.save();X.strokeStyle='rgba(255,120,60,.5)';X.shadowColor='#ff5a1f';X.shadowBlur=8;X.lineWidth=1.6;X.beginPath();S.main.rows.forEach((p,i)=>{const x=sx(p[8]),y=sy(p[1]);i?X.lineTo(x,y):X.moveTo(x,y)});X.stroke();X.restore();
+ if(t<=S.main.end[0]){const fl=Math.min(1,ho[5]/Math.max(S.pk,1e-9)),x=sx(ho[8]),y=sy(ho[1]),p2=row(S.main.rows,Math.min(t+1,S.main.end[0])),vx=sx(p2[8])-x,vy=sy(p2[1])-y,a=Math.atan2(vy||.001,vx||1),tl=40+240*fl,sc=Math.min(2.6,Math.max(.8,2.4/Math.sqrt(zoom)))*(H/520)*7;
+  if(fl>.02){X.save();X.globalCompositeOperation='lighter';
+   for(let k=0;k<46;k++){const u=k/46,px=x-Math.cos(a)*u*tl,py=y-Math.sin(a)*u*tl,r=(6+26*fl)*(1-u*.8)*(.9+.2*Math.sin(t*20+k)),al=fl*(1-u)*.5,gr=X.createRadialGradient(px,py,0,px,py,r);gr.addColorStop(0,`rgba(255,${(240-120*u)|0},${(200-170*u)|0},${al})`);gr.addColorStop(.5,`rgba(255,${(120-60*u)|0},40,${al*.6})`);gr.addColorStop(1,'rgba(120,40,200,0)');X.fillStyle=gr;X.beginPath();X.arc(px,py,r,0,7);X.fill()}
+   const bg=X.createRadialGradient(x,y,0,x,y,22+50*fl);bg.addColorStop(0,`rgba(255,255,255,${.7*fl})`);bg.addColorStop(.4,`rgba(255,200,120,${.5*fl})`);bg.addColorStop(1,'rgba(255,90,20,0)');X.fillStyle=bg;X.beginPath();X.arc(x,y,22+50*fl,0,7);X.fill();
+   const rr=rng(7);for(let i=0;i<34;i++){const ph=(t*.8+i*.173)%1,d=ph*tl*1.2,off=(rr()-.5)*40*fl*(ph+.2);X.fillStyle=`rgba(255,${(180+rr()*70)|0},90,${(1-ph)*fl})`;X.fillRect(x-Math.cos(a)*d-Math.sin(a)*off,y-Math.sin(a)*d+Math.cos(a)*off,2,2)}
+   X.restore();X.strokeStyle=`rgba(255,160,200,${.5*fl})`;X.lineWidth=2;X.beginPath();X.arc(x,y,16+14*fl,a-1,a+1);X.stroke()}
+  const sp=S.tb>0?Math.min(1,Math.max(0,(t-S.tp)/Math.max(S.tb-S.tp,1))):0;sprite(X,x,y,sc,a+Math.sin(t*.7)*.3+(sp>0?t*.9:0),fl,sp)}
+ if(S.tb>0&&t>=S.tb){const age=t-S.tb;if(age<2.5){const x=sx(S.xb),y=sy(S.main.end[1]),rr=age*70;X.strokeStyle=`rgba(255,240,200,${1-age/2.5})`;X.lineWidth=3;X.beginPath();X.arc(x,y,rr,0,7);X.stroke();X.fillStyle=`rgba(255,200,120,${.8-age/3})`;X.beginPath();X.arc(x,y,rr*.5,0,7);X.fill()}}
+ S.frags.forEach(f=>{if(S.tb>0&&t<S.tb)return;const r=f.rows,t1=r[r.length-1][0];if(S.tb<0)return;const p=row(r,Math.min(t,t1)),x=sx(p[8]),y=sy(p[1]),gone=f.fate==='demise'&&t>t1,fade=gone?Math.max(0,1-(t-t1)/3):1;if(fade<=0)return;
+  const n=Math.min(8,r.length);X.strokeStyle=`rgba(255,150,60,${.35*fade})`;X.lineWidth=2;X.beginPath();for(let k=n;k>=0;k--){const q=row(r,Math.max(r[0][0],Math.min(t,t1)-k*1.2));k===n?X.moveTo(sx(q[8]),sy(q[1])):X.lineTo(sx(q[8]),sy(q[1]))}X.stroke();
+  const rad=2+Math.min(5,Math.sqrt(f.m)*.6);X.fillStyle=gone?`rgba(255,200,120,${fade})`:heatCol(p[6]);X.shadowColor='#ff7a1a';X.shadowBlur=p[6]>600?14:0;X.beginPath();X.arc(x,y,rad,0,7);X.fill();X.shadowBlur=0;
+  if(f.fate==='impact'&&t>=t1){X.fillStyle='#fde047';X.beginPath();X.arc(x,sy(0),5,0,7);X.fill()}});
+ X.fillStyle='#cbd5e1';X.font='11px Inter,sans-serif';X.fillText(tx('YAN GÖRÜNÜM · irtifa dikey olarak abartılı','SIDE VIEW · altitude vertically exaggerated'),8,14);X.restore()}
+function mapView(){const x0=S.tb>0?Math.min(S.xb,S.xmin):S.xmin,rg=Math.max(S.xmax-x0,20),c=geo((x0+S.xmax)/2,0),span=Math.max(rg*1.7/111/Math.max(Math.cos(c[0]*DEG),.2),10);return{c,span,a:x0-.2*rg,b:S.xmax+.3*rg}}
+function drawMap(t){const W=cm.w,H=cm.h,v=mapView(),sp=v.span,spv=sp*H/W,c=v.c,lc=c[1];
+ const px=(la,lo)=>[(U(lo,lc)-lc)/sp*W+W/2,(c[0]-la)/spv*H+H/2];M2.fillStyle='#07162e';M2.fillRect(0,0,W,H);
+ if(texOK){const iw=tex.width,ih=tex.height,sx=(lc-sp/2+180)/360*iw,sw=sp/360*iw,sy=(90-c[0]-spv/2)/180*ih,sh=spv/180*ih;try{M2.drawImage(tex,sx,Math.max(0,sy),sw,Math.min(sh,ih-Math.max(0,sy)),0,0,W,H)}catch(e){}}
+ M2.fillStyle='rgba(16,185,129,.20)';M2.fillRect(0,0,W,H);M2.strokeStyle='rgba(255,255,255,.12)';M2.lineWidth=1;M2.font='10px Inter,sans-serif';
+ const st=sp>40?10:sp>15?5:2;for(let la=Math.ceil((c[0]-spv/2)/st)*st;la<c[0]+spv/2;la+=st){const y=px(la,lc)[1];M2.beginPath();M2.moveTo(0,y);M2.lineTo(W,y);M2.stroke();M2.fillStyle='#94a3b8';M2.fillText(la+'°',3,y-2)}
+ for(let lo=Math.ceil((lc-sp/2)/st)*st;lo<lc+sp/2;lo+=st){const x=px(c[0],lo)[0];M2.beginPath();M2.moveTo(x,0);M2.lineTo(x,H);M2.stroke();M2.fillText(((lo+540)%360-180)+'°',x+2,H-3)}
+ const zone=(k,col,bor)=>{const a=S.xmin-k*.12*S.len-(k>1?20:0),b=S.xmax+k*.12*S.len+(k>1?20:0),w=S.w3*k,pts=[];for(let i=0;i<=16;i++)pts.push(geo(a+(b-a)*i/16,w));for(let i=16;i>=0;i--)pts.push(geo(a+(b-a)*i/16,-w));
+  M2.beginPath();pts.forEach((p,i)=>{const q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])});M2.closePath();M2.fillStyle=col;M2.fill();M2.strokeStyle=bor;M2.lineWidth=1.5;M2.stroke()};
+ zone(2.2,'rgba(245,158,11,.30)','#f59e0b');zone(1,'rgba(239,68,68,.45)','#ef4444');
+ {const mc=(S.xmin+S.xmax)/2;M2.font='bold 12px Inter,sans-serif';M2.textAlign='center';[[0,'#fecaca',tx('KIRMIZI · TEHLİKE','RED · HAZARD')],[S.w3*1.9,'#fde68a',tx('SARI · DİKKAT','AMBER · CAUTION')]].forEach(z=>{const p=geo(mc,z[0]),q=px(p[0],p[1]);M2.fillStyle=z[1];M2.fillText(z[2],q[0],q[1]+4)});M2.textAlign='left'}
+ M2.setLineDash([6,5]);M2.strokeStyle='#e2e8f0';M2.beginPath();for(let i=0;i<=40;i++){const p=geo(v.a+(v.b-v.a)*i/40,0),q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])}M2.stroke();M2.setLineDash([]);
+ S.frags.forEach(f=>{const r=f.rows,t1=r[r.length-1][0];if(S.tb>0&&t<S.tb)return;const live=t<t1;if(!live&&f.fate!=='impact')return;
+  const xx=live?row(r,t)[8]:f.x,cx=f.cx?f.cx*(live?Math.min(1,Math.max(0,(t-S.tb)/Math.max(t1-S.tb,1))):1):0,p=geo(xx,cx),q=px(p[0],p[1]);
+  if(live){M2.fillStyle='rgba(255,150,60,.9)';M2.beginPath();M2.arc(q[0],q[1],2,0,7);M2.fill()}else{const age=t-t1;if(age<4){M2.strokeStyle=`rgba(253,224,71,${1-age/4})`;M2.lineWidth=2;M2.beginPath();M2.arc(q[0],q[1],4+age*9,0,7);M2.stroke()}M2.fillStyle=f.cas?'#fde047':'#fff';M2.beginPath();M2.arc(q[0],q[1],2+Math.min(4,Math.sqrt(f.m)*.4),0,7);M2.fill()}});
+ if(S.tb>0){const p=geo(S.xb,0),q=px(p[0],p[1]);M2.strokeStyle='#fc3d21';M2.lineWidth=2;M2.beginPath();M2.arc(q[0],q[1],7,0,7);M2.stroke();M2.fillStyle='#fff';M2.fillText('✹ '+tx('PARÇALANMA','BREAK-UP'),q[0]+10,q[1]-6)}
+ const ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end,p=geo(ho[8],0),q=px(p[0],p[1]);M2.fillStyle='#38bdf8';M2.beginPath();M2.arc(q[0],q[1],5,0,7);M2.fill();
+ M2.font='bold 11px Inter,sans-serif';M2.fillStyle='#ef4444';M2.fillText('■ '+tx('KIRMIZI BÖLGE (yasak/tehlike)','RED ZONE (keep-out)'),8,14);M2.fillStyle='#f59e0b';M2.fillText('■ '+tx('SARI: dikkat / NOTAM alanı','AMBER: caution / NOTAM area'),8,28);M2.fillStyle='#10b981';M2.fillText('■ '+tx('YEŞİL: güvenli bölge','GREEN: safe zone'),8,42)}
+function drawChart(t){const W=cc.w,H=cc.h,r=S.main.rows;C.fillStyle='#050b1a';C.fillRect(0,0,W,H);const T0=r[r.length-1][0]||1;
+ const ser=[[5,'#fc3d21',S.pk,tx('Isı akısı','Heat flux')],[6,'#f59e0b',Math.max(...r.map(a=>a[6]),1),tx('Sıcaklık','Temp')],[4,'#38bdf8',Math.max(...r.map(a=>a[4]),1),tx('Yavaşlama g','Decel g')],[7,'#a78bfa',P.mat,tx('Birikmiş ısı / eşik','Heat load / limit')]];
+ ser.forEach((s,k)=>{C.strokeStyle=s[1];C.lineWidth=1.6;C.beginPath();r.forEach((p,i)=>{const x=p[0]/T0*(W-10)+5,y=H-8-(p[s[0]]/s[2])*(H-24);i?C.lineTo(x,y):C.moveTo(x,y)});C.stroke();C.fillStyle=s[1];C.font='10px Inter,sans-serif';C.fillText(s[3],8+k*105,12)});
+ const cx=Math.min(t,T0)/T0*(W-10)+5;C.strokeStyle='#fff';C.beginPath();C.moveTo(cx,0);C.lineTo(cx,H);C.stroke();if(S.tb>0){const bx=S.tb/T0*(W-10)+5;C.strokeStyle='#fc3d21';C.setLineDash([3,3]);C.beginPath();C.moveTo(bx,0);C.lineTo(bx,H);C.stroke();C.setLineDash([])}}
+function hud(t){const ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end;let s=tx('ALÇALMA','DESCENT'),c='#38bdf8';
+ if(S.tb>0&&t>=S.tb){s=tx('💥 PARÇALANMA / ENKAZ BULUTU','💥 BREAK-UP / DEBRIS CLOUD');c='#fc3d21'}else if(S.tb>0&&t>=S.tp){s=tx('⚠ PANEL KOPMASI / YAPISAL ZORLANMA','⚠ APPENDAGE SHEDDING / STRUCTURAL LOAD');c='#f59e0b'}else if(ho[5]/Math.max(S.pk,1e-9)>.1){s=tx('🔥 PLAZMA ISINMASI','🔥 PLASMA HEATING');c='#f97316'}
+ $('st').textContent=s;$('st').style.color=c;$('a').textContent=ho[1].toFixed(1);$('v').textContent=ho[2].toFixed(2);$('t').textContent=ho[6].toFixed(0);$('g').textContent=ho[4].toFixed(1);$('q').textContent=ho[5].toFixed(2);$('e').textContent=(ho[7]/P.mat*100).toFixed(0)+'%';$('tt').textContent=t.toFixed(0)+' s';$('scrub').value=t/S.tmax*1000}
+function zoneArea(k){const e=k*.12*S.len+(k>1?20:0);return(S.len+2*e)*(2*S.w3*k)}
+function legend(){const ar=zoneArea(1),aa=zoneArea(2.2)-ar,pe=Math.round(ar*P.pop);
+ return`<div class="zc r"><b>🔴 ${tx('KIRMIZI BÖLGE · Tehlike / Yasak alan','RED ZONE · Hazard / keep-out')}</b><p>${tx('Yere ulaşan ve ≥15 J enerjili parçaların (can kaybı eşiği) %99,7 olasılıkla ineceği koridor (±3σ). Deniz ve hava trafiğine kapatılır, insanlar tahliye/barınma uyarısı alır.','Corridor where surviving fragments with ≥15 J (casualty threshold) land with 99.7% probability (±3σ). Closed to ships and aircraft; people are told to shelter or evacuate.')}</p><span>${ar.toFixed(0)} km² · ~${pe.toLocaleString()} ${tx('kişi (seçili yoğunlukta)','people (at selected density)')}</span></div>
+ <div class="zc a"><b>🟡 ${tx('SARI BÖLGE · Dikkat / NOTAM alanı','AMBER ZONE · Caution / NOTAM area')}</b><p>${tx('Rüzgâr, takla ve parçalanma irtifası belirsizliğini kapsayan tampon. Havacılık (NOTAM) ve denizcilik (NAVAREA) uyarısı yayınlanır; geçiş kısıtlanabilir.','Buffer covering wind, tumbling and break-up altitude uncertainty. Aviation (NOTAM) and maritime (NAVAREA) warnings are issued; transit may be restricted.')}</p><span>+${aa.toFixed(0)} km²</span></div>
+ <div class="zc g"><b>🟢 ${tx('YEŞİL · Güvenli bölge','GREEN · Safe zone')}</b><p>${tx('Haritanın geri kalanı: parça düşme olasılığı ihmal edilebilir, önlem gerekmez.','Rest of the map: fragment-fall probability is negligible; no action needed.')}</p></div>`}
+function riskUI(){const ec=S.ec,g=ec>1e-4?['red',tx('KIRMIZI · NASA 1:10.000 sınırı AŞILDI','RED · exceeds NASA 1:10,000 limit')]:ec>1e-5?['amber',tx('SARI · sınıra yakın','AMBER · near limit')]:['green',tx('YEŞİL · kabul edilebilir','GREEN · acceptable')];
+ $('zones').innerHTML=legend();let h=`<div class="rk ${g[0]}">${g[1]}</div><div class="kv"><span>${tx('Beklenen kayıp (Ec)','Casualty expectation (Ec)')}</span><b>${ec>0?'1 : '+Math.round(1/ec).toLocaleString():'0'}</b></div>
+ <div class="kv"><span>${tx('Parçalanma irtifası','Break-up altitude')}</span><b>${S.tb>0?S.main.end[1].toFixed(1)+' km':tx('yok (bütün iniş)','none (intact)')}</b></div>
+ <div class="kv"><span>${tx('Hayatta kalan / toplam','Survivors / total')}</span><b>${S.sv.length} / ${S.frags.length}</b></div>
+ <div class="kv"><span>${tx('Kırmızı bölge','Red zone')}</span><b>${(S.len+S.len*.24).toFixed(0)} × ${(S.w3*2).toFixed(0)} km</b></div>
+ <div class="kv"><span>${tx('Hedef yörünge','Target orbit')}</span><b>${D.alt} km · ${D.inc}°</b></div>`;
+if(P.reg>=0){const r=D.regions[P.reg];h+=`<div class="kv"><span>${tx('Hedef yüzey','Target surface')}</span><b>${TR?r[0]:r[1]}</b></div><div class="kv"><span>${tx('Nüfus yoğunluğu','Population density')}</span><b>${r[4]}/km²</b></div>`;if(Math.abs(r[2])>D.inc+1)h+=`<div class="note">⚠ ${tx('Yörünge eğimi bu enleme ulaşmıyor; kontrollü yeniden giriş için düzlem değiştirme manevrası gerekir.','Orbit inclination does not reach this latitude; a plane-change burn would be required for a controlled re-entry.')}</div>`}
+ if(D.risk.n!=null){h+=`<div class="kv"><span>${tx('Çarpışma taraması','Conjunction scan')}</span><b>${D.risk.n} ${tx('yakın geçiş','close appr.')}</b></div>`;
+  h+=D.risk.hit?`<div class="note">⚠ ${tx('Bu nesne taramada','This object is in scan')}: ${D.risk.hit.other} · ${D.risk.hit.miss} km · ${D.risk.hit.risk}</div>`:`<div class="note">${tx('Bu nesne için yakın geçiş kaydı yok.','No close approach on record for this object.')}</div>`}
+ else h+=`<div class="note">${tx('Çarpışma Riski sayfasında tarama çalıştırılırsa sonuçlar burada görünür.','Run the scan on the Collision Risk page to link results here.')}</div>`;
+ if(D.defense)h+=`<div class="note">🛡 ${tx('Savunma matrisi aktif','Defense matrix armed')}</div>`;
+ const top=[...S.frags].sort((a,b)=>(b.ke||0)-(a.ke||0)).slice(0,6);
+ h+='<table>'+top.map(f=>`<tr><td>${f.name}</td><td>${f.m.toFixed(1)} kg</td><td>${f.fate==='impact'?(f.vi.toFixed(0)+' m/s · '+(f.ke/1e3).toFixed(1)+' kJ'):'🔥 '+f.end[1].toFixed(0)+' km'}</td></tr>`).join('')+'</table>';$('risk').innerHTML=h}
+function recompute(){P={mass:+$('m').value,area:+$('ar').value,angle:+$('an').value,mat:+$('mt').value,pop:+$('pp').value,reg:+$('rg').value};if(P.reg>=0)P.pop=D.regions[P.reg][4];$('pp').disabled=P.reg>=0;
+ ['m','ar','an'].forEach(i=>$(i+'v').textContent=$(i).value);sim();S.pk=Math.max(...S.main.rows.map(a=>a[5]),1e-9);S.tb=tb;T=0;flash=-1;riskUI();play=true}
+function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.1);last=now;
+ if(play){const base=Math.max(1,S.tmax/(+$('sp').value)),nb=S.tb>0&&Math.abs(T-S.tb)<10?.18:1;T+=dt*base*nb;if(T>=S.tmax){T=S.tmax;play=false}}
+ drawSide(T);drawMap(T);drawChart(T);hud(T)}
+function init(){const mats=D.mats;$('mt').innerHTML=mats.map(m=>`<option value="${m[1]}">${TR?m[2]:m[0]}</option>`).join('');
+ $('m').value=D.mass;$('ar').value=D.area;$('an').value=D.angle;$('mt').value=D.mat;$('pp').value=D.pop;
+ document.querySelectorAll('[data-i]').forEach(e=>e.textContent=tx(e.dataset.tr,e.dataset.en));
+ $('rg').innerHTML=`<option value="-1">${tx('Doğal (TLE yer izi)','Natural (TLE ground track)')}</option>`+D.regions.map((r,i)=>`<option value="${i}">${TR?r[0]:r[1]}</option>`).join('');$('rg').value=-1;['m','ar','an','mt','pp','rg'].forEach(i=>$(i).oninput=recompute);$('pl').onclick=()=>{if(T>=S.tmax)T=0;play=!play};$('rs').onclick=()=>{T=0;play=true};
+ $('scrub').oninput=e=>{T=e.target.value/1000*S.tmax;play=false};$('zi').onclick=()=>zoom=Math.min(zoom*1.6,8);$('zo').onclick=()=>zoom=Math.max(zoom/1.6,.5);
+ [cs,cm,cc].forEach(fit);addEventListener('resize',()=>[cs,cm,cc].forEach(fit));recompute();requestAnimationFrame(frame)}
+init();
+</script></body></html>
+"""
+
+
+def _mat_name(m):
+    return _MAT_TR.get(m, m) if st.session_state.lang == "tr" else m
+
+
+def _sim_open():
+    st.session_state.sg_sim_cfg = {k: st.session_state.get(s) for k, s in
+                                   (("target", "sg_target"), ("mass", "sg_mass"), ("area", "sg_area"),
+                                    ("angle", "sg_angle"), ("material", "sg_material"))}
+    st.session_state.sg_sim_mode = True
+
+
+def _sim_close():
+    st.session_state.sg_sim_mode = False
+
+
+def _sim_orbit(name):
+    """Hedef uydunun TLE'sinden şu anki irtifa/eğim/alt-nokta ve yer izi yönü (SGP4)."""
+    out = {"alt": 420, "inc": 51.6, "lat": 0.0, "lon": 0.0, "az": math.asin(math.cos(math.radians(51.6)))}
+    try:
+        for n, a, b in CAT["groups"]["visual"] + CAT["groups"]["active"]:
+            if n != name:
+                continue
+            s = Satrec.twoline2rv(a, b)
+            jd, fr = to_jd(utc_now())
+            e, r, v = s.sgp4(jd, fr)
+            if e != 0:
+                break
+            rn = math.sqrt(sum(c * c for c in r))
+            gmst = math.radians((280.46061837 + 360.98564736629 * (jd + fr - 2451545.0)) % 360)
+            lat = math.asin(r[2] / rn)
+            inc = s.inclo
+            az = math.asin(max(-1, min(1, math.cos(inc) / max(math.cos(lat), 1e-6))))
+            if v[2] < 0:
+                az = math.pi - az
+            out.update(alt=round(rn - RE), inc=round(math.degrees(inc), 2), lat=math.degrees(lat),
+                       lon=(math.degrees(math.atan2(r[1], r[0]) - gmst) + 540) % 360 - 180, az=az)
+            break
+    except Exception:
+        pass
+    return out
+
+
+def _sim_risk(name):
+    """Çarpışma Riski sayfasındaki tarama sonuçlarından bu nesneye ait kaydı bağlar."""
+    df, meta = st.session_state.get("conj_df"), st.session_state.get("conj_meta")
+    res = {"n": None, "hit": None}
+    try:
+        if df is not None:
+            res["n"] = int(len(df))
+            if not df.empty and name != "Custom object":
+                m = df[(df["Object A"] == name) | (df["Object B"] == name)]
+                if not m.empty:
+                    row = m.sort_values("Miss Distance (km)").iloc[0]
+                    res["hit"] = {"other": str(row["Object B"] if row["Object A"] == name else row["Object A"]),
+                                  "miss": round(float(row["Miss Distance (km)"]), 2), "risk": str(row.get("Risk", ""))}
+        elif meta:
+            res["n"] = int(meta.get("count", 0))
+    except Exception:
+        pass
+    return res
+
+
+if st.session_state.get("sg_sim_mode"):
+    _cfg = st.session_state.get("sg_sim_cfg") or {}
+    _tg = _cfg.get("target", "Custom object")
+    _o = _sim_orbit(_tg)
+    _payload = {"lang": st.session_state.lang, "atm": ATM, "mats": [[k, v, _MAT_TR[k]] for k, v in MATERIALS.items()],
+                "mass": _cfg.get("mass", 1200), "area": _cfg.get("area", 4.0), "angle": _cfg.get("angle", 3.0),
+                "mat": MATERIALS.get(_cfg.get("material"), 0.97), "pop": 50, "risk": _sim_risk(_tg),
+                "regions": REGIONS, "defense": bool(st.session_state.get("defense_active")), **_o}
+    st.markdown("<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');.block-container{padding-top:1rem !important}.stApp,.stApp p,.stApp button,.stApp label{font-family:'Inter','Segoe UI',sans-serif !important}.stApp h1,.stApp h2,.stApp h3{font-family:'Space Grotesk','Inter',sans-serif !important;letter-spacing:-.01em}</style>", unsafe_allow_html=True)
+    _h1, _h2 = st.columns([5, 1])
+    _tgt_lbl = T("Özel nesne", "Custom object") if _tg == "Custom object" else _tg
+    _h1.markdown(f"### 🔥 SPACE GRAVE [SP4C3 GR4V3] {T('Yeniden Giriş ve Parçalanma Simülatörü', 'Re-Entry & Break-Up Simulator')} · <span style='color:#38bdf8'>{html_escape(str(_tgt_lbl))}</span>", unsafe_allow_html=True)
+    _h2.button(T("✕ Simülasyondan çık", "✕ Exit simulation"), key="sg_sim_exit", on_click=_sim_close, **stretch(st.button))
+    st.caption(T("Odak modu: site modülleri duraklatıldı; simülasyon tarayıcıda çalışır. Çıkınca her şey kaldığı yerden devam eder.",
+                 "Focus mode: site modules are paused; the simulation runs in the browser. Everything resumes as you left it on exit."))
+    embed_html(SIM_HTML.replace("__DATA__", json.dumps(_payload)), height=1400)
+    st.stop()
+
+
 _feed_word = FEED_LABEL.split(" ")[0]
 st.markdown(_flat(f"""
     <div class="sg-mnav">
@@ -1169,8 +1798,23 @@ st.markdown(_flat(f"""
 with _keyed("sg_back"):
     st.button(T("← Giriş Sayfası", "← Home Page"), key="sg_back_btn", on_click=_back_to_intro)
 
-st.title(T("🛰️ SPACE GRAVE [SP4C3 GR4V3] | Küresel Uzay Çöpü Merkezi", "🛰️ SPACE GRAVE [SP4C3 GR4V3] | Global Space Debris Center"))
-st.markdown(T("### NASA Space Apps Challenge - JPL Komuta Merkezi", "### NASA Space Apps Challenge - JPL Command Center"))
+_fw = FEED_LABEL.split(" ")[0]
+_feed_chip = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
+              "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(_fw, ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
+st.markdown(_flat(f"""
+<div class="ops-banner">
+  <div>
+    <div class="ops-eyebrow">NASA Space Apps Challenge · JPL {T("Komuta Merkezi", "Command Center")}</div>
+    <div class="ops-title">SPACE GRAVE <span>[SP4C3 GR4V3]</span></div>
+    <div class="ops-sub">{T("Küresel Uzay Çöpü Merkezi", "Global Space Debris Center")}</div>
+  </div>
+  <div class="ops-leds">
+    <span class="ops-led g">SYSTEM ONLINE</span>
+    <span class="ops-led {_feed_chip[0]}">{_feed_chip[1]}</span>
+    <span class="ops-led c">SGP4 {T("MOTORU NORMAL", "PROPAGATOR NOMINAL")}</span>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
 
 PAGES = ["📊 General Status Overview", "🌍 3D Earth & Orbital Radar",
          "🚨 Collision Risk Analysis", "🔥 Re-Entry & Burn-Up Sim"]
@@ -1192,6 +1836,60 @@ def go_to(page):
     st.session_state.active_page = page
 
 
+def _ops_ticker():
+    n_a, n_d = len(CAT["groups"]["active"]), len(CAT["debris"])
+    cj = st.session_state.conj_meta
+    iss = None
+    try:
+        _m = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")]
+        iss = _m.iloc[0] if not _m.empty else None
+        n_dec = int((df_api["Status"].str.startswith("DECAYING")).sum()) if not df_api.empty else 0
+    except Exception:
+        n_dec = 0
+    it = [(T("KATALOG SENKRON", "CATALOG SYNC"), CAT["fetched"], ""),
+          (T("TAKİPTEKİ NESNE", "OBJECTS TRACKED"), f"{n_a + n_d:,}", ""),
+          (T("AKTİF UYDU", "ACTIVE SATS"), f"{n_a:,}", ""),
+          (T("ENKAZ", "DEBRIS"), f"{n_d:,}", "r")]
+    if iss is not None:
+        it += [("ISS " + T("İRTİFA", "ALT"), f"{iss['Altitude (km)']} km", ""), ("ISS " + T("HIZ", "VEL"), f"{iss['Speed (km/s)']} km/s", ""),
+               ("ISS " + T("EĞİM", "INC"), f"{iss['Inclination (°)']}°", "")]
+    it += [(T("ALÇALAN (<300 km)", "DECAYING (<300 km)"), str(n_dec), "a" if n_dec else ""),
+           (T("YAKIN GEÇİŞ", "CONJUNCTIONS"), f"{cj['count']}" if cj else "—", "a" if cj else ""),
+           (T("SAVUNMA MATRİSİ", "DEFENSE MATRIX"), _defense_txt(), "g" if st.session_state.defense_active else ""),
+           (T("YÖRÜNGE MOTORU", "PROPAGATOR"), "SGP4 NOMINAL", "g")]
+    items = "".join(f'<span class="it"><i>{html_escape(a)}</i><b class="{c}">{html_escape(str(b))}</b></span><span class="sep">//</span>' for a, b, c in it)
+    onl = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
+           "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(FEED_LABEL.split(" ")[0], ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
+    html = """<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"><style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+.t{display:flex;align-items:center;height:34px;background:rgba(5,11,20,.95);border-bottom:1px solid rgba(34,211,238,.18);border-top:1px solid rgba(34,211,238,.08);color:#9fb3cc;font-size:11px}
+.lbl{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-right:1px solid rgba(34,211,238,.16);letter-spacing:.14em;font-weight:700;font-size:10.5px;white-space:nowrap}
+.lbl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);animation:p 2s infinite}
+.g{--c:#34d399;color:#34d399}.c{--c:#22d3ee;color:#22d3ee}.a{--c:#f59e0b;color:#f59e0b}.r{--c:#ef4444;color:#ef4444}
+@keyframes p{50%{opacity:.3}}
+.track{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.run{display:inline-flex;align-items:center;white-space:nowrap;animation:m 80s linear infinite;will-change:transform}
+.run:hover{animation-play-state:paused}
+@keyframes m{to{transform:translateX(-50%)}}
+.it{display:inline-flex;gap:8px;align-items:baseline;padding:0 4px}
+.it i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
+.it b{font-weight:500;color:#67e8f9}.it b.r{color:#ef4444}.it b.a{color:#f59e0b}.it b.g{color:#34d399}
+.sep{color:#1f3b57;padding:0 14px}
+.clk{flex:0 0 auto;padding:0 14px;height:100%;display:flex;align-items:center;gap:8px;border-left:1px solid rgba(34,211,238,.16);color:#e2e8f0;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clk i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
+@media(max-width:760px){.lbl.hide{display:none}}
+</style></head><body><div class="t">
+<div class="lbl g">SYSTEM ONLINE</div><div class="lbl hide __OC__">__OT__</div>
+<div class="track"><div class="run">__IT____IT__</div></div>
+<div class="clk"><i>UTC</i><span id="u">--:--:--</span></div></div>
+<script>function t(){var d=new Date();document.getElementById('u').textContent=d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,19);}t();setInterval(t,1000);</script>
+</body></html>""".replace("__OC__", onl[0]).replace("__OT__", html_escape(onl[1])).replace("__IT__", items)
+    with _keyed("sg_ticker"):
+        embed_html(html, height=34)
+
+
+_ops_ticker()
+
 # on_click ile sayfa tek çalıştırmada değişir (st.rerun ile script iki kez çalışıyordu)
 for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
     with col:
@@ -1199,13 +1897,16 @@ for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
 
 _act_i = PAGES.index(st.session_state.active_page) if st.session_state.active_page in PAGES else 0
 st.markdown(f"""<style>
-.st-key-sg_nav_{_act_i} .stButton > button {{ background:rgba(56,189,248,.22) !important; border-color:#38bdf8 !important; }}
+.st-key-sg_nav_{_act_i} .stButton > button {{ background:rgba(34,211,238,.13) !important; border-color:#22d3ee !important; box-shadow:inset 0 -2px 0 #22d3ee, 0 0 20px rgba(34,211,238,.16) !important; }}
 .st-key-sg_nav_{_act_i} .stButton > button p {{ color:#fff !important; }}
 </style>""", unsafe_allow_html=True)
 
 _lbl_mod, _lbl_feed, _lbl_upd = T("Aktif Modül", "Active Module"), T("Veri", "Feed"), T("Güncelleme", "Updated")
-st.markdown(f"<p style='color: #38bdf8; font-size: 13px; margin-top: 5px;'>{_lbl_mod}: <b>{page_label(st.session_state.active_page)}</b> &nbsp;|&nbsp; {_lbl_feed}: <b>{FEED_LABEL}</b> &nbsp;|&nbsp; {_lbl_upd}: <b>{CAT['fetched']}</b></p>", unsafe_allow_html=True)
-st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.25); margin: 15px 0;'>", unsafe_allow_html=True)
+st.markdown(_flat(f"""<div class="ops-strip">
+<span><i>{_lbl_mod}</i><b>{html_escape(page_label(st.session_state.active_page))}</b></span>
+<span><i>{_lbl_feed}</i><b>{html_escape(FEED_LABEL)}</b></span>
+<span><i>{_lbl_upd}</i><b>{CAT['fetched']}</b></span>
+</div>"""), unsafe_allow_html=True)
 
 # =====================================================================
 # 1. MODÜL: OVERVIEW
@@ -1246,230 +1947,1118 @@ if st.session_state.active_page == PAGES[0]:
         _lab = {"Active": T("Aktif", "Active"), "Debris": T("Enkaz", "Debris")}
         shells = shells.rename(columns={"Inclination (°)": _xl, "Altitude (km)": _yl, "Class": _cl})
         shells[_cl] = shells[_cl].map(_lab)
-        fig = px.scatter(shells, x=_xl, y=_yl, color=_cl, opacity=0.55,
-                         color_discrete_map={_lab["Active"]: "#38bdf8", _lab["Debris"]: "#fc3d21"},
-                         template="plotly_dark", height=430)
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig = go.Figure()
+        _cmap = {_lab["Active"]: "34,211,238", _lab["Debris"]: "239,68,68"}
+        _hv = f"<b>%{{fullData.name}}</b><br>{_xl}: %{{x:.2f}}<br>{_yl}: %{{y:.0f}}<extra></extra>"
+        for _nm, _g in shells.groupby(_cl):
+            _rgb = _cmap.get(_nm, "148,163,184")
+            # parlama (glow): iki yarı saydam halka + parlak çekirdek
+            for _sz, _al in ((16, 0.035), (9, 0.09)):
+                fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", hoverinfo="skip", showlegend=False,
+                                           marker=dict(size=_sz, color=f"rgba({_rgb},{_al})")))
+            fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", name=f"{_nm} · {len(_g):,}", hovertemplate=_hv,
+                                       marker=dict(size=3.4, color=f"rgba({_rgb},0.92)")))
+        try:
+            _iss = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")].iloc[0]
+            fig.add_trace(go.Scatter(x=[_iss["Inclination (°)"]], y=[_iss["Altitude (km)"]], mode="markers+text", text=["ISS"],
+                                     textposition="top right", textfont=dict(color="#f59e0b", size=11), name="ISS",
+                                     marker=dict(symbol="diamond", size=11, color="#f59e0b", line=dict(color="#fff", width=1)), hovertemplate=_hv))
+        except Exception:
+            pass
+        fig.add_vrect(x0=96.5, x1=99.5, fillcolor="rgba(245,158,11,0.06)", line_width=0,
+                      annotation_text=T("GÜNEŞ-SENKRON", "SUN-SYNC"), annotation_position="top left",
+                      annotation_font=dict(color="#f59e0b", size=10))
+        fig.add_hline(y=550, line=dict(color="rgba(148,163,184,.35)", width=1, dash="dot"),
+                      annotation_text="550 km", annotation_position="bottom right", annotation_font=dict(color="#8195b0", size=10))
+        fig.update_layout(template="plotly_dark", height=470, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(5,11,20,.55)",
+                          margin=dict(l=10, r=14, t=40, b=10), hovermode="closest",
+                          legend=dict(orientation="h", y=1.09, x=0, bgcolor="rgba(0,0,0,0)", font=dict(size=11)))
+        _ax = dict(gridcolor="rgba(34,211,238,.10)", zeroline=False, linecolor="rgba(34,211,238,.35)", ticks="outside",
+                   tickcolor="rgba(34,211,238,.35)", showspikes=True, spikecolor="#22d3ee", spikethickness=1, spikedash="dot", spikemode="across")
+        fig.update_xaxes(title=_xl, **_ax)
+        fig.update_yaxes(title=_yl, **_ax)
+        try:
+            fig.update_xaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
+            fig.update_yaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
+        except Exception:
+            pass
         st.plotly_chart(fig, **stretch(st.plotly_chart))
     else:
         st.info(T("Şu an gösterilecek yörünge verisi yok (yedek TLE'ler çok eski olabilir).",
                   "There is no orbit data to show right now (the fallback TLEs may be too old)."))
 
     st.markdown(T("#### 📡 Canlı Takip Tablosu", "#### 📡 Live Tracking Table"))
-    st.dataframe(_disp(df_api), hide_index=True, **stretch(st.dataframe))
+    def _ops_table(df, max_h=400):
+        if df is None or df.empty:
+            return ""
+        num = [pd.api.types.is_numeric_dtype(df[c]) for c in df.columns]
+        th = "".join(f'<th class="{"n" if n else ""}">{html_escape(str(c))}</th>' for c, n in zip(df.columns, num))
+        rows = []
+        for rec in df.itertuples(index=False):
+            tds = []
+            for j, (v, n) in enumerate(zip(rec, num)):
+                sv = html_escape(str(v))
+                u = str(v).upper()
+                if df.columns[j] in ("Status", "Durum"):
+                    k = "ok" if ("CREWED" in u or "MÜRETTEBATLI" in u) else ("warn" if ("DECAY" in u or "ALÇAL" in u) else "nom")
+                    tds.append(f'<td><span class="ops-chip {k}">{sv}</span></td>')
+                elif j == 0:
+                    tds.append(f'<td class="nm">{sv}</td>')
+                else:
+                    tds.append(f'<td class="{"n" if n else ""}">{sv}</td>')
+            rows.append("<tr>" + "".join(tds) + "</tr>")
+        bar = f'<div class="ops-tbl-bar"><span>{T("TAKİPTEKİ NESNELER", "TRACKED OBJECTS")} · <b>{len(df)}</b></span><span class="ops-led c" style="padding:3px 9px">{T("CANLI", "LIVE")}</span></div>'
+        return _flat(f'{bar}<div class="ops-tbl-wrap" style="max-height:{max_h}px"><table class="ops-tbl"><thead><tr>{th}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+
+    st.markdown(_ops_table(_disp(df_api)), unsafe_allow_html=True)
+
+    # =====================================================================
+    # EK MODÜL: KESSLER SENDROMU — ZİNCİRLEME KAZA RİSKİ VE TEMİZLİK ÖNCELİĞİ
+    # Yukarıdaki hiçbir bölüme dokunmaz; yalnızca CAT (CelesTrak) verisini OKUR.
+    # Değişken / widget adları kc_ / KC_ / sg_kc_ önekiyle ayrılmıştır.
+    # =====================================================================
+    st.markdown("<hr style='border: 1px solid rgba(252,61,33,0.30); margin: 28px 0 14px 0;'>", unsafe_allow_html=True)
+    st.markdown(T("#### 🧨 Kessler Sendromu: Zincirleme Kaza Riski ve Temizlik Önceliği",
+                  "#### 🧨 Kessler Syndrome: Cascade Collision Risk & Cleanup Priority"))
+    st.caption(T("Canlı CelesTrak verisi (aktif uydular + enkaz bulutları) ile yörünge kabuklarının çarpışma-zincirleme riski hesaplanır; "
+                 "güncel risk bulguları ve literatür kaynakları ayrı sekmededir. Eğitim amaçlı, basitleştirilmiş bir modeldir.",
+                 "Cascade risk of each orbital shell is computed from live CelesTrak data (active satellites + debris clouds); "
+                 "current risk findings and literature sources are on a separate tab. This is a simplified, educational model."))
+
+    # ---- Model sabitleri (gaz-kinetik / kabuk modeli) ----
+    KC_EDGES = np.arange(300, 1550, 50)                         # 300–1500 km, 50 km'lik kabuklar
+    KC_MID = (KC_EDGES[:-1] + KC_EDGES[1:]) / 2.0
+    KC_VOL = 4.0 * np.pi * (RE + KC_MID) ** 2 * 50.0            # kabuk hacmi, km³
+    KC_V_REL = 10.0 * 3.156e7                                   # ≈10 km/s göreli hız -> km/yıl
+    KC_SIG_LL = math.pi * (2 * 1.6e-3) ** 2                     # büyük–büyük kesit alanı (r≈1,6 m), km²
+    KC_SIG_LS = math.pi * (1.6e-3 + 0.15e-3) ** 2               # büyük–parça (≥10 cm sınıfı), km²
+    KC_F_LL, KC_F_LS = 1500, 300                                # çarpışma başına üretilen katalog boyutlu parça
+    KC_AVOID = 0.999                                            # aktif uyduların kaçınma manevrası başarısı
+    KC_R_TOTAL = 1200                                           # terk edilmiş büyük nesne (≈2.000.000 kg / 1800 kg, McKnight+2021)
+    KC_TAU_H = [300, 350, 400, 450, 500, 550, 600, 650, 700, 800, 900, 1000, 1200, 1500]
+    KC_TAU_Y = [0.05, 0.2, 0.8, 2, 5, 12, 30, 60, 120, 400, 1200, 3000, 8000, 20000]   # kaba parça ömrü, yıl
+    KC_TAU = np.exp(np.interp(KC_MID, KC_TAU_H, np.log(KC_TAU_Y)))
+
+    def kc_rates(A, R, S):
+        """Kabuk başına yıllık beklenen çarpışma sayıları. A: aktif uydu, R: terk edilmiş büyük nesne, S: parça."""
+        k = KC_V_REL / KC_VOL
+        u = 1.0 - KC_AVOID                                       # aktifler manevra yapar; yalnızca kaçamayan kısım çarpışır
+        rr = 0.5 * R * R * KC_SIG_LL * k
+        rs = R * S * KC_SIG_LS * k
+        ar = A * R * KC_SIG_LL * k * u
+        a_s = A * S * KC_SIG_LS * k * u
+        aa = 0.5 * A * A * KC_SIG_LL * k * u
+        return rr, rs, ar, a_s, aa
+
+    def kc_yield(A, R, S):
+        """(büyük çarpışma/yıl, üretilen yeni parça/yıl) — kabuk başına."""
+        rr, rs, ar, a_s, aa = kc_rates(A, R, S)
+        big = rr + ar + aa
+        return big, KC_F_LL * big + KC_F_LS * (rs + a_s)
+
+    def kc_simulate(A0, R0, S0, years, remove_per_yr, new_per_yr, strategy, dt=0.5):
+        """Beklenen-değer (deterministik) kabuk simülasyonu. strategy: none | random | targeted."""
+        A, R, S = A0.astype(float).copy(), R0.astype(float).copy(), S0.astype(float).copy()
+        shape = R0 / max(float(R0.sum()), 1e-9)
+        n = int(round(years / dt))
+        tot, cum_big, cum_frag = [A.sum() + R.sum() + S.sum()], [0.0], [0.0]
+        removed = np.zeros_like(R)
+        for _ in range(n):
+            rr, rs, ar, a_s, aa = kc_rates(A, R, S)
+            big = rr + ar + aa
+            Y = KC_F_LL * big + KC_F_LS * (rs + a_s)
+            S = np.clip(S + dt * (Y - S / KC_TAU - rs - a_s), 0, 1e7)
+            R = np.clip(R + dt * (-(2 * rr + ar + rs) - R / KC_TAU + new_per_yr * shape), 0, 1e6)
+            todo = remove_per_yr * dt if strategy != "none" else 0.0
+            while todo > 1e-9 and R.sum() > 1e-6:
+                amt = min(1.0, todo)
+                if strategy == "random":
+                    take = amt * R / R.sum()
+                else:
+                    # Liou & Johnson: kütle × çarpışma olasılığı en yüksek hedef önce -> en çok parça üreten kabuk
+                    rr2, rs2, ar2, _, _ = kc_rates(A, R, S)
+                    pr = (KC_F_LL * (2 * rr2 + ar2) + KC_F_LS * rs2) / np.maximum(R, 1e-9)
+                    pr[R < 1.0] = -1.0
+                    b = int(np.argmax(pr))
+                    if pr[b] < 0:
+                        b = int(np.argmax(R))
+                    take = np.zeros_like(R)
+                    take[b] = min(amt, R[b])
+                R -= take
+                removed += take
+                todo -= amt
+            tot.append(A.sum() + R.sum() + S.sum())
+            cum_big.append(cum_big[-1] + float(big.sum()) * dt)
+            cum_frag.append(cum_frag[-1] + float(Y.sum()) * dt)
+        return {"t": np.arange(n + 1) * dt, "tot": np.array(tot), "big": cum_big[-1], "frag": cum_frag[-1], "removed": removed}
+
+    @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
+    def kc_debris_elements(fetched, _tles):
+        # TLE'den ortalama irtifa / perigee / apogee / eğim (SGP4 yayılımı gerekmez); fetched yalnızca önbellek anahtarı
+        rows, mu = [], 398600.4418
+        for name, l1, l2 in _tles:
+            try:
+                s = Satrec.twoline2rv(l1, l2)
+                n = s.no_kozai / 60.0                            # rad/dk -> rad/sn
+                if n <= 0:
+                    continue
+                a = (mu / n ** 2) ** (1.0 / 3.0)
+                rows.append((name, norad_id(l1), a - RE, a * (1 - s.ecco) - RE, a * (1 + s.ecco) - RE, math.degrees(s.inclo)))
+            except Exception:
+                continue
+        return pd.DataFrame(rows, columns=["name", "norad", "alt", "perigee", "apogee", "inc"])
+
+    KC_CLOUDS = (("FENGYUN 1C", "Fengyun-1C · 2007"), ("COSMOS 2251", "Cosmos 2251 · 2009"),
+                 ("IRIDIUM 33", "Iridium 33 · 2009"), ("COSMOS 1408", "Cosmos 1408 · 2021"))
+
+    def kc_cloud(name):
+        u = str(name).upper()
+        for key, lab in KC_CLOUDS:
+            if key in u:
+                return lab
+        return T("Diğer enkaz", "Other debris")
+
+    def kc_band(i):
+        return f"{int(KC_EDGES[i])}–{int(KC_EDGES[i + 1])} km"
+
+    # ---- Canlı durumdan başlangıç popülasyonu ----
+    kc_A0 = np.histogram(CAT["a_alt"], KC_EDGES)[0].astype(float)     # aktif uydular (CelesTrak 'active')
+    kc_S0 = np.histogram(CAT["d_alt"], KC_EDGES)[0].astype(float)     # enkaz parçaları (CelesTrak debris grupları)
+    kc_w = np.where(KC_MID >= 500, kc_S0, 0.0)                        # büyük terk edilmiş nesneler enkaz profilini izler (varsayım)
+    if kc_w.sum() <= 0:
+        kc_w = np.where((KC_MID >= 700) & (KC_MID <= 1000), 1.0, 0.0)
+    kc_R0 = KC_R_TOTAL * kc_w / kc_w.sum()
+
+    kc_big, kc_Y = kc_yield(kc_A0, kc_R0, kc_S0)
+    kc_N = kc_A0 + kc_R0 + kc_S0
+    kc_K = kc_Y * KC_TAU / np.maximum(kc_N, 1.0)                      # kararsızlık oranı: ömür boyu üretilen parça / mevcut nesne
+    kc_i_max = int(np.argmax(kc_K))
+    kc_n_crit = int(np.sum(kc_K > 1.0))
+    kc_big_sum = float(kc_big.sum())
+
+    if str(CAT.get("status_label", "")).startswith("OFFLINE"):
+        st.info(T("Canlı veri alınamadı; analiz yedek verilerle çalışıyor, sonuçlar yalnızca gösterge niteliğindedir.",
+                  "Live data could not be fetched; the analysis runs on fallback data and results are indicative only."))
+
+    kc_cards = [
+        (T("Kritik Kabuk (K>1)", "Critical Shells (K>1)"), f"{kc_n_crit}", "color:#fc3d21;"),
+        (T("En Riskli Bant", "Riskiest Band"), kc_band(kc_i_max) if kc_K[kc_i_max] > 0 else "—", "color:#f59e0b;font-size:20px;"),
+        (T("Büyük Çarpışma (model)", "Major Collision (model)"),
+         (T(f"≈{1.0 / kc_big_sum:.0f} yılda 1", f"≈1 per {1.0 / kc_big_sum:.0f} yr") if kc_big_sum > 0 else "—"), "color:#f59e0b;font-size:18px;"),
+        (T("CRASH Clock (26 Oca 2026)", "CRASH Clock (26 Jan 2026)"), T("3,8 gün", "3.8 days"), "color:#fc3d21;"),
+    ]
+    for _col, (_t, _v, _s) in zip(st.columns(4), kc_cards):
+        with _col:
+            st.markdown(f'<div class="nasa-glass-card"><div class="metric-title">{_t}</div><div class="metric-value" style="{_s}">{_v}</div></div>',
+                        unsafe_allow_html=True)
+
+    try:
+        kc_tabs = st.tabs([T("📊 Canlı Risk Haritası", "📊 Live Risk Map"), T("🧹 Temizlik Önceliği", "🧹 Cleanup Priority"),
+                           T("🎛️ Simülasyon", "🎛️ Simulation"), T("📚 Güncel Riskler ve Kaynaklar", "📚 Current Risks & Sources")])
+    except AttributeError:
+        kc_tabs = [st.container() for _ in range(4)]
+
+    # ---------------------------------------------------------------- 1) Canlı risk haritası
+    with kc_tabs[0]:
+        kc_c1, kc_c2 = st.columns(2)
+        with kc_c1:
+            kc_f1 = go.Figure()
+            kc_f1.add_bar(x=KC_MID, y=kc_A0, name=T("Aktif uydu", "Active sats"), marker_color="#38bdf8")
+            kc_f1.add_bar(x=KC_MID, y=kc_R0, name=T("Terk edilmiş büyük nesne (tahmini)", "Derelict large objects (est.)"), marker_color="#f59e0b")
+            kc_f1.add_bar(x=KC_MID, y=kc_S0, name=T("Enkaz parçası", "Debris fragments"), marker_color="#fc3d21")
+            kc_f1.update_layout(barmode="stack", template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                title=T("İrtifa kabuğuna göre nesne sayısı", "Objects per altitude shell"),
+                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title=T("Nesne sayısı", "Objects"),
+                                legend=dict(orientation="h", y=-0.28), margin=dict(t=50, b=10))
+            st.plotly_chart(kc_f1, **stretch(st.plotly_chart))
+        with kc_c2:
+            kc_f2 = go.Figure(go.Bar(x=KC_MID, y=np.maximum(kc_K, 1e-4), customdata=kc_K,
+                                     marker_color=["#fc3d21" if k > 1 else "#38bdf8" for k in kc_K],
+                                     hovertemplate="%{x} km<br>K = %{customdata:.3f}<extra></extra>"))
+            kc_f2.add_hline(y=1, line_dash="dash", line_color="#fbbf24")
+            kc_f2.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                title=T("Kararsızlık oranı K (K>1: zincirleme eğilimi)", "Instability ratio K (K>1: cascade tendency)"),
+                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title="K", yaxis_type="log", margin=dict(t=50, b=10))
+            st.plotly_chart(kc_f2, **stretch(st.plotly_chart))
+        st.caption(T("K = (bir kabukta yıllık üretilen yeni parça × parçanın ortalama yörünge ömrü) ÷ kabukta şu an bulunan nesne sayısı. "
+                     "K>1 ise çarpışmalarla üretilen parça, doğal olarak atmosfere düşenden hızlı artar (ESA'nın 'çarpışmalar çarpışmaları doğurur' tanımı). "
+                     "Aktif uydu ve enkaz sayıları canlı CelesTrak verisidir; terk edilmiş büyük nesne sayısı McKnight+2021'den (≈1.200) tahmindir.",
+                     "K = (new fragments produced per year in a shell × mean orbital lifetime of a fragment) ÷ objects currently in the shell. "
+                     "If K>1, collision-made fragments grow faster than natural decay removes them (ESA's 'collisions causing collisions'). "
+                     "Active-satellite and debris counts are live CelesTrak data; the derelict large-object count is an estimate (≈1,200) from McKnight+2021."))
+        with st.expander(T("Model varsayımları", "Model assumptions")):
+            st.markdown(T(
+                "- Gaz-kinetik kabuk modeli: çarpışma/yıl = ½·N²·σ·v/V (aynı sınıf), N₁·N₂·σ·v/V (farklı sınıf); v ≈ 10 km/s.\n"
+                "- Kesit alanı: büyük nesne yarıçapı ≈ 1,6 m, parça ≈ 15 cm. Çarpışma başına ≈ 1.500 (büyük–büyük) / ≈ 300 (büyük–parça) katalog boyutlu parça.\n"
+                "- Aktif uydular manevra yapar: çarpışma oranı (1 − %99,9) ile çarpılır. Terk edilmiş nesneler ve parçalar manevra yapamaz.\n"
+                "- Parça ömrü irtifaya göre kaba tahmindir (≈12 yıl @550 km, ≈400 yıl @800 km, ≈3.000 yıl @1000 km); Güneş döngüsüne ve alan/kütle oranına bağlıdır.\n"
+                "- Yalnızca ≥10 cm sınıfı ve seçili CelesTrak grupları sayılır; katalog dışı küçük enkaz ve diğer parçalanma olayları dahil değildir (risk alt sınırdır).\n"
+                "- Sonuçlar tahmin değil, ölçek ve karşılaştırma içindir.",
+                "- Gas-kinetic shell model: collisions/yr = ½·N²·σ·v/V (same class), N₁·N₂·σ·v/V (different classes); v ≈ 10 km/s.\n"
+                "- Cross-section: large-object radius ≈ 1.6 m, fragment ≈ 15 cm. Each collision yields ≈ 1,500 (large–large) / ≈ 300 (large–fragment) catalog-size fragments.\n"
+                "- Active satellites manoeuvre: their collision rate is scaled by (1 − 99.9%). Derelicts and fragments cannot manoeuvre.\n"
+                "- Fragment lifetime vs altitude is rough (≈12 yr @550 km, ≈400 yr @800 km, ≈3,000 yr @1000 km); it depends on solar cycle and area-to-mass ratio.\n"
+                "- Only the ≥10 cm class and the selected CelesTrak groups are counted; uncatalogued small debris and other breakups are excluded (risk is a lower bound).\n"
+                "- Results are for scale and comparison, not a forecast."))
+
+    # ---------------------------------------------------------------- 2) Temizlik önceliği
+    with kc_tabs[1]:
+        kc_deb = kc_debris_elements(CAT["fetched"], CAT["debris"])
+        if kc_deb.empty:
+            st.info(T("Enkaz yörünge verisi yok.", "No debris orbit data."))
+        else:
+            kc_deb = kc_deb[(kc_deb["alt"] >= KC_EDGES[0]) & (kc_deb["alt"] < KC_EDGES[-1])].copy()
+            _bi = np.clip(np.digitize(kc_deb["alt"].to_numpy(), KC_EDGES) - 1, 0, len(KC_MID) - 1)
+            kc_deb["life"] = np.exp(np.interp(kc_deb["alt"].to_numpy(), KC_TAU_H, np.log(KC_TAU_Y)))
+            kc_deb["expo"] = (kc_N / KC_VOL)[_bi] * KC_SIG_LS * KC_V_REL * kc_deb["life"]     # ömür boyu beklenen çarpışma
+            kc_deb["p"] = (1.0 - np.exp(-kc_deb["expo"])) * 100.0
+            kc_deb["cloud"] = kc_deb["name"].map(kc_cloud)
+
+            st.markdown(T("**1) Hangi enkaz bulutu / bölge önce temizlenmeli?** (canlı CelesTrak verisi)",
+                          "**1) Which debris cloud / region should be cleaned first?** (live CelesTrak data)"))
+            kc_tot_expo = max(float(kc_deb["expo"].sum()), 1e-12)
+            kc_grp = (kc_deb.groupby("cloud").agg(n=("name", "size"), alt=("alt", "median"), inc=("inc", "median"),
+                                                  life=("life", "median"), expo=("expo", "sum")).reset_index())
+            kc_grp["share"] = kc_grp["expo"] / kc_tot_expo * 100.0
+            kc_grp = kc_grp.sort_values("share", ascending=False).reset_index(drop=True)
+
+            def kc_prio(sh):
+                return (T("🔴 Çok yüksek", "🔴 Very high") if sh >= 35 else T("🟠 Yüksek", "🟠 High") if sh >= 15
+                        else T("🟡 Orta", "🟡 Medium") if sh >= 5 else T("⚪ Düşük", "⚪ Low"))
+
+            st.dataframe(pd.DataFrame({
+                T("Enkaz bulutu", "Debris cloud"): kc_grp["cloud"],
+                T("Nesne", "Objects"): kc_grp["n"].map(_fmt_int),
+                T("Medyan irtifa (km)", "Median alt. (km)"): kc_grp["alt"].round().astype(int),
+                T("Eğim (°)", "Incl. (°)"): kc_grp["inc"].round(1),
+                T("Tahmini ömür (yıl)", "Est. lifetime (yr)"): kc_grp["life"].map(lambda v: _fmt_int(int(round(v)))),
+                T("Risk payı (%)", "Risk share (%)"): kc_grp["share"].round(1),
+                T("Temizlik önceliği", "Cleanup priority"): kc_grp["share"].map(kc_prio),
+            }), hide_index=True, **stretch(st.dataframe))
+            st.caption(T("Risk payı = bulut içindeki nesnelerin 'yoğunluk × ömür' maruziyetlerinin toplamı (yani kalan ömürleri boyunca beklenen çarpışma). "
+                         "Yüksek irtifadaki bulutlar atmosferde kendiliğinden temizlenmediği için öncelik kazanır.",
+                         "Risk share = sum of each object's 'density × lifetime' exposure within the cloud (expected collisions over its remaining life). "
+                         "High-altitude clouds rank higher because the atmosphere will not clear them on its own."))
+
+            st.markdown(T("**2) Çarpışma ihtimali en yüksek 10 enkaz parçası** (canlı)", "**2) Top 10 debris pieces by collision probability** (live)"))
+            kc_top = kc_deb.sort_values("p", ascending=False).head(10).reset_index(drop=True)
+            st.dataframe(pd.DataFrame({
+                T("Enkaz", "Debris"): kc_top["name"], "NORAD": kc_top["norad"], T("Bulut", "Cloud"): kc_top["cloud"],
+                T("Ort. irtifa (km)", "Mean alt. (km)"): kc_top["alt"].round().astype(int),
+                T("Perigee–Apogee (km)", "Perigee–Apogee (km)"): [f"{int(p)}–{int(a)}" for p, a in zip(kc_top["perigee"], kc_top["apogee"])],
+                T("Eğim (°)", "Incl. (°)"): kc_top["inc"].round(1),
+                T("Tahmini ömür (yıl)", "Est. lifetime (yr)"): kc_top["life"].map(lambda v: _fmt_int(int(round(v)))),
+                T("Ömür boyu çarpışma ihtimali (%)", "Lifetime collision prob. (%)"): kc_top["p"].round(1),
+            }), hide_index=True, **stretch(st.dataframe))
+            st.caption(T("Bunlar ≈10 cm sınıfı parçalardır ve tek tek kaldırılmaları pratik değildir; tablo hangi bölgenin/bulutun tehlikeli olduğunu gösterir. "
+                         "Kütle bilinmediği için 'kütle × çarpışma olasılığı' ölçütünde kütle eşit alınmıştır. Gerçek temizlik hedefleri için aşağıdaki literatür tablosuna bakın.",
+                         "These are ≈10 cm-class fragments and removing them one by one is impractical; the table shows which region/cloud is dangerous. "
+                         "Mass is unknown, so the 'mass × collision probability' criterion treats mass as equal. For real removal targets see the literature table below."))
+
+        st.markdown(T("**3) Literatürdeki öncelikli kaldırma hedefleri** (McKnight ve ark., 'en endişe verici 50 nesne' — 2025 güncellemesi, ilk 10)",
+                      "**3) Priority removal targets in the literature** (McKnight et al., 'most-concerning 50 objects' — 2025 update, top 10)"))
+        kc_ctry = (["Rusya", "ESA", "Japonya", "Çin", "SSCB", "SSCB", "Rusya", "Rusya", "SSCB", "Çin"] if st.session_state.lang == "tr"
+                   else ["Russia", "ESA", "Japan", "China", "USSR", "USSR", "Russia", "Russia", "USSR", "China"])
+        st.dataframe(pd.DataFrame({
+            T("Sıra", "Rank"): list(range(1, 11)),
+            T("Nesne", "Object"): ["SL-16 R/B", "Envisat", "H-II R/B", "CZ-2C R/B", "SL-8 R/B", "SL-16 R/B", "Kosmos 2237", "Kosmos 2334", "SL-16 R/B", "CZ-2D R/B"],
+            T("Tür", "Type"): [T("Roket gövdesi", "Rocket body"), T("Uydu (işlevsiz)", "Satellite (defunct)"), T("Roket gövdesi", "Rocket body"),
+                               T("Roket gövdesi", "Rocket body"), T("Roket gövdesi", "Rocket body"), T("Roket gövdesi", "Rocket body"),
+                               T("Uydu (işlevsiz)", "Satellite (defunct)"), T("Uydu (işlevsiz)", "Satellite (defunct)"),
+                               T("Roket gövdesi", "Rocket body"), T("Roket gövdesi", "Rocket body")],
+            T("Ülke / kurum", "Country / agency"): kc_ctry,
+            T("Fırlatma", "Launch"): ["2004", "2002", "1996", "—", "1985", "1988", "1993", "1996", "1988", "2019"],
+        }), hide_index=True, **stretch(st.dataframe))
+        st.caption(T("SL-16 (Zenit 2. kademe): ≈9.000 kg, ≈11 m × 4 m (LeoLabs). En olası çarpışma bölgesi 775–850 km. "
+                     "Seçim ölçütü Liou & Johnson'a göre en yüksek kütle × çarpışma olasılığıdır. Ayrıntı ve bağlantılar 'Güncel Riskler ve Kaynaklar' sekmesinde.",
+                     "SL-16 (Zenit 2nd stage): ≈9,000 kg, ≈11 m × 4 m (LeoLabs). The most likely collision region is 775–850 km. "
+                     "Per Liou & Johnson the selection criterion is the highest mass × collision probability. Details and links are on the 'Current Risks & Sources' tab."))
+
+    # ---------------------------------------------------------------- 3) Simülasyon
+    with kc_tabs[2]:
+        st.markdown(T("Seçtiğin temizlik hızıyla önümüzdeki yıllarda nesne sayısının nasıl değişeceğini karşılaştır.",
+                      "Compare how the object count evolves over the coming years at the cleanup rate you choose."))
+        kc_s1, kc_s2, kc_s3 = st.columns(3)
+        kc_years = kc_s1.slider(T("Simülasyon süresi (yıl)", "Simulation horizon (years)"), 10, 100, 50, 5, key="sg_kc_years")
+        kc_rem = kc_s2.slider(T("Yılda temizlenen büyük nesne", "Large objects removed per year"), 0, 20, 5, key="sg_kc_rem")
+        kc_new = kc_s3.slider(T("Yılda yeni terk edilen büyük nesne", "New large objects abandoned per year"), 0, 40, 5, key="sg_kc_new")
+
+        kc_runs = {
+            "none": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, 0, kc_new, "none"),
+            "random": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, kc_rem, kc_new, "random"),
+            "targeted": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, kc_rem, kc_new, "targeted"),
+        }
+        kc_names = {"none": T("Temizlik yok", "No cleanup"), "random": T("Rastgele temizlik", "Random cleanup"),
+                    "targeted": T("Hedefli temizlik (en riskli bant)", "Targeted cleanup (riskiest band)")}
+        kc_colors = {"none": "#fc3d21", "random": "#f59e0b", "targeted": "#10b981"}
+
+        kc_g1, kc_g2 = st.columns([3, 2])
+        with kc_g1:
+            kc_f3 = go.Figure()
+            for _k, _r in kc_runs.items():
+                kc_f3.add_trace(go.Scatter(x=_r["t"], y=_r["tot"], mode="lines", name=kc_names[_k], line=dict(color=kc_colors[_k], width=3)))
+            kc_f3.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                title=T("Toplam nesne sayısı (aktif + terk edilmiş + parça)", "Total objects (active + derelict + fragments)"),
+                                xaxis_title=T("Yıl", "Year"), yaxis_title=T("Nesne sayısı", "Objects"),
+                                legend=dict(orientation="h", y=-0.25), margin=dict(t=50, b=10))
+            st.plotly_chart(kc_f3, **stretch(st.plotly_chart))
+        with kc_g2:
+            kc_rm = kc_runs["targeted"]["removed"]
+            kc_f4 = go.Figure(go.Bar(x=KC_MID, y=kc_rm, marker_color="#10b981"))
+            kc_f4.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                title=T("Hedefli senaryoda nereden temizlendi?", "Where did the targeted scenario clean?"),
+                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title=T("Kaldırılan nesne", "Objects removed"), margin=dict(t=50, b=10))
+            st.plotly_chart(kc_f4, **stretch(st.plotly_chart))
+
+        def kc_state(chg):
+            return (T("🔴 Kontrolsüz artış", "🔴 Runaway growth") if chg > 25 else T("🟠 Artış sürüyor", "🟠 Still growing") if chg > 5
+                    else T("🟡 Yaklaşık sabit", "🟡 Roughly flat") if chg > -5 else T("🟢 Azalıyor", "🟢 Declining"))
+
+        kc_rows = []
+        for _k, _r in kc_runs.items():
+            _chg = (_r["tot"][-1] / max(_r["tot"][0], 1.0) - 1.0) * 100.0
+            kc_rows.append({T("Senaryo", "Scenario"): kc_names[_k], T("Sonda nesne sayısı", "Final objects"): _fmt_int(int(round(_r["tot"][-1]))),
+                            T("Değişim (%)", "Change (%)"): round(_chg, 1), T("Üretilen yeni parça", "New fragments made"): _fmt_int(int(round(_r["frag"]))),
+                            T("Büyük çarpışma (beklenen)", "Major collisions (expected)"): round(_r["big"], 2), T("Durum", "Status"): kc_state(_chg)})
+        st.dataframe(pd.DataFrame(kc_rows), hide_index=True, **stretch(st.dataframe))
+
+        kc_share = kc_rm / max(float(kc_rm.sum()), 1e-9) * 100.0
+        if kc_rem > 0 and kc_rm.sum() > 0:
+            _top = np.argsort(kc_share)[::-1][:2]
+            _txt = ", ".join(f"{kc_band(int(i))} (%{kc_share[i]:.0f})" for i in _top if kc_share[i] > 0.5)
+            st.success(T(f"Model önerisi: temizlik kapasiteni önce şu bantlara yönelt → {_txt}. Büyük nesneleri bu bantlardan almak en çok yeni parçayı önler.",
+                         f"Model suggestion: point your cleanup capacity at these bands first → {_txt}. Removing large objects there prevents the most new fragments."))
+        kc_base_chg = (kc_runs["none"]["tot"][-1] / max(kc_runs["none"]["tot"][0], 1.0) - 1.0) * 100.0
+        st.caption(T(f"Literatür karşılaştırması: NASA (Liou & Johnson) LEO'yu sabit tutmak için yılda ≈5 büyük nesne kaldırılmasını gerektiğini bulmuştur; "
+                     f"bu model temizlik yokken {kc_years} yılda %{kc_base_chg:+.0f} değişim gösteriyor. Eğitim amaçlı beklenen-değer modelidir.",
+                     f"Literature check: NASA (Liou & Johnson) found that ≈5 large objects/year must be removed to hold LEO constant; "
+                     f"this model shows {kc_base_chg:+.0f}% change over {kc_years} years without cleanup. Educational expected-value model."))
+
+    # ---------------------------------------------------------------- 4) Güncel riskler ve kaynaklar
+    with kc_tabs[3]:
+        st.markdown(T("**Şu anda zincirleme kazaya yol açabilecek riskler** (web araştırması, 14 Kasım 2026 itibarıyla)",
+                      "**Risks that could trigger a chain of collisions right now** (web research, as of 14 November 2026)"))
+        kc_tr = st.session_state.lang == "tr"
+        kc_src = [
+            ("ESA Space Environment Report 2026", "https://www.esa.int/articles/esa-space-environment-report-2026"),
+            ("arXiv:2512.09643 (Thiele ve ark.)", "https://arxiv.org/abs/2512.09643"),
+            ("The Weather Network — CRASH Clock", "https://www.theweathernetwork.com/en/news/science/space/crash-clock-tracks-collision-risks-in-low-earth-orbit"),
+            ("KeepTrack — USA 32 breakup notice", "https://keeptrack.space/ktoc-notice/kt-20260913-19460-ann-usa-32-breakup-announced-by-space-track"),
+            ("McKnight ve ark. 2021, Acta Astronautica 181", "https://ui.adsabs.harvard.edu/abs/2021AcAau.181..282M/abstract"),
+            ("LeoLabs — SL-16 / Cluster 850", "https://leolabs.space/?p=3822"),
+            ("SpaceNews — 775–850 km bölgesi", "https://spacenews.com/?p=123624"),
+            ("Ars Technica alıntısı (Slashdot) — 2025 top-50", "https://tech.slashdot.org/story/25/10/06/0148246"),
+            ("NASA NTRS — Liou, Active Debris Removal", "https://ntrs.nasa.gov/citations/20120013266"),
+            ("Astroscale — ADRAS-J2", "https://astroscale.com/en/news/astroscale-japan-selects-isar-aerospace-to-launch-adras-j2"),
+            ("CelesTrak (canlı TLE)" if kc_tr else "CelesTrak (live TLE)", "https://celestrak.org/"),
+        ]
+        kc_L = lambda i: f"[{kc_src[i][0]}]({kc_src[i][1]})"
+        kc_rows_md = [
+            (T("Uzay ortamı sağlık endeksi", "Space environment health index"),
+             T("ESA endeksi bir yılda ≈4'ten ≈50'ye çıktı (sürdürülebilir hedefin 50 katı baskı). Nesne ve çarpışma projeksiyonları 'kontrolsüz' artıyor; ufuk 200'den 100 yıla indirildi.",
+               "ESA's index jumped from ≈4 to ≈50 in one year (50× the sustainable target). Object and collision projections are 'runaway'; the horizon was cut from 200 to 100 years."),
+             "14.09.2026", kc_L(0)),
+            (T("Fırlatma temposu", "Launch pace"),
+             T("2025'te 300+ fırlatma ve 4.000+ yeni yük; günde ≈10 yeni yük. Yeterli sayıda uydu, ömrü bitince kalabalık yörüngelerden ayrılmıyor.",
+               "300+ launches and 4,000+ new payloads in 2025; ≈10 new payloads per day. Not enough satellites leave congested orbits at end of life."),
+             "14.09.2026", kc_L(0)),
+            (T("ADR zorunluluğu", "ADR is required"),
+             T("ESA: önleme (trafik yönetimi, ömür sonu bertaraf, Zero Debris) şart ama tek başına yetmez; çarpışmaların çarpışma doğurmasını (Kessler) durdurmak için aktif enkaz kaldırma gerekli.",
+               "ESA: prevention (traffic management, end-of-life disposal, Zero Debris) is essential but no longer enough; active debris removal is needed to stop collisions causing collisions (Kessler)."),
+             "14.09.2026", kc_L(0)),
+            (T("CRASH Clock", "CRASH Clock"),
+             T("Manevra yapılamazsa yıkıcı çarpışmaya kalan süre: 2018'de 164 gün → 5,5 gün (Haz 2025 verisi). 26 Oca 2026 güncellemesi: 3,8 gün. (İlk ön baskıda 2,8 gün raporlanmıştı; metrik revize edildi.)",
+               "Time to a catastrophic collision if manoeuvres stop: 164 days in 2018 → 5.5 days (June 2025 data). 26 Jan 2026 update: 3.8 days. (The first preprint reported 2.8 days; the metric was revised.)"),
+             "2025–2026", f"{kc_L(1)} · {kc_L(2)}"),
+            (T("USA 32 parçalanması", "USA 32 breakup"),
+             T("1988'de fırlatılan ABD keşif uydusu (NORAD 19460) ≈775 km'de, ≈85° eğimde parçalandı; neden bilinmiyor. Bölge, en riskli 775–850 km bandının hemen içinde.",
+               "A US reconnaissance satellite launched in 1988 (NORAD 19460) broke up at ≈775 km, ≈85° inclination; cause unknown. The region lies right in the riskiest 775–850 km band."),
+             "13.09.2026", kc_L(3)),
+            (T("Büyük terk edilmiş nesneler", "Massive derelict objects"),
+             T("LEO'da >2.000.000 kg terk edilmiş kütle (ort. >1.800 kg); ≈850 km'de 36 nesnelik küme ort. >6.000 kg. SL-16 gövdesi ≈9.000 kg, 11 m × 4 m.",
+               "Over 2,000,000 kg of derelict mass in LEO (avg >1,800 kg); a cluster of 36 objects near 850 km averages >6,000 kg. An SL-16 body is ≈9,000 kg, 11 m × 4 m."),
+             "2021", f"{kc_L(4)} · {kc_L(5)}"),
+            (T("En olası çarpışma bölgesi", "Most likely collision region"),
+             T("Rus roket gövdeleri ile Çin/ABD parçaları ve işlevsiz yükler arasındaki çarpışmalar en çok 775–850 km'de bekleniyor.",
+               "Collisions between Russian rocket bodies and Chinese/US fragments and defunct payloads are most likely between 775 and 850 km."),
+             "—", kc_L(6)),
+            (T("En tehlikeli 50 nesne (2025)", "Most-concerning 50 objects (2025)"),
+             T("İlk 50'nin %88'i roket gövdesi, %76'sı geçen yüzyılda bırakılmış; 1 Oca 2024'ten beri 25 yıldan uzun kalacak 26 roket gövdesi daha terk edildi.",
+               "88% of the top 50 are rocket bodies and 76% were left last century; since 1 Jan 2024 another 26 rocket bodies were abandoned that will stay >25 years."),
+             "10.2025", kc_L(7)),
+            (T("Gereken temizlik hızı", "Required removal rate"),
+             T("NASA: LEO'yu 200 yıl sabit tutmak için yılda ≈5 büyük (1–8+ ton) nesne kaldırmak gerekir; hedefler en yüksek kütle × çarpışma olasılığına göre seçilir.",
+               "NASA: holding LEO constant for 200 years needs ≈5 large (1–8+ ton) objects removed per year, chosen by highest mass × collision probability."),
+             "2009–2012", kc_L(8)),
+            (T("Temizlik teknolojisi", "Removal technology"),
+             T("ADRAS-J2 (Astroscale/JAXA), ≈3 ton, 11 m × 4 m bir üst kademeyi yakalayıp indirmeyi hedefliyor; fırlatma en erken 2027. Henüz operasyonel ticari kaldırma hizmeti yok.",
+               "ADRAS-J2 (Astroscale/JAXA) aims to capture and deorbit a ≈3-ton, 11 m × 4 m upper stage; launch NET 2027. No operational commercial removal service exists yet."),
+             "01.09.2026", kc_L(9)),
+        ]
+        st.markdown("\n".join(
+            [f"| {T('Risk', 'Risk')} | {T('Bulgu', 'Finding')} | {T('Tarih', 'Date')} | {T('Kaynak', 'Source')} |", "|---|---|---|---|"]
+            + [f"| **{a}** | {b} | {c_} | {d} |" for a, b, c_, d in kc_rows_md]))
+        st.caption(T(f"Canlı nesne sayıları ve yoğunluk hesabı: {kc_L(10)} (son güncelleme: {CAT['fetched']}). "
+                     "Haber sitelerinden alınan satırlar ikincil kaynaktır; kritik kararlar için birincil makale/rapora bakın.",
+                     f"Live object counts and density: {kc_L(10)} (last update: {CAT['fetched']}). "
+                     "Rows taken from news sites are secondary sources; check the primary paper/report for critical decisions."))
 
 # =====================================================================
 # 2. MODÜL: 3D RADAR
 # =====================================================================
 elif st.session_state.active_page == PAGES[1]:
     st.markdown(T("### 🌍 SPACE GRAVE [SP4C3 GR4V3] Profesyonel 3D Radar Merkezi", "### 🌍 SPACE GRAVE [SP4C3 GR4V3] Professional 3D Radar Hub"))
-    st.caption(T("Her nesne gerçek TLE verisinden SGP4 ile propagate edilir.", "Every object is propagated from real TLE data with SGP4."))
-    r1, r2 = st.columns(2)
-    n_act = r1.slider(T("Aktif uydular", "Active satellites"), 0, 400, 120, key="sg_n_act")
-    n_deb = r2.slider(T("Enkaz parçaları", "Debris fragments"), 0, 600, 200, key="sg_n_deb")
+    st.caption(T("Her nesne gerçek TLE/SATCAT verisinden alınır; konumlar yörünge elemanlarından (J2 etkili Kepler) canlı hesaplanır. Türü, fırlatma tarihini ve zaman hızını soldaki panelden / alttaki çubuktan ayarla; ⏸ ile anlık durdurabilirsin.",
+                 "Every object comes from real TLE/SATCAT data; positions are computed live from orbital elements (J2-perturbed Kepler). Pick type, launch date and time speed from the left panel / bottom bar; ⏸ pauses instantly."))
 
-    @st.cache_data(ttl=300, show_spinner=False)
-    def radar_payload(n_active, n_debris, steps=100, step_s=60):
-        cat = load_catalog()
-        rng = np.random.default_rng(7)
+    import re
 
-        def pick(lst, n):
-            if not lst or n <= 0:
-                return []
-            return [lst[i] for i in rng.choice(len(lst), min(n, len(lst)), replace=False)]
+    # --- Ek veri kaynakları (CelesTrak) + SATCAT (tür / durum / fırlatma tarihi) ---
+    # Roket gövdesi, parça ve eski uydular için ad aramaları; hepsi diske önbelleklenir (2 sa).
+    TRACKER_QUERIES = {
+        "rb": {"NAME": "R/B"}, "deb": {"NAME": "DEB"}, "cosmos": {"NAME": "COSMOS"},
+        "noaa": {"NAME": "NOAA"}, "fengyun": {"NAME": "FENGYUN"}, "dmsp": {"NAME": "DMSP"}, "geo": {"GROUP": "geo"},
+    }
+    SATCAT_URL = "https://celestrak.org/pub/satcat.csv"
+    MU_KM = 398600.4418
+    J2 = 1.08262668e-3
 
-        sel = ([("sat", t) for t in cat["groups"]["visual"]] +
-               [("sat", t) for t in pick(cat["groups"]["active"], n_active)] +
-               [("debris", t) for t in pick(cat["debris"], n_debris)])
-        seen, objs, sats = set(), [], []
-        for kind, (name, l1, l2) in sel:
-            nid = norad_id(l1)
-            if nid in seen:
+    def _fetch_tle_query(key, params):
+        path = os.path.join(CACHE_DIR, f"q_{key}.tle")
+        has_cache = os.path.exists(path)
+        if has_cache and time.time() - os.path.getmtime(path) < CACHE_TTL_S:
+            with open(path, encoding="utf-8") as f:
+                return parse_tles(f.read()), "cache"
+        try:
+            r = requests.get("https://celestrak.org/NORAD/elements/gp.php",
+                             params={**params, "FORMAT": "tle"}, timeout=(5, 60), headers=HEADERS)
+            r.raise_for_status()
+            tles = parse_tles(r.text)
+            if not tles:
+                raise ValueError("boş yanıt")
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(r.text)
+            return tles, "live"
+        except Exception:
+            if has_cache:
+                with open(path, encoding="utf-8") as f:
+                    return parse_tles(f.read()), "stale"
+            return [], "fail"
+
+    def _load_satcat():
+        """NORAD -> (tür, işletim durumu, fırlatma tarihi). Alınamazsa {} (ad tabanlı sınıflamaya düşülür)."""
+        path = os.path.join(CACHE_DIR, "satcat.csv")
+        fresh = os.path.exists(path) and time.time() - os.path.getmtime(path) < 12 * 3600
+        if not fresh:
+            try:
+                r = requests.get(SATCAT_URL, timeout=(5, 90), headers=HEADERS)
+                r.raise_for_status()
+                os.makedirs(CACHE_DIR, exist_ok=True)
+                with open(path, "wb") as f:
+                    f.write(r.content)
+            except Exception:
+                if not os.path.exists(path):
+                    return {}
+        try:
+            want = {"NORAD_CAT_ID", "OBJECT_TYPE", "OPS_STATUS_CODE", "LAUNCH_DATE", "DECAY_DATE"}
+            df = pd.read_csv(path, usecols=lambda c: c in want, dtype=str)
+            if not {"NORAD_CAT_ID", "OBJECT_TYPE"} <= set(df.columns):
+                return {}
+            for c in want - set(df.columns):
+                df[c] = None
+            df = df[df["DECAY_DATE"].isna()]
+            return {str(n).strip(): (t, o, l) for n, t, o, l in
+                    zip(df["NORAD_CAT_ID"], df["OBJECT_TYPE"], df["OPS_STATUS_CODE"], df["LAUNCH_DATE"])}
+        except Exception:
+            return {}
+
+    def _kind_of(name, in_active, meta):
+        """0 çalışan uydu · 1 ölü uydu · 2 roket gövdesi · 3 parça (enkaz) · 4 istasyon"""
+        up = name.upper()
+        if meta:
+            typ, ops = meta[0], (meta[1] or "")
+            if typ == "DEB":
+                return 3
+            if typ == "R/B":
+                return 2
+            if typ == "PAY":
+                k = 0 if (in_active or ops in ("+", "P", "B", "S", "X")) else 1
+                return 4 if k == 0 and up.startswith(CREWED_PREFIXES) else k
+            if typ == "UNK":
+                return 3
+        if re.search(r"\bDEB\b", up):
+            return 3
+        if "R/B" in up:
+            return 2
+        if in_active:
+            return 4 if up.startswith(CREWED_PREFIXES) else 0
+        return 1
+
+    @st.cache_data(ttl=600, show_spinner=False)
+    def tracker_payload(fetched_key):
+        cat = CAT
+        active_ids = {norad_id(t[1]) for t in cat["groups"]["active"]}
+        with ThreadPoolExecutor(max_workers=len(TRACKER_QUERIES) + 1) as ex:
+            futs = [ex.submit(_fetch_tle_query, k, p) for k, p in TRACKER_QUERIES.items()]
+            f_cat = ex.submit(_load_satcat)
+            extra = [f.result()[0] for f in futs]
+            satcat = f_cat.result()
+
+        uniq = {}
+        for lst in [cat["groups"]["active"], cat["groups"]["visual"], cat["debris"]] + extra:
+            for t in lst:
+                uniq.setdefault(norad_id(t[1]), t)
+
+        nids, sats, tles = [], [], []
+        for nid, t in uniq.items():
+            try:
+                sats.append(Satrec.twoline2rv(t[1], t[2]))
+                nids.append(nid)
+                tles.append(t)
+            except Exception:
                 continue
-            seen.add(nid)
-            if kind == "sat" and name.startswith("ISS"):
-                kind = "iss"
-            objs.append({"n": name, "id": nid, "k": kind})
-            sats.append(Satrec.twoline2rv(l1, l2))
 
         now = utc_now()
         jd0, fr0 = to_jd(now)
-        gmst0 = math.radians((280.46061837 + 360.98564736629 * (jd0 + fr0 - 2451545.0)) % 360)
+        out = {"t0": int(now.timestamp() * 1000), "omega": 7.2921159e-5, "sun": _sun_unit_three(jd0 + fr0),
+               "gmst0": math.radians((280.46061837 + 360.98564736629 * (jd0 + fr0 - 2451545.0)) % 360),
+               "n": [], "id": [], "k": [], "age": [], "el": []}
         if not sats:
-            return {"steps": steps, "step_s": step_s, "gmst0": gmst0, "objs": [], "pos": []}
+            return out
 
-        jds, frs = to_jd_arrays(now + timedelta(seconds=step_s * k) for k in range(steps))
-        e, r, _ = SatrecArray(sats).sgp4(jds, frs)
-        good = (e == 0).all(axis=1)
-        # TEME (x, y, z) -> three.js (x, z, -y), Dünya yarıçapı birimi
-        r3 = np.stack([r[..., 0], r[..., 2], -r[..., 1]], axis=-1) / RE
-        pos = [np.round(r3[i], 4).reshape(-1).tolist() for i in range(len(objs)) if good[i]]
-        objs = [o for o, g in zip(objs, good) if g]
-        return {"steps": steps, "step_s": step_s, "gmst0": gmst0, "objs": objs, "pos": pos}
+        e, r, _ = SatrecArray(sats).sgp4(np.array([jd0]), np.array([fr0]))
+        rn = np.linalg.norm(r[:, 0, :], axis=1)
+        no = np.array([s.no_kozai for s in sats]) / 60.0          # rad/s
+        ecc = np.array([s.ecco for s in sats])
+        inc = np.array([s.inclo for s in sats])
+        raan = np.array([s.nodeo for s in sats])
+        argp = np.array([s.argpo for s in sats])
+        mo = np.array([s.mo for s in sats])
+        ep = np.array([s.jdsatepoch + s.jdsatepochF for s in sats])
+        ok = (e[:, 0] == 0) & (rn > RE + 120) & (rn < 60000) & (no > 0) & (ecc < 0.95)
 
-    with st.spinner(T("Yörünge verisi propagate ediliyor...", "Propagating orbit data...")):
-        payload = radar_payload(n_act, n_deb)
+        with np.errstate(all="ignore"):
+            a_km = (MU_KM / no ** 2) ** (1.0 / 3.0)
+            p_km = a_km * (1 - ecc ** 2)
+            kk = 1.5 * J2 * (RE / p_km) ** 2
+            ci = np.cos(inc)
+            d_om = -kk * no * ci
+            d_w = 0.5 * kk * no * (5 * ci ** 2 - 1)
+            d_m = no * (1 + 0.5 * kk * np.sqrt(1 - ecc ** 2) * (3 * ci ** 2 - 1))
+            dt = ((jd0 + fr0) - ep) * 86400.0                      # elemanların epoğundan şimdiye (sn)
+            m_now = np.mod(mo + d_m * dt, 2 * math.pi)
+            om_now = np.mod(raan + d_om * dt, 2 * math.pi)
+            w_now = np.mod(argp + d_w * dt, 2 * math.pi)
+            a_re = a_km / RE
+        ok &= np.isfinite(a_re) & np.isfinite(m_now) & np.isfinite(om_now) & np.isfinite(w_now)
+
+        today = now.date()
+        names, ids, kinds, ages = [], [], [], []
+        for i in np.flatnonzero(ok):
+            name, l1, _ = tles[i]
+            nid = nids[i]
+            meta = satcat.get(nid)
+            kinds.append(_kind_of(name, nid in active_ids, meta))
+            age = -1
+            try:
+                if meta and meta[2]:
+                    age = (today - datetime.strptime(meta[2][:10], "%Y-%m-%d").date()).days
+                else:   # SATCAT yoksa uluslararası tanımlayıcıdan yaklaşık (yıl düzeyinde) tarih
+                    yy = int(l1[9:11])
+                    age = (today - datetime(2000 + yy if yy < 57 else 1900 + yy, 7, 1).date()).days
+            except Exception:
+                age = -1
+            names.append(name.strip())
+            ids.append(nid)
+            ages.append(age)
+
+        sel = np.flatnonzero(ok)
+        el = np.stack([a_re[sel], ecc[sel], inc[sel], om_now[sel], w_now[sel], m_now[sel]], axis=1)
+        el = np.round(el, 5)
+        el[:, 1] = np.round(ecc[sel], 6)
+        out.update({"n": names, "id": ids, "k": kinds, "age": ages, "el": el.ravel().tolist()})
+        return out
+
+    with st.spinner(T("Yörünge verisi hazırlanıyor (ilk açılışta indirme biraz sürebilir)...",
+                      "Preparing orbit data (first load may take a moment)...")):
+        tracker = tracker_payload(CAT["fetched"])
     flags = sorted(st.session_state.conj_meta["names"]) if st.session_state.conj_meta else []
-    if not payload["objs"]:
-        st.warning(T("Propagate edilebilen nesne yok; küre boş görünecek.", "No objects could be propagated; the globe will look empty."))
 
-    html_earth_code = """
-    <!DOCTYPE html><html><head>
-    <style>
-      body { margin:0; background:#020617; overflow:hidden; font-family:'Segoe UI',sans-serif; }
-      #globe-container { width:100%; height:750px; cursor:crosshair; position:relative; }
-      #hud-panel { position:absolute; top:20px; right:20px; width:360px; background:rgba(3,7,18,0.96); border:1px solid #003366; border-radius:14px; padding:18px; color:#f3f4f6; box-shadow:0 0 35px rgba(0,51,102,0.5); z-index:100; }
-      #hud-panel h4 { margin:0 0 10px 0; color:#38bdf8; font-size:15px; border-bottom:1px solid #1e293b; padding-bottom:6px; }
-      #hud-panel p { margin:6px 0; font-size:12px; color:#94a3b8; display:flex; justify-content:space-between; }
-      #hud-panel span { color:#f8fafc; font-weight:bold; font-family:monospace; text-align:right; max-width:210px; }
-      #ctl { position:absolute; left:20px; top:20px; z-index:100; color:#94a3b8; font-size:12px; background:rgba(3,7,18,0.9); padding:10px 14px; border:1px solid #003366; border-radius:10px; font-family:monospace; }
-      select { background:#0b1329; color:#38bdf8; border:1px solid #003366; border-radius:6px; }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    </head><body>
-    <div id="globe-container"></div>
-    <div id="ctl">Time warp: <select id="warp"><option value="60">60×</option><option value="120" selected>120×</option><option value="300">300×</option><option value="900">900×</option></select>
-      <div id="clock" style="margin-top:6px;color:#38bdf8;">T+00:00</div>
-    </div>
-    <div id="hud-panel">
-      <h4>🎯 LIVE ORBITAL TELEMETRY HUD</h4>
-      <p>Target: <span id="h-name" style="color:#38bdf8;">HOVER OVER OBJECT</span></p>
-      <p>NORAD Cat ID: <span id="h-id">---</span></p>
-      <p>Class: <span id="h-class">---</span></p>
-      <p>Altitude: <span id="h-alt" style="color:#10b981;">--- km</span></p>
-      <p>Velocity: <span id="h-vel">--- km/s</span></p>
-      <p>Conjunction watch: <span id="h-threat" style="color:#10b981;">---</span></p>
-    </div>
-    <script>
-      const D = __DATA__;
-      const FLAGGED = new Set(__FLAGS__);
-      const RE_KM = 6378.137, OMEGA = 7.2921159e-5;
-      const LOOP_S = (D.steps - 1) * D.step_s;
-      const container = document.getElementById('globe-container');
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.01, 1000);
-      camera.position.set(0, 1.2, 3.2);
-      const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      container.appendChild(renderer.domElement);
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true; controls.dampingFactor = 0.05;
-      window.addEventListener('resize', () => {
-        const w = container.clientWidth, h = container.clientHeight;
-        camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
-      });
+    _L = {
+        "loc": "tr-TR" if st.session_state.lang == "tr" else "en-US",
+        "kicker": T("UZAY ÇÖPÜ TAKİPÇİSİ · CANLI GÖRÜNTÜ", "SPACE DEBRIS TRACKER · LIVE SNAPSHOT"),
+        "title": T("Yörüngede Bıraktığımız Her Şey", "Everything We’ve Left in Orbit"),
+        "desc": T("Her nokta; kamuya açık uzay kataloğundan, kendi yörüngesinde hareket eden ölü bir uydu, kullanılmış bir roket gövdesi ya da parçadır. Hâlâ kullanımda olanları görmek için çalışan uyduları aç.",
+                  "Each dot is a dead satellite, spent rocket stage or fragment from the public space catalogue, moving on its own orbit. Turn on working satellites to see what’s still in use."),
+        "big": T("parça çöp şu an Dünya çevresinde dönüyor", "pieces of junk circling Earth right now"),
+        "types": T("Nesne türü", "Object type"), "launched": T("Fırlatılma", "Launched"),
+        "sat": T("Çalışan uydular", "Working satellites"), "dead": T("Ölü uydular", "Dead satellites"),
+        "rb": T("Roket gövdeleri", "Rocket bodies"), "deb": T("Parçalar", "Fragments"),
+        "chips": {"any": T("Her zaman", "Any time"), "d30": T("Son 30 gün", "Last 30 days"),
+                  "y1": T("Son 12 ay", "Last 12 months"), "y5": T("Son 5 yıl", "Last 5 years"),
+                  "y10": T("Son 10 yıl", "Last 10 years"), "old": T("10 yıldan eski", "Older than 10 years")},
+        "help": T("Sürükle: döndür · Tekerlek: yakınlaştır · Nesneye gel: yörüngesini gör · Tıkla: sabitle · Boşluk: duraklat / devam",
+                  "Drag: rotate · Wheel: zoom · Hover: see orbit · Click: pin · Space: pause / resume"),
+        "speed": T("HIZ", "SPEED"), "live": T("Canlıya dön", "Back to live"),
+        "pause": T("Duraklat", "Pause"), "play": T("Devam et", "Resume"), "paused": T("DURAKLATILDI", "PAUSED"),
+        "livebadge": T("CANLI", "LIVE"), "sim": T("SİMÜLASYON", "SIMULATION"), "u": [T("sn", "s"), T("dk", "min"), T("sa", "h")],
+        "hud": T("🎯 CANLI YÖRÜNGE TELEMETRİSİ", "🎯 LIVE ORBITAL TELEMETRY"),
+        "target": T("Hedef", "Target"), "norad": T("NORAD No", "NORAD ID"), "cls": T("Sınıf", "Class"),
+        "alt": T("İrtifa", "Altitude"), "vel": T("Hız", "Velocity"), "inc": T("Eğim", "Inclination"),
+        "per": T("Periyot", "Period"), "thr": T("Yakınlaşma takibi", "Conjunction watch"),
+        "hover": T("BİR NESNEYE GELİN", "HOVER OVER OBJECT"),
+        "cSat": T("UYDU", "SATELLITE"), "cDead": T("ÖLÜ UYDU", "DEAD SATELLITE"), "cRb": T("ROKET GÖVDESİ", "ROCKET BODY"),
+        "cDeb": T("ENKAZ PARÇASI", "DEBRIS FRAGMENT"), "cStn": T("MÜRETTEBATLI İSTASYON", "CREWED STATION"),
+        "flag": T("İŞARETLİ", "FLAGGED"), "noflag": T("işaretli değil", "none flagged"),
+        "few": T("Veri az: CelesTrak'a ulaşılamadı, yalnızca yedek/önbellek verisi gösteriliyor. İnternet bağlantını kontrol edip sayfayı yenile.",
+                 "Little data: CelesTrak was unreachable, showing only fallback/cached data. Check your connection and reload."),
+        "colors": [[0.22, 0.74, 0.97], [0.65, 0.55, 0.98], [1.0, 0.70, 0.28], [0.98, 0.45, 0.45], [0.20, 0.83, 0.60]],
+    }
+    TRACKER_HTML = r"""
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--cyan:#38bdf8;--red:#fc3d21;--green:#10b981;--mute:#94a3b8;--line:rgba(56,189,248,.16);--card:rgba(6,12,30,.80)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#040817;overflow:hidden;font-family:'Inter','Segoe UI',-apple-system,sans-serif;color:#e2e8f0}
+#app{display:flex;height:100vh;width:100%}
+#panel{width:384px;flex:0 0 384px;overflow-y:auto;padding:26px 22px 26px 22px;background:linear-gradient(180deg,rgba(10,18,40,.98) 0%,rgba(4,8,23,.99) 100%);border-right:1px solid var(--line);scrollbar-width:thin;scrollbar-color:#1e3a5f #040817}
+.kick{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(8,16,38,.65);font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#bae6fd;line-height:1.3}
+.kick::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);flex:0 0 7px;animation:pulse 2.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}70%{box-shadow:0 0 0 9px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+h1{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:38px;line-height:1.1;margin:20px 0 14px;letter-spacing:-.02em;color:#fff}
+.desc{color:#cbd5e1;font-size:15px;line-height:1.7;margin:0 0 22px}
+.big{display:flex;align-items:center;gap:16px;margin-bottom:26px;padding:16px 18px;border-radius:18px;background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92));border:1px solid var(--line)}
+.big b{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:48px;letter-spacing:-.02em;color:var(--cyan);font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 24px rgba(56,189,248,.35)}
+.big span{color:var(--mute);font-size:13.5px;line-height:1.4;max-width:150px}
+.sec{font-size:12px;font-weight:700;letter-spacing:.22em;color:var(--cyan);margin:4px 0 12px;text-transform:uppercase}
+.row{display:flex;align-items:center;width:100%;gap:14px;padding:11px 12px;margin:0 0 6px;background:rgba(8,16,38,.45);border:1px solid transparent;border-radius:14px;color:#fff;cursor:pointer;font:inherit;text-align:left;transition:border-color .2s,background .2s}
+.row:hover{border-color:rgba(56,189,248,.45);background:rgba(14,24,48,.7)}
+.row .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--c);background:var(--c);box-shadow:0 0 10px var(--c);flex:0 0 16px;transition:all .15s}
+.row .nm{flex:1;font-size:16px;font-weight:500}
+.row .ct{font-family:'Space Grotesk','Inter',sans-serif;color:var(--mute);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.row.off{color:#64748b}
+.row.off .dot{background:transparent;box-shadow:none;border-color:#475569}
+.row.off .ct{color:#475569}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:22px}
+.chip{padding:9px 16px;border-radius:999px;border:1px solid var(--line);background:rgba(56,189,248,.06);color:#e2e8f0;font:inherit;font-size:13.5px;font-weight:500;cursor:pointer;transition:all .2s}
+.chip:hover{border-color:var(--cyan);background:rgba(56,189,248,.14)}
+.chip.on{background:rgba(56,189,248,.22);border-color:var(--cyan);color:#fff;font-weight:600}
+.help{color:#64748b;font-size:12px;line-height:1.7;margin-top:8px}
+.warn{display:none;margin:0 0 16px;padding:10px 12px;border-radius:12px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;font-size:12.5px;line-height:1.5}
+#stage{flex:1;position:relative;min-width:0;background:radial-gradient(ellipse at 60% 45%,#0b1329 0%,#040817 72%)}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+#clock{position:absolute;left:18px;top:16px;font-size:12.5px;font-weight:600;letter-spacing:.04em;color:#e2e8f0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 13px;backdrop-filter:blur(10px);z-index:5;font-variant-numeric:tabular-nums}
+#clock i{font-style:normal;margin-left:10px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.14em;background:rgba(16,185,129,.16);color:var(--green)}
+#clock i.sim{background:rgba(56,189,248,.16);color:#7dd3fc}
+#clock i.pz{background:rgba(251,191,36,.16);color:#fbbf24}
+#hud{position:absolute;right:16px;top:16px;width:300px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;z-index:5;backdrop-filter:blur(12px);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#hud h4{margin:0 0 10px;font-size:11px;letter-spacing:.2em;color:var(--cyan);font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:9px}
+#hud p{margin:6px 0;font-size:12.5px;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
+#hud p span{color:#f8fafc;font-weight:600;font-size:12.5px;text-align:right;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#bar{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:20px;z-index:6;backdrop-filter:blur(12px);box-shadow:0 12px 40px rgba(0,0,0,.55);max-width:calc(100% - 24px)}
+#bar button{font:inherit;cursor:pointer;color:#e2e8f0}
+#pp{display:flex;align-items:center;gap:8px;height:42px;padding:0 22px;border-radius:999px;border:1px solid rgba(252,61,33,.9);background:linear-gradient(135deg,#fc3d21 0%,#c42a12 100%);color:#fff!important;font-weight:700;font-size:14px;white-space:nowrap;box-shadow:0 8px 26px rgba(252,61,33,.3);transition:transform .2s,box-shadow .2s}
+#pp:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(252,61,33,.45)}
+#pp.paused{border-color:rgba(16,185,129,.9);background:linear-gradient(135deg,#10b981 0%,#047857 100%);box-shadow:0 8px 26px rgba(16,185,129,.3)}
+.sp{display:flex;flex-direction:column;gap:7px;min-width:0}
+.sp .top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--cyan)}
+.sp .top b{font-family:'Space Grotesk','Inter',sans-serif;color:#fff;font-size:15px;letter-spacing:0}
+.sp .top span span{color:var(--mute);font-weight:500;letter-spacing:.02em}
+.sp .pre{display:flex;gap:5px;flex-wrap:wrap}
+.sp .pre button{height:25px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:rgba(56,189,248,.06);font-size:11.5px;font-weight:600}
+.sp .pre button:hover{border-color:var(--cyan)}
+.sp .pre button.on{background:rgba(56,189,248,.24);border-color:var(--cyan);color:#fff}
+input[type=range]{width:240px;accent-color:#38bdf8;cursor:pointer;margin:0}
+#live{height:42px;padding:0 16px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:transparent;font-size:13px;font-weight:600;white-space:nowrap;transition:all .2s}
+#live:hover{border-color:var(--cyan);background:rgba(56,189,248,.08)}
+#pz{position:absolute;left:50%;top:18px;transform:translateX(-50%);padding:8px 18px;border-radius:999px;background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.55);color:#fbbf24;font-size:11.5px;font-weight:700;letter-spacing:.18em;display:none;z-index:6}
+#empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#94a3b8;z-index:4;text-align:center;padding:30px}
+@media (max-width:900px){
+ #app{flex-direction:column}
+ #panel{width:100%;flex:0 0 40%;padding:16px;border-right:0;border-bottom:1px solid var(--line)}
+ h1{font-size:28px}.big b{font-size:38px}#hud{display:none}
+ input[type=range]{width:140px}
+}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head><body>
+<div id="app">
+ <div id="panel">
+  <div class="kick" id="t-kick"></div>
+  <h1 id="t-title"></h1>
+  <p class="desc" id="t-desc"></p>
+  <div class="warn" id="warn"></div>
+  <div class="big"><b id="total">0</b><span id="t-big"></span></div>
+  <div class="sec" id="t-types"></div>
+  <div id="rows"></div>
+  <div class="sec" style="margin-top:22px" id="t-launch"></div>
+  <div class="chips" id="chips"></div>
+  <div class="help" id="t-help"></div>
+ </div>
+ <div id="stage">
+  <canvas id="cv" tabindex="0"></canvas>
+  <div id="clock"><span id="clk">--</span><i id="badge"></i></div>
+  <div id="pz"></div>
+  <div id="empty"></div>
+  <div id="hud">
+   <h4 id="h-title"></h4>
+   <p><em id="l-name" style="font-style:normal"></em><span id="h-name" style="color:#7dd3fc"></span></p>
+   <p><em id="l-id" style="font-style:normal"></em><span id="h-id">---</span></p>
+   <p><em id="l-cls" style="font-style:normal"></em><span id="h-cls">---</span></p>
+   <p><em id="l-alt" style="font-style:normal"></em><span id="h-alt" style="color:#34d399">---</span></p>
+   <p><em id="l-vel" style="font-style:normal"></em><span id="h-vel">---</span></p>
+   <p><em id="l-inc" style="font-style:normal"></em><span id="h-inc">---</span></p>
+   <p><em id="l-per" style="font-style:normal"></em><span id="h-per">---</span></p>
+   <p><em id="l-thr" style="font-style:normal"></em><span id="h-thr" style="color:#34d399">---</span></p>
+  </div>
+  <div id="bar">
+   <button id="pp"></button>
+   <div class="sp">
+    <div class="top"><span id="t-speed"></span><span><b id="spv">120×</b> &nbsp;<span id="sph"></span></span></div>
+    <input id="spr" type="range" min="0" max="3.7" step="0.01" value="2.08">
+    <div class="pre" id="pre"></div>
+   </div>
+   <button id="live"></button>
+  </div>
+ </div>
+</div>
+<script>
+(function(){
+"use strict";
+const D = __DATA__, L = __L__, FLAGGED = new Set(__FLAGS__);
+const N = D.id.length;
+const MU = 398600.4418, RE = 6378.137, J2 = 1.08262668e-3, TAU = Math.PI * 2, F = 1 / 298.257223563, DEG = 180 / Math.PI;
+const $ = id => document.getElementById(id);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-      const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(5, 3, 5); scene.add(sun);
-      const tl = new THREE.TextureLoader();
-      const earthMat = new THREE.MeshStandardMaterial({ roughness:0.6, metalness:0.1, color:0x0b3d91 });
-      const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), earthMat); scene.add(earth);
-      tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg', (t) => { earthMat.map = t; earthMat.color.setHex(0xffffff); earthMat.needsUpdate = true; });
-      const cloudMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.3, blending:THREE.AdditiveBlending, depthWrite:false });
-      const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.012, 64, 64), cloudMat); scene.add(clouds);
-      tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png', (t) => { cloudMat.map = t; cloudMat.needsUpdate = true; });
+/* ---------- Metinler ---------- */
+$('t-kick').textContent = L.kicker; $('t-title').textContent = L.title; $('t-desc').textContent = L.desc;
+$('t-big').textContent = L.big; $('t-types').textContent = L.types; $('t-launch').textContent = L.launched;
+$('t-help').textContent = L.help; $('t-speed').textContent = L.speed; $('live').textContent = '⟲ ' + L.live;
+$('h-title').textContent = L.hud; $('pz').textContent = '⏸ ' + L.paused;
+[['l-name','target'],['l-id','norad'],['l-cls','cls'],['l-alt','alt'],['l-vel','vel'],['l-inc','inc'],['l-per','per'],['l-thr','thr']].forEach(a => $(a[0]).textContent = L[a[1]] + ':');
+$('h-name').textContent = L.hover;
+if (N < 300) { const w = $('warn'); w.style.display = 'block'; w.textContent = L.few; }
+if (N === 0) { const e = $('empty'); e.style.display = 'flex'; e.textContent = L.few; }
+const fmt = n => n.toLocaleString(L.loc);
 
-      const bodyMat = new THREE.MeshStandardMaterial({ color:0xd1d5db, metalness:0.9, roughness:0.2 });
-      const panelMat = new THREE.MeshStandardMaterial({ color:0x1e3a8a, metalness:0.8, roughness:0.3, emissive:0x0b2a6f });
-      const debrisMat = new THREE.MeshStandardMaterial({ color:0xef4444, metalness:0.6, roughness:0.4, emissive:0x7f1d1d });
-      const issMat = new THREE.MeshStandardMaterial({ color:0x10b981, emissive:0x065f46 });
-      const hitMat = new THREE.MeshBasicMaterial({ visible:false });
-      const objs = [];
+/* ---------- Yörünge elemanları ---------- */
+const K = Uint8Array.from(D.k), AGE = Int32Array.from(D.age);
+const A = new Float32Array(N), E = new Float32Array(N), INC = new Float32Array(N), SQ = new Float32Array(N);
+const CI = new Float32Array(N), SI = new Float32Array(N);
+const RA = new Float64Array(N), AP = new Float64Array(N), M0 = new Float64Array(N);
+const NM = new Float64Array(N), DM = new Float64Array(N), DO = new Float64Array(N), DW = new Float64Array(N);
+const PX = new Float32Array(N), PY = new Float32Array(N), PZ = new Float32Array(N);
+const QX = new Float32Array(N), QY = new Float32Array(N), QZ = new Float32Array(N);
+for (let i = 0; i < N; i++) {
+  const o = i * 6, a = D.el[o], e = D.el[o+1], inc = D.el[o+2];
+  A[i] = a; E[i] = e; INC[i] = inc; RA[i] = D.el[o+3]; AP[i] = D.el[o+4]; M0[i] = D.el[o+5];
+  SQ[i] = Math.sqrt(1 - e * e); CI[i] = Math.cos(inc); SI[i] = Math.sin(inc);
+  const ak = a * RE, n = Math.sqrt(MU / (ak * ak * ak)), p = ak * (1 - e * e), k = 1.5 * J2 * Math.pow(RE / p, 2), c = CI[i];
+  NM[i] = n;
+  DO[i] = -k * n * c;
+  DW[i] = 0.5 * k * n * (5 * c * c - 1);
+  DM[i] = n * (1 + 0.5 * k * SQ[i] * (3 * c * c - 1));
+}
+/* TEME (X,Y,Z) -> three.js (X, Z, -Y) */
+function refresh(i, t) {
+  const w = AP[i] + DW[i] * t, om = RA[i] + DO[i] * t;
+  const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(om), sO = Math.sin(om), ci = CI[i], si = SI[i];
+  PX[i] = cO * cw - sO * sw * ci;      PY[i] = sw * si;       PZ[i] = -(sO * cw + cO * sw * ci);
+  QX[i] = -cO * sw - sO * cw * ci;     QY[i] = cw * si;       QZ[i] = -(-sO * sw + cO * cw * ci);
+}
 
-      D.objs.forEach((o, idx) => {
-        const g = new THREE.Group();
-        if (o.k === 'debris') { g.add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.010, 0), debrisMat)); }
-        else {
-          const s = o.k === 'iss' ? 2.2 : 1.0;
-          const b = new THREE.Mesh(new THREE.BoxGeometry(0.012*s, 0.012*s, 0.02*s), o.k === 'iss' ? issMat : bodyMat);
-          const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.03*s, 0.002*s, 0.012*s), panelMat); p1.position.x = 0.02*s;
-          const p2 = p1.clone(); p2.position.x = -0.02*s;
-          g.add(b, p1, p2);
-        }
-        g.add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), hitMat));
-        g.userData = { idx:idx, name:o.n, id:o.id, kind:o.k, flagged:FLAGGED.has(o.n) };
-        if (g.userData.flagged) { g.add(new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 12), new THREE.MeshBasicMaterial({ color:0xfc3d21, transparent:true, opacity:0.45 }))); }
-        scene.add(g); objs.push(g);
-      });
+/* ---------- Sahne ---------- */
+const stage = $('stage'), cv = $('cv');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
+const PR = Math.min(window.devicePixelRatio || 1, 2);
+renderer.setPixelRatio(PR); renderer.setClearColor(0x040817, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 400);
+const th0 = D.gmst0 + 35 * Math.PI / 180, la0 = 22 * Math.PI / 180, dist0 = 3.3;
+camera.position.set(dist0 * Math.cos(la0) * Math.cos(th0), dist0 * Math.sin(la0), -dist0 * Math.cos(la0) * Math.sin(th0));
+const controls = new THREE.OrbitControls(camera, cv);
+controls.enableDamping = true; controls.dampingFactor = 0.07; controls.enablePan = false;
+controls.minDistance = 1.12; controls.maxDistance = 16; controls.rotateSpeed = 0.6; controls.zoomSpeed = 0.8;
 
-      function sample(idx, t) {
-        const arr = D.pos[idx], n = D.steps - 1, tt = ((t % n) + n) % n, i = Math.floor(tt), f = tt - i, a = i*3, b = (i+1)*3;
-        return [arr[a] + (arr[b]-arr[a])*f, arr[a+1] + (arr[b+1]-arr[a+1])*f, arr[a+2] + (arr[b+2]-arr[a+2])*f];
-      }
-      function altKm(p) { const n = Math.hypot(p[0], p[1], p[2]); return (n - (1 - Math.pow(p[1]/n, 2)/298.257)) * RE_KM; }
+const sunDir = new THREE.Vector3(D.sun[0], D.sun[1], D.sun[2]).normalize();
+const sunL = new THREE.DirectionalLight(0xffffff, 1.9); sunL.position.copy(sunDir).multiplyScalar(20); scene.add(sunL);
+scene.add(new THREE.AmbientLight(0x8fa3d1, 0.85));
 
-      let orbitLine = null, hovered = -1;
-      function showOrbit(idx) {
-        if (orbitLine) { scene.remove(orbitLine); orbitLine.geometry.dispose(); orbitLine = null; }
-        if (idx < 0) return;
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(D.pos[idx], 3));
-        orbitLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color:0x38bdf8, transparent:true, opacity:0.8 }));
-        scene.add(orbitLine);
-      }
+const tl = new THREE.TextureLoader(); tl.setCrossOrigin('anonymous');
+const earthMat = new THREE.MeshStandardMaterial({ color: 0x1a3f7a, roughness: 0.95, metalness: 0.0, emissive: 0x050b1c });
+const earth = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), earthMat); scene.add(earth);
+tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+  t => { earthMat.map = t; earthMat.color.setHex(0xc9d3e6); earthMat.needsUpdate = true; }, undefined, () => {});
+const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false });
+const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.008, 64, 48), cloudMat); scene.add(clouds);
+tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png',
+  t => { cloudMat.map = t; cloudMat.needsUpdate = true; }, undefined, () => {});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.07, 64, 48), new THREE.ShaderMaterial({
+  transparent: true, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: 'varying vec3 vN; void main(){ float i = pow(max(0.0, 0.72 - dot(vN, vec3(0.0,0.0,1.0))), 3.0); gl_FragColor = vec4(0.32,0.62,1.0,1.0) * i; }'
+})));
 
-      const raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
-      renderer.domElement.addEventListener('mousemove', (ev) => {
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((ev.clientX - rect.left)/rect.width)*2 - 1; mouse.y = -((ev.clientY - rect.top)/rect.height)*2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-        const hit = raycaster.intersectObjects(objs, true);
-        if (hit.length) {
-          const u = hit[0].object.parent.userData;
-          if (u.idx !== hovered) { hovered = u.idx; showOrbit(hovered); }
-        }
-      });
+/* Yıldızlar */
+{
+  const n = 1400, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const u = Math.random() * 2 - 1, a = Math.random() * TAU, s = Math.sqrt(1 - u * u), r = 150;
+    pos[i*3] = r * s * Math.cos(a); pos[i*3+1] = r * u; pos[i*3+2] = r * s * Math.sin(a);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.3, sizeAttenuation: false, color: 0xa9b8d8, transparent: true, opacity: 0.65, depthWrite: false })));
+}
 
-      let simT = 0, last = performance.now();
-      function animate(now) {
-        requestAnimationFrame(animate);
-        const dt = (now - last)/1000; last = now;
-        const warp = parseFloat(document.getElementById('warp').value);
-        simT += dt * warp / D.step_s;
-        const loopSecs = (simT * D.step_s) % LOOP_S;
-        earth.rotation.y = D.gmst0 + OMEGA * loopSecs;
-        clouds.rotation.y = earth.rotation.y * 1.02;
-        objs.forEach((g, i) => { const p = sample(i, simT); g.position.set(p[0], p[1], p[2]); g.rotation.y += 0.02; });
-        const m = Math.floor(loopSecs / 60);
-        document.getElementById('clock').innerText = 'T+' + String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
-        if (hovered >= 0) {
-          const u = objs[hovered].userData, h = 0.05, n = D.steps - 1;
-          // Döngü sonunda ileri fark yerine geri fark kullan (sarma sıçramasını önler)
-          const t0 = (simT % n) + h < n ? simT : simT - h;
-          const p = sample(hovered, simT), pa = sample(hovered, t0), pb = sample(hovered, t0 + h);
-          const v = Math.hypot(pb[0]-pa[0], pb[1]-pa[1], pb[2]-pa[2]) * RE_KM / (h * D.step_s);
-          document.getElementById('h-name').innerText = u.name;
-          document.getElementById('h-id').innerText = u.id;
-          document.getElementById('h-class').innerText = u.kind === 'debris' ? 'DEBRIS' : (u.kind === 'iss' ? 'CREWED STATION' : 'SATELLITE');
-          document.getElementById('h-alt').innerText = altKm(p).toFixed(0) + ' km';
-          document.getElementById('h-vel').innerText = v.toFixed(2) + ' km/s';
-          const t = document.getElementById('h-threat');
-          t.innerText = u.flagged ? 'FLAGGED' : 'none flagged';
-          t.style.color = u.flagged ? '#fc3d21' : '#10b981';
-        }
-        controls.update(); renderer.render(scene, camera);
-      }
-      requestAnimationFrame(animate);
-    </script></body></html>
-    """
-    html_earth_code = (html_earth_code.replace("__DATA__", json.dumps(payload))
-                       .replace("__FLAGS__", json.dumps(flags)))
-    html_earth_code = _i18n_html(html_earth_code, [
-        ("Time warp:", "Zaman hızı:"),
-        ("🎯 LIVE ORBITAL TELEMETRY HUD", "🎯 CANLI YÖRÜNGE TELEMETRİ PANELİ"),
-        ("Target: <span", "Hedef: <span"),
-        ("HOVER OVER OBJECT", "BİR NESNENİN ÜSTÜNE GELİN"),
-        ("NORAD Cat ID: <span", "NORAD Katalog No: <span"),
-        ("Class: <span", "Sınıf: <span"),
-        ("Altitude: <span", "İrtifa: <span"),
-        ("Velocity: <span", "Hız: <span"),
-        ("Conjunction watch: <span", "Yakınlaşma takibi: <span"),
-        ("'DEBRIS' : (u.kind === 'iss' ? 'CREWED STATION' : 'SATELLITE')",
-         "'ENKAZ' : (u.kind === 'iss' ? 'MÜRETTEBATLI İSTASYON' : 'UYDU')"),
-        ("u.flagged ? 'FLAGGED' : 'none flagged'", "u.flagged ? 'İŞARETLİ' : 'işaretli değil'"),
-    ])
-    embed_html(html_earth_code, height=780)
+/* ---------- Nesne noktaları (tek geometri, GPU'da renk/boyut/görünürlük) ---------- */
+const P = new Float32Array(N * 3), COL = new Float32Array(N * 3), SIZE = new Float32Array(N), SHOW = new Float32Array(N);
+const BASE = [2.6, 3.4, 3.6, 2.4, 8.0];
+for (let i = 0; i < N; i++) {
+  const c = L.colors[K[i]]; COL[i*3] = c[0]; COL[i*3+1] = c[1]; COL[i*3+2] = c[2];
+  SIZE[i] = (BASE[K[i]] + (FLAGGED.has(D.n[i]) ? 3 : 0)) * PR;
+}
+const geo = new THREE.BufferGeometry();
+const posAttr = new THREE.BufferAttribute(P, 3), showAttr = new THREE.BufferAttribute(SHOW, 1);
+posAttr.setUsage(THREE.DynamicDrawUsage); showAttr.setUsage(THREE.DynamicDrawUsage);
+geo.setAttribute('position', posAttr); geo.setAttribute('aColor', new THREE.BufferAttribute(COL, 3));
+geo.setAttribute('aSize', new THREE.BufferAttribute(SIZE, 1)); geo.setAttribute('aShow', showAttr);
+const pts = new THREE.Points(geo, new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, depthTest: true,
+  vertexShader: 'attribute vec3 aColor; attribute float aSize; attribute float aShow; varying vec3 vC;' +
+    'void main(){ vC = aColor; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_PointSize = aSize;' +
+    'if (aShow < 0.5) { gl_Position = vec4(2.0,2.0,2.0,1.0); gl_PointSize = 0.0; } }',
+  fragmentShader: 'varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;' +
+    'float a = smoothstep(0.5, 0.12, d); gl_FragColor = vec4(vC, a * 0.96); }'
+}));
+pts.frustumCulled = false; pts.renderOrder = 2; scene.add(pts);
+
+/* Seçili nesne halkası + yörünge çizgisi */
+const ringCv = document.createElement('canvas'); ringCv.width = ringCv.height = 64;
+{ const c = ringCv.getContext('2d'); c.strokeStyle = '#fff'; c.lineWidth = 5; c.beginPath(); c.arc(32, 32, 24, 0, TAU); c.stroke(); }
+const ringGeo = new THREE.BufferGeometry(); ringGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+const ring = new THREE.Points(ringGeo, new THREE.PointsMaterial({ size: 30, sizeAttenuation: false, map: new THREE.CanvasTexture(ringCv), transparent: true, depthTest: false, depthWrite: false }));
+ring.visible = false; ring.frustumCulled = false; ring.renderOrder = 5; scene.add(ring);
+const SEG = 256, orbArr = new Float32Array((SEG + 1) * 3);
+const orbGeo = new THREE.BufferGeometry(); orbGeo.setAttribute('position', new THREE.BufferAttribute(orbArr, 3));
+const orbMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+const orbit = new THREE.Line(orbGeo, orbMat); orbit.visible = false; orbit.frustumCulled = false; orbit.renderOrder = 4; scene.add(orbit);
+
+/* ---------- Filtre / sayaçlar ---------- */
+const rowOf = k => k === 4 ? 0 : k;
+const enabled = [false, true, true, true];       // çalışan uydular kapalı başlar
+let launch = 'any', act = new Uint32Array(N), na = 0, counts = [0, 0, 0, 0], forceRef = true, dirty = true;
+function ageOk(a) {
+  switch (launch) {
+    case 'any': return true;
+    case 'd30': return a >= 0 && a <= 30;
+    case 'y1':  return a >= 0 && a <= 365;
+    case 'y5':  return a >= 0 && a <= 1826;
+    case 'y10': return a >= 0 && a <= 3652;
+    case 'old': return a > 3652;
+  }
+  return true;
+}
+const rowsEl = $('rows'), rowBtns = [];
+['sat', 'dead', 'rb', 'deb'].forEach((key, r) => {
+  const b = document.createElement('button'); b.className = 'row'; b.type = 'button';
+  const c = L.colors[r], css = 'rgb(' + Math.round(c[0]*255) + ',' + Math.round(c[1]*255) + ',' + Math.round(c[2]*255) + ')';
+  b.style.setProperty('--c', css);
+  b.innerHTML = '<span class="dot"></span><span class="nm"></span><span class="ct">0</span>';
+  b.querySelector('.nm').textContent = L[key];
+  b.addEventListener('click', () => { enabled[r] = !enabled[r]; applyFilter(); });
+  rowsEl.appendChild(b); rowBtns.push(b);
+});
+const chipsEl = $('chips'), chipBtns = {};
+['any', 'd30', 'y1', 'y5', 'y10', 'old'].forEach(key => {
+  const b = document.createElement('button'); b.className = 'chip'; b.type = 'button'; b.textContent = L.chips[key];
+  b.addEventListener('click', () => { launch = key; applyFilter(); });
+  chipsEl.appendChild(b); chipBtns[key] = b;
+});
+function updateUI() {
+  rowBtns.forEach((b, r) => { b.classList.toggle('off', !enabled[r]); b.querySelector('.ct').textContent = fmt(counts[r]); });
+  for (const k in chipBtns) chipBtns[k].classList.toggle('on', k === launch);
+  let junk = 0; for (let r = 1; r < 4; r++) if (enabled[r]) junk += counts[r];
+  $('total').textContent = fmt(junk);
+}
+function applyFilter() {
+  counts = [0, 0, 0, 0]; na = 0;
+  for (let i = 0; i < N; i++) {
+    const r = rowOf(K[i]), ok = ageOk(AGE[i]);
+    if (ok) counts[r]++;
+    const show = ok && enabled[r];
+    SHOW[i] = show ? 1 : 0;
+    if (show) act[na++] = i;
+  }
+  showAttr.needsUpdate = true; forceRef = true; dirty = true;
+  if (pinned >= 0 && !SHOW[pinned]) { pinned = -1; }
+  if (hovered >= 0 && !SHOW[hovered]) { hovered = -1; }
+  selectionChanged(); updateUI();
+}
+
+/* ---------- Zaman / hız ---------- */
+let simT = (Date.now() - D.t0) / 1000, speed = 120, paused = false, tRef = -1e12;
+const PRESETS = [1, 10, 60, 120, 300, 900, 3000];
+const preEl = $('pre'), preBtns = [];
+PRESETS.forEach(v => {
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = v + '×';
+  b.addEventListener('click', () => setSpeed(v)); preEl.appendChild(b); preBtns.push(b);
+});
+function dur(s) { return s < 60 ? s.toFixed(0) + ' ' + L.u[0] : s < 3600 ? (s / 60).toFixed(1) + ' ' + L.u[1] : (s / 3600).toFixed(1) + ' ' + L.u[2]; }
+function setSpeed(v, fromSlider) {
+  speed = Math.max(1, Math.min(5000, v));
+  $('spv').textContent = Math.round(speed) + '×';
+  $('sph').textContent = '· 1 ' + L.u[0] + ' = ' + dur(speed);
+  if (!fromSlider) $('spr').value = Math.log10(speed);
+  PRESETS.forEach((p, i) => preBtns[i].classList.toggle('on', Math.round(speed) === p));
+}
+function setPaused(p) {
+  paused = p; const b = $('pp');
+  b.textContent = paused ? '▶  ' + L.play : '⏸  ' + L.pause;
+  b.classList.toggle('paused', paused);
+  $('pz').style.display = paused ? 'block' : 'none';
+}
+$('pp').addEventListener('click', () => { setPaused(!paused); cv.focus(); });
+$('spr').addEventListener('input', e => setSpeed(Math.pow(10, parseFloat(e.target.value)), true));
+$('live').addEventListener('click', () => { simT = (Date.now() - D.t0) / 1000; setSpeed(1); setPaused(false); forceRef = true; dirty = true; });
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.key === 'p' || e.key === 'P') { e.preventDefault(); setPaused(!paused); }
+});
+setSpeed(120); setPaused(false);
+
+/* ---------- Konum hesabı ---------- */
+function updatePositions(t) {
+  const needRef = forceRef || Math.abs(t - tRef) > 120;
+  if (needRef) { tRef = t; forceRef = false; }
+  for (let k = 0; k < na; k++) {
+    const i = act[k];
+    if (needRef) refresh(i, t);
+    let M = (M0[i] + DM[i] * t) % TAU; if (M < 0) M += TAU;
+    const e = E[i];
+    let Ea = M + e * Math.sin(M);
+    if (e > 1e-4) {
+      if (e > 0.8) Ea = Math.PI;
+      for (let it = 0; it < 6; it++) { Ea -= (Ea - e * Math.sin(Ea) - M) / (1 - e * Math.cos(Ea)); }
+    }
+    const x = A[i] * (Math.cos(Ea) - e), y = A[i] * SQ[i] * Math.sin(Ea), j = i * 3;
+    P[j] = PX[i] * x + QX[i] * y; P[j+1] = PY[i] * x + QY[i] * y; P[j+2] = PZ[i] * x + QZ[i] * y;
+  }
+  posAttr.needsUpdate = true;
+}
+
+/* ---------- Seçim (hover / sabitle) ---------- */
+let hovered = -1, pinned = -1, mouse = { x: 0, y: 0, in: false, dirty: false }, down = null;
+function selected() { return pinned >= 0 ? pinned : hovered; }
+function selectionChanged() {
+  const i = selected();
+  if (i < 0) { orbit.visible = false; ring.visible = false; return; }
+  refresh(i, simT);
+  for (let s = 0; s <= SEG; s++) {
+    const Ea = s / SEG * TAU, x = A[i] * (Math.cos(Ea) - E[i]), y = A[i] * SQ[i] * Math.sin(Ea);
+    orbArr[s*3] = PX[i] * x + QX[i] * y; orbArr[s*3+1] = PY[i] * x + QY[i] * y; orbArr[s*3+2] = PZ[i] * x + QZ[i] * y;
+  }
+  orbGeo.attributes.position.needsUpdate = true;
+  const c = L.colors[K[i]]; orbMat.color.setRGB(c[0], c[1], c[2]);
+  orbit.visible = true; ring.visible = true;
+}
+function occluded(px, py, pz) {
+  const c = camera.position, dx = px - c.x, dy = py - c.y, dz = pz - c.z, dd = dx*dx + dy*dy + dz*dz;
+  const t = -(c.x*dx + c.y*dy + c.z*dz) / dd; if (t <= 0 || t >= 1) return false;
+  const qx = c.x + dx*t, qy = c.y + dy*t, qz = c.z + dz*t; return qx*qx + qy*qy + qz*qz < 1.0;
+}
+const tv = new THREE.Vector3();
+function pick(mx, my) {
+  const w = cv.clientWidth, h = cv.clientHeight; let best = -1, bd = 100;
+  camera.updateMatrixWorld();
+  for (let k = 0; k < na; k++) {
+    const i = act[k], j = i * 3;
+    tv.set(P[j], P[j+1], P[j+2]).project(camera);
+    if (tv.z > 1 || tv.z < -1) continue;
+    const sx = (tv.x * 0.5 + 0.5) * w - mx, sy = (-tv.y * 0.5 + 0.5) * h - my, d = sx*sx + sy*sy;
+    if (d < bd && !occluded(P[j], P[j+1], P[j+2])) { bd = d; best = i; }
+  }
+  return best;
+}
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; mouse.in = true; mouse.dirty = true;
+});
+cv.addEventListener('pointerleave', () => { mouse.in = false; if (hovered >= 0) { hovered = -1; selectionChanged(); } });
+cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; cv.focus(); });
+cv.addEventListener('pointerup', e => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); down = null;
+  if (moved > 5) return;
+  const r = cv.getBoundingClientRect(), i = pick(e.clientX - r.left, e.clientY - r.top);
+  pinned = (i >= 0 && i !== pinned) ? i : -1; selectionChanged();
+});
+
+/* ---------- HUD ---------- */
+const clsName = k => [L.cSat, L.cDead, L.cRb, L.cDeb, L.cStn][k];
+function updateHUD() {
+  const i = selected();
+  if (i < 0) {
+    $('h-name').textContent = L.hover; ['h-id','h-cls','h-alt','h-vel','h-inc','h-per','h-thr'].forEach(id => $(id).textContent = '---');
+    return;
+  }
+  const j = i * 3, r = Math.hypot(P[j], P[j+1], P[j+2]);
+  const alt = (r - (1 - F * Math.pow(P[j+1] / r, 2))) * RE;
+  const v = Math.sqrt(MU * (2 / (r * RE) - 1 / (A[i] * RE)));
+  $('h-name').textContent = D.n[i] + (pinned === i ? ' 📌' : '');
+  $('h-id').textContent = D.id[i]; $('h-cls').textContent = clsName(K[i]);
+  $('h-alt').textContent = alt.toFixed(0) + ' km'; $('h-vel').textContent = v.toFixed(2) + ' km/s';
+  $('h-inc').textContent = (INC[i] * DEG).toFixed(2) + '°'; $('h-per').textContent = (TAU / NM[i] / 60).toFixed(1) + ' ' + L.u[1];
+  const fl = FLAGGED.has(D.n[i]), t = $('h-thr'); t.textContent = fl ? L.flag : L.noflag; t.style.color = fl ? '#fc3d21' : '#34d399';
+  ring.geometry.attributes.position.array.set([P[j], P[j+1], P[j+2]]); ring.geometry.attributes.position.needsUpdate = true;
+}
+
+/* ---------- Boyut ---------- */
+function resize() {
+  const w = Math.max(10, stage.clientWidth), h = Math.max(10, stage.clientHeight);
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
+resize();
+
+/* ---------- Döngü ---------- */
+let last = performance.now(), fr = 0;
+applyFilter();
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+  if (!paused) simT += dt * speed;
+  if (!paused || dirty) {
+    updatePositions(simT); dirty = false;
+    earth.rotation.y = D.gmst0 + D.omega * simT; clouds.rotation.y = earth.rotation.y * 1.0 + 0.0004 * simT / 3600;
+  }
+  if (mouse.dirty && mouse.in && !down) {
+    mouse.dirty = false;
+    const i = pick(mouse.x, mouse.y);
+    if (i !== hovered) { hovered = i; selectionChanged(); cv.style.cursor = i >= 0 ? 'pointer' : 'grab'; }
+  }
+  if ((fr++ & 3) === 0) {
+    updateHUD();
+    const drift = Math.abs(simT - (Date.now() - D.t0) / 1000);
+    $('clk').textContent = new Date(D.t0 + simT * 1000).toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+    const bd = $('badge');
+    bd.className = paused ? 'pz' : (speed === 1 && drift < 3 ? '' : 'sim');
+    bd.textContent = paused ? L.paused : (speed === 1 && drift < 3 ? '● ' + L.livebadge : L.sim);
+  }
+  if (selected() >= 0 && paused) updateHUD();
+  controls.update(); renderer.render(scene, camera);
+}
+cv.style.cursor = 'grab';
+requestAnimationFrame(animate);
+})();
+</script></body></html>
+"""
+    html_tracker = (TRACKER_HTML.replace("__L__", json.dumps(_L, ensure_ascii=False))
+                    .replace("__FLAGS__", json.dumps(flags, ensure_ascii=False))
+                    .replace("__DATA__", json.dumps(tracker, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")))
+    embed_html(html_tracker, height=820)
 
 # =====================================================================
 # 3. MODÜL: COLLISION RISK
@@ -1794,204 +3383,24 @@ elif st.session_state.active_page == PAGES[2]:
 # 4. MODÜL: RE-ENTRY
 # =====================================================================
 elif st.session_state.active_page == PAGES[3]:
-    # (taban irtifa km, yoğunluk kg/m³, ölçek yüksekliği km)
-    ATM = [(0, 1.225, 7.249), (25, 3.899e-2, 6.349), (30, 1.774e-2, 6.682), (40, 3.972e-3, 7.554),
-           (50, 1.057e-3, 8.382), (60, 3.206e-4, 7.714), (70, 8.770e-5, 6.549), (80, 1.905e-5, 5.799),
-           (90, 3.396e-6, 5.382), (100, 5.297e-7, 5.877), (110, 9.661e-8, 7.263), (120, 2.438e-8, 9.473),
-           (130, 8.484e-9, 12.636), (140, 3.845e-9, 16.149), (150, 2.070e-9, 22.523)]
-    # Parçalanma için gereken özgül enerji (MJ/kg)
-    MATERIALS = {"Aluminum alloy": 0.97, "Stainless steel": 1.0, "Titanium": 1.15, "Carbon composite (CFRP/C-C)": 3.0}
-    _MAT_TR = {"Aluminum alloy": "Alüminyum alaşımı", "Stainless steel": "Paslanmaz çelik", "Titanium": "Titanyum",
-               "Carbon composite (CFRP/C-C)": "Karbon kompozit (CFRP/C-C)"}
-
-    def _mat_name(m):
-        return _MAT_TR.get(m, m) if st.session_state.lang == "tr" else m
-
-    def rho(h_km):
-        h = max(h_km, 0.0)
-        for hb, r0, H in reversed(ATM):
-            if h >= hb:
-                return r0 * math.exp(-(h - hb) / H)
-        return 1.225
-
-    def simulate_reentry(mass, area, gamma_deg, e_demise_mj, cd=2.2, rn=0.5, h0=120.0, v0=7.8):
-        R, mu = 6371e3, 3.986004418e14
-        sigma, eps, k = 5.670374e-8, 0.8, 1.7415e-4  # Stefan-Boltzmann, yayınım, Sutton-Graves sabiti
-        h, v, g, psi, t, E = h0 * 1e3, v0 * 1e3, math.radians(gamma_deg), 0.0, 0.0, 0.0
-        dt, rows, demise = 0.05, [], None
-        while h > 0 and t < 2500 and v > 100:
-            r = R + h
-            rh = rho(h / 1e3)
-            drag = 0.5 * rh * cd * area * v * v / mass
-            grav = mu / r ** 2
-            q = k * math.sqrt(rh / rn) * v ** 3
-            T = max((q / (eps * sigma)) ** 0.25, 250.0)
-            E += q * area * dt
-            rows.append((t, h / 1e3, v / 1e3, math.degrees(g), drag / 9.80665, q / 1e6, T - 273.15,
-                         E / mass / 1e6, psi * R / 1e3, psi))
-            if E / mass >= e_demise_mj * 1e6:
-                demise = len(rows) - 1
-                break
-            v += (-drag + grav * math.sin(g)) * dt
-            g += (grav / v - v / r) * math.cos(g) * dt
-            h -= v * math.sin(g) * dt
-            psi += v * math.cos(g) / r * dt
-            t += dt
-        df = pd.DataFrame(rows, columns=["t_s", "alt_km", "v_kms", "gamma_deg", "decel_g", "flux_MWm2",
-                                         "temp_C", "heat_MJkg", "downrange_km", "psi"])
-        return df, demise
-
     st.markdown(T("### 🔥 SPACE GRAVE [SP4C3 GR4V3] Atmosfere Yeniden Giriş ve Parçalanma Simülatörü",
                   "### 🔥 SPACE GRAVE [SP4C3 GR4V3] Atmospheric Re-Entry & Disintegration Simulator"))
-    st.markdown(f"<p style='color:#94a3b8;font-size:13px;'>{T('Üstel atmosfer + balistik sürükleme + Sutton-Graves ısı akısı modeli.', 'Exponential atmosphere + ballistic drag + Sutton-Graves heat flux model.')}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#94a3b8;font-size:13px;'>{T('Üstel atmosfer + balistik sürükleme + Sutton-Graves ısı akısı + çok parçalı kırılma + kırmızı/sarı/yeşil bölge (yer etkisi) analizi.', 'Exponential atmosphere + ballistic drag + Sutton-Graves heating + multi-fragment break-up + red/amber/green ground-hazard zone analysis.')}</p>", unsafe_allow_html=True)
     st.markdown("---")
 
     sat_names = df_api["Satellite Name"].tolist() if not df_api.empty else []
-    target_sat = st.selectbox(T("Hedef Enkaz / Uydu:", "Target Debris / Satellite:"), ["Custom object"] + sat_names, key="sg_target",
-                              format_func=lambda x: T("Özel nesne", "Custom object") if x == "Custom object" else x)
+    st.selectbox(T("Hedef Enkaz / Uydu:", "Target Debris / Satellite:"), ["Custom object"] + sat_names, key="sg_target",
+                 format_func=lambda x: T("Özel nesne", "Custom object") if x == "Custom object" else x)
     s1, s2, s3 = st.columns(3)
-    mass = s1.slider(T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50, 5000, 1200, key="sg_mass")
-    area = s2.slider(T("Kesit alanı (m²)", "Cross-section area (m²)"), 0.1, 30.0, 4.0, key="sg_area")
-    angle = s3.slider(T("120 km'de uçuş yolu açısı (°)", "Flight-path angle at 120 km (°)"), 0.5, 45.0, 3.0, key="sg_angle")
-    material = st.selectbox(T("Baskın yapısal malzeme", "Dominant structural material"), list(MATERIALS.keys()), key="sg_material",
-                            format_func=_mat_name)
-    start_sim = st.button(T("☄️ SPACE GRAVE YÖRÜNGEDEN ÇIKARMA SEKANSINI BAŞLAT", "☄️ INITIATE SPACE GRAVE DE-ORBIT SEQUENCE"), type="primary", **stretch(st.button))
-
-    if start_sim:
-        df, demise = simulate_reentry(mass, area, angle, MATERIALS[material])
-        st.session_state.reentry = {"df": df, "demise": demise, "autoplay": True,
-                                    "target": target_sat, "mass": mass, "area": area, "angle": angle, "material": material}
-
-    res = st.session_state.reentry
-    if res is None or res["df"].empty:
-        frames = {"alt": [120.0], "v": [7.8], "temp": [0], "g": [0], "flux": [0], "psi": [0], "demise": -1, "autoplay": False}
-    else:
-        df, demise = res["df"], res["demise"]
-        _tgt = T("Özel nesne", "Custom object") if res["target"] == "Custom object" else res["target"]
-        st.caption(f"{T('Son simülasyon', 'Last simulation')}: {_tgt} · {res['mass']} kg · {res['area']} m² · {res['angle']}° · {_mat_name(res['material'])}")
-        step = max(1, len(df) // 300)
-        idx = list(range(0, len(df), step))
-        if idx[-1] != len(df) - 1:
-            idx.append(len(df) - 1)
-        d = df.iloc[idx]
-        pk = max(df["flux_MWm2"].max(), 1e-9)
-        frames = {"alt": d["alt_km"].round(2).tolist(), "v": d["v_kms"].round(3).tolist(),
-                  "temp": d["temp_C"].round(0).tolist(), "g": d["decel_g"].round(2).tolist(),
-                  "flux": (d["flux_MWm2"] / pk).round(3).tolist(), "psi": d["psi"].round(4).tolist(),
-                  "demise": (min(range(len(idx)), key=lambda j: abs(idx[j] - demise)) if demise is not None else -1),
-                  "autoplay": res["autoplay"]}
-        res["autoplay"] = False
-
-    reentry_html = """
-    <!DOCTYPE html><html><head>
-    <style>
-      body { margin:0; background:#020617; overflow:hidden; font-family:monospace; }
-      #sim { width:100%; height:650px; border-radius:20px; border:1px solid rgba(0,51,102,0.8); position:relative; box-shadow:0 0 50px rgba(0,51,102,0.4); }
-      .hud { position:absolute; top:20px; left:20px; color:#38bdf8; font-size:13px; background:rgba(3,7,18,0.9); padding:12px 18px; border-radius:12px; border:1px solid #003366; z-index:10; line-height:1.7; }
-      #replay { position:absolute; bottom:20px; left:20px; z-index:10; background:#fc3d21; color:#fff; border:0; padding:10px 18px; border-radius:10px; font-weight:bold; cursor:pointer; }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    </head><body>
-    <div id="sim">
-      <div class="hud">STATUS: <span id="st" style="color:#10b981;">STANDBY</span><br>
-        ALT <span id="a">--</span> km · V <span id="v">--</span> km/s<br>TEMP <span id="t">--</span> °C · DECEL <span id="g">--</span> g</div>
-      <button id="replay">▶ REPLAY</button>
-    </div>
-    <script>
-      const R = __RES__;
-      const box = document.getElementById('sim');
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(45, box.clientWidth/box.clientHeight, 0.01, 1000);
-      camera.position.set(0, 1.9, 3.4); camera.lookAt(0, 1.1, 0);
-      const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      renderer.setSize(box.clientWidth, box.clientHeight); box.appendChild(renderer.domElement);
-      window.addEventListener('resize', () => {
-        const w = box.clientWidth, h = box.clientHeight;
-        camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
-      });
-      scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-      const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(5, 3, 5); scene.add(sun);
-      const tl = new THREE.TextureLoader();
-      const earthMat = new THREE.MeshStandardMaterial({ roughness:0.5, metalness:0.1, color:0x0b3d91 });
-      const earth = new THREE.Mesh(new THREE.SphereGeometry(1.2, 64, 64), earthMat); scene.add(earth);
-      tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg', (t) => { earthMat.map = t; earthMat.color.setHex(0xffffff); earthMat.needsUpdate = true; });
-      const cloudMat = new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.35, blending:THREE.AdditiveBlending, depthWrite:false });
-      const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.215, 64, 64), cloudMat); scene.add(clouds);
-      tl.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png', (t) => { cloudMat.map = t; cloudMat.needsUpdate = true; });
-      scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.30, 64, 64), new THREE.MeshBasicMaterial({ color:0x38bdf8, transparent:true, opacity:0.16, side:THREE.BackSide })));
-
-      const sat = new THREE.Group();
-      sat.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.075), new THREE.MeshStandardMaterial({ color:0xc0c0c0, metalness:0.9 })));
-      const pm = new THREE.MeshStandardMaterial({ color:0x1e3a8a, emissive:0x0b2a6f });
-      const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.045), pm); p1.position.x = 0.085;
-      const p2 = p1.clone(); p2.position.x = -0.085; sat.add(p1, p2);
-      scene.add(sat);
-      const glow = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshBasicMaterial({ color:0xff7a1a, transparent:true, opacity:0 }));
-      scene.add(glow);
-
-      const N = R.alt.length, trailPos = new Float32Array(N*3);
-      const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3)); trailGeo.setDrawRange(0, 0);
-      scene.add(new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color:0xfc3d21 })));
-
-      const frags = [];
-      for (let i = 0; i < 28; i++) {
-        const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.012), new THREE.MeshBasicMaterial({ color:0xffa040, transparent:true }));
-        m.visible = false; scene.add(m); frags.push({ m:m, v:new THREE.Vector3() });
-      }
-
-      function place(i) {
-        const r = 1.2 + 0.5 * Math.min(R.alt[i], 120) / 120, a = 0.22 - R.psi[i];
-        return new THREE.Vector3(r*Math.sin(a), r*Math.cos(a), 0);
-      }
-      const DUR = 14; let f = 0, playing = R.autoplay, fragT = -1;
-      document.getElementById('replay').onclick = () => { f = 0; playing = true; fragT = -1; sat.visible = true; frags.forEach(o => o.m.visible = false); };
-      let last = performance.now();
-      function setText(id, v) { document.getElementById(id).innerText = v; }
-
-      function frame(now) {
-        requestAnimationFrame(frame);
-        const dt = (now - last)/1000; last = now;
-        earth.rotation.y += 0.0008; clouds.rotation.y += 0.0011;
-        if (playing) { f += dt * N / DUR; if (f >= N - 1) { f = N - 1; playing = false; } }
-        const i = Math.floor(f), p = place(i);
-        const dem = R.demise >= 0 && i >= R.demise;
-        sat.position.copy(p); sat.rotation.y += 0.03; sat.rotation.x += 0.012;
-        glow.position.copy(p); glow.material.opacity = Math.min(0.9, R.flux[i] * 1.2); glow.scale.setScalar(0.6 + R.flux[i] * 2.4);
-        for (let k = 0; k <= i; k++) { const q = place(k); trailPos[k*3] = q.x; trailPos[k*3+1] = q.y; trailPos[k*3+2] = q.z; }
-        trailGeo.setDrawRange(0, i + 1); trailGeo.attributes.position.needsUpdate = true;
-        setText('a', R.alt[i].toFixed(1)); setText('v', R.v[i].toFixed(2)); setText('t', R.temp[i].toFixed(0)); setText('g', R.g[i].toFixed(1));
-        const st = document.getElementById('st'); let s = 'STANDBY', c = '#10b981';
-        if (playing || f > 0) {
-          if (dem) { s = '💥 DEMISE'; c = '#fc3d21'; }
-          else if (R.flux[i] > 0.1) { s = '🔥 PLASMA HEATING'; c = '#fc3d21'; }
-          else { s = 'DESCENT'; c = '#38bdf8'; }
-        }
-        st.innerText = s; st.style.color = c;
-        if (dem) {
-          sat.visible = false; glow.material.opacity = 0;
-          if (fragT < 0) { fragT = 0; frags.forEach(o => { o.m.position.copy(p); o.m.visible = true; o.v.set((Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01, (Math.random()-0.5)*0.01); }); }
-          fragT += dt;
-          frags.forEach(o => { o.m.position.add(o.v); o.m.material.opacity = Math.max(0, 1 - fragT/2.5); });
-        }
-        renderer.render(scene, camera);
-      }
-      requestAnimationFrame(frame);
-    </script></body></html>
-    """.replace("__RES__", json.dumps(frames))
-    reentry_html = _i18n_html(reentry_html, [
-        ("STATUS: <span", "DURUM: <span"),
-        (">STANDBY</span>", ">BEKLEMEDE</span>"),
-        ("ALT <span", "İRTİFA <span"),
-        ("· V <span", "· HIZ <span"),
-        ("TEMP <span", "SICAKLIK <span"),
-        ("· DECEL <span", "· YAVAŞLAMA <span"),
-        ("▶ REPLAY", "▶ TEKRAR OYNAT"),
-        ("let s = 'STANDBY'", "let s = 'BEKLEMEDE'"),
-        ("'💥 DEMISE'", "'💥 PARÇALANMA'"),
-        ("'🔥 PLASMA HEATING'", "'🔥 PLAZMA ISINMASI'"),
-        ("'DESCENT'", "'ALÇALMA'"),
-    ])
-    embed_html(reentry_html, height=670)
+    s1.slider(T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50, 5000, 1200, key="sg_mass")
+    s2.slider(T("Kesit alanı (m²)", "Cross-section area (m²)"), 0.1, 30.0, 4.0, key="sg_area")
+    s3.slider(T("120 km'de uçuş yolu açısı (°)", "Flight-path angle at 120 km (°)"), 0.5, 45.0, 3.0, key="sg_angle")
+    st.selectbox(T("Baskın yapısal malzeme", "Dominant structural material"), list(MATERIALS.keys()), key="sg_material", format_func=_mat_name)
+    _rk = _sim_risk(st.session_state.get("sg_target", "Custom object"))
+    st.info(T(f"Risk analizi bağlantısı: {'tarama sonucu bulundu (' + str(_rk['n']) + ' yakın geçiş)' if _rk['n'] is not None else 'henüz tarama yok'}; hedefin TLE yörüngesi simülasyona otomatik aktarılır.",
+              f"Risk-analysis link: {'scan found (' + str(_rk['n']) + ' close approaches)' if _rk['n'] is not None else 'no scan yet'}; the target's TLE orbit is passed to the simulation automatically."))
+    st.button(T("☄️ SPACE GRAVE YÖRÜNGEDEN ÇIKARMA SEKANSINI BAŞLAT", "☄️ INITIATE SPACE GRAVE DE-ORBIT SEQUENCE"),
+              type="primary", on_click=_sim_open, key="sg_sim_start", **stretch(st.button))
 
 # =====================================================================
 # SAĞ ALT: MİNİ SORU-CEVAP BOTU (kural tabanlı; yapay zeka kullanmaz)
