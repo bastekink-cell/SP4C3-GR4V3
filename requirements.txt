@@ -1,4 +1,6 @@
 streamlit
+sgp4
+scipy
 numpy
 pandas
 plotly
