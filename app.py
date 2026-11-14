@@ -97,7 +97,7 @@ if "bot_log" not in st.session_state:
 
 # --- DİL (TÜR / ENG) ---
 def T(tr, en):
-    return tr if st.session_state.lang == "tr" else en
+    return tr if st.session_state.get("lang", "tr") == "tr" else en
 
 
 def _keyed(key):
@@ -256,33 +256,43 @@ def _fetch_group(g):
     has_cache = os.path.exists(path)
     if has_cache and time.time() - os.path.getmtime(path) < CACHE_TTL_S:
         with open(path, encoding="utf-8") as f:
-            return parse_tles(f.read()), "cache"
-    try:
-        r = requests.get(
-            f"https://celestrak.org/NORAD/elements/gp.php?GROUP={g}&FORMAT=tle",
-            timeout=(5, 30), headers=HEADERS
-        )
-        r.raise_for_status()
-        tles = parse_tles(r.text)
-        if not tles:
-            raise ValueError("boş yanıt")
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(r.text)
-        return tles, "live"
-    except Exception:
-        # İndirme olmadıysa eski de olsa gerçek veriyi kullan
-        if has_cache:
+            tles = parse_tles(f.read())
+        if tles:
+            return tles, "cache"
+    for attempt in range(2):
+        try:
+            r = requests.get(
+                f"https://celestrak.org/NORAD/elements/gp.php?GROUP={g}&FORMAT=tle",
+                timeout=(4, 15), headers=HEADERS
+            )
+            r.raise_for_status()
+            tles = parse_tles(r.text)
+            if not tles:
+                raise ValueError("boş yanıt")
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(r.text)
+            return tles, "live"
+        except Exception:
+            if attempt == 0 and not has_cache:
+                time.sleep(0.3)
+    # İndirme olmadıysa diskteki gerçek CelesTrak önbellek verisini kullan
+    if has_cache:
+        try:
             with open(path, encoding="utf-8") as f:
-                return parse_tles(f.read()), "stale"
-        return [], "fail"
+                tles = parse_tles(f.read())
+            if tles:
+                return tles, "cache"
+        except Exception:
+            pass
+    return [], "fail"
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
 def load_catalog():
-    # Tüm gruplar paralel indirilir (sırayla indirmek her biri için ayrı bekleme demekti)
+    # Gruplar CelesTrak hız sınırına (403) takılmamak için kontrollü paralellikte indirilir
     all_groups = GROUPS + DEBRIS_GROUPS
-    with ThreadPoolExecutor(max_workers=len(all_groups)) as ex:
+    with ThreadPoolExecutor(max_workers=3) as ex:
         fetched = dict(zip(all_groups, ex.map(_fetch_group, all_groups)))
 
     sources = {g: src for g, (_, src) in fetched.items()}
@@ -333,10 +343,15 @@ def build_table(tles):
         s = sats[i]
         epoch = datetime(2000, 1, 1, 12, tzinfo=timezone.utc) + timedelta(days=(s.jdsatepoch + s.jdsatepochF - 2451545.0))
         alt = float(geodetic_alt(r[i, 0]))
-        if name.upper().startswith(CREWED_PREFIXES):
+        up = name.upper()
+        if up.startswith(CREWED_PREFIXES):
             status = "CREWED 🟢"
         elif alt < 300:
             status = "DECAYING ⚠️"
+        elif " DEB" in up or up.endswith("DEB"):
+            status = "DEBRIS ⚠️"
+        elif any(k in up for k in ("R/B", "CENTAUR", "AGENA", "BREEZE", "FREGAT")):
+            status = "ROCKET BODY 🚀"
         else:
             status = "NOMINAL"
         rows.append({
@@ -380,7 +395,8 @@ _COLS_TR = {
     "Rel. Velocity (km/s)": "Göreli Hız (km/s)", "TCA (UTC)": "TCA (UTC)", "Risk": "Risk",
 }
 _VALS_TR = {
-    "CREWED 🟢": "MÜRETTEBATLI 🟢", "DECAYING ⚠️": "ALÇALIYOR ⚠️", "NOMINAL": "NORMAL",
+    "CREWED 🟢": "MÜRETTEBATLI 🟢", "DECAYING ⚠️": "ALÇALIYOR ⚠️",
+    "DEBRIS ⚠️": "ENKAZ ⚠️", "ROCKET BODY 🚀": "ROKET GÖVDESİ 🚀", "NOMINAL": "NORMAL",
     "🔴 CRITICAL": "🔴 KRİTİK", "🟠 HIGH": "🟠 YÜKSEK", "🟡 WATCH": "🟡 İZLEME", "⚪ SCREENED": "⚪ ELENDİ",
 }
 
@@ -662,7 +678,12 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
     const BASE = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/';
     const PR = Math.min(window.devicePixelRatio || 1, 1.25);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
+    } catch (_e) {
+      renderer = new THREE.WebGLRenderer({ alpha: true });
+    }
     renderer.setPixelRatio(PR);
     renderer.setClearColor(0x000000, 0);
     document.getElementById('c').appendChild(renderer.domElement);
@@ -1592,8 +1613,8 @@ const PARTS=[['Propellant tank (Ti)','Yakıt tankı (Ti)',.09,4.2,.55,1],['React
 const STARS=Array.from({length:90},(_,i)=>{const r=rng(i+5);return[r(),r(),.3+.6*r()]});
 let P={},S={},T=0,play=true,tb=0,last=performance.now(),flash=-1,zoom=1;
 function sim(){
- const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat;
- const main=integ({h:120e3,v:7800,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
+ const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat,v0=D.v0||7800;
+ const main=integ({h:120e3,v:v0,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
  let frags=[],xb=0,tbr=null;
  if(main.fate==='demise'){tbr=main.end;const e=main.end;
   const st={h:e[1]*1e3,v:e[2]*1e3,g:e[3]*DEG,psi:e[8]*1e3/RE,t:e[0]};tb=e[0];xb=e[8];
@@ -1708,7 +1729,7 @@ init();
 
 
 def _mat_name(m):
-    return _MAT_TR.get(m, m) if st.session_state.lang == "tr" else m
+    return _MAT_TR.get(m, m) if st.session_state.get("lang", "tr") == "tr" else m
 
 
 def _sim_open():
@@ -1724,9 +1745,9 @@ def _sim_close():
 
 def _sim_orbit(name):
     """Hedef uydunun TLE'sinden şu anki irtifa/eğim/alt-nokta ve yer izi yönü (SGP4)."""
-    out = {"alt": 420, "inc": 51.6, "lat": 0.0, "lon": 0.0, "az": math.asin(math.cos(math.radians(51.6)))}
+    out = {"alt": 420, "inc": 51.6, "lat": 0.0, "lon": 0.0, "az": math.asin(math.cos(math.radians(51.6))), "v0": 7800}
     try:
-        for n, a, b in CAT["groups"]["visual"] + CAT["groups"]["active"]:
+        for n, a, b in CAT["groups"]["visual"] + CAT["groups"]["active"] + CAT.get("debris", []):
             if n != name:
                 continue
             s = Satrec.twoline2rv(a, b)
@@ -1735,6 +1756,7 @@ def _sim_orbit(name):
             if e != 0:
                 break
             rn = math.sqrt(sum(c * c for c in r))
+            vn = math.sqrt(sum(c * c for c in v))
             gmst = math.radians((280.46061837 + 360.98564736629 * (jd + fr - 2451545.0)) % 360)
             lat = math.asin(r[2] / rn)
             inc = s.inclo
@@ -1742,7 +1764,8 @@ def _sim_orbit(name):
             if v[2] < 0:
                 az = math.pi - az
             out.update(alt=round(rn - RE), inc=round(math.degrees(inc), 2), lat=math.degrees(lat),
-                       lon=(math.degrees(math.atan2(r[1], r[0]) - gmst) + 540) % 360 - 180, az=az)
+                       lon=(math.degrees(math.atan2(r[1], r[0]) - gmst) + 540) % 360 - 180, az=az,
+                       v0=max(6800, min(8100, round(vn * 1000))))
             break
     except Exception:
         pass
@@ -1757,10 +1780,15 @@ def _sim_risk(name):
         if df is not None:
             res["n"] = int(len(df))
             if not df.empty and name != "Custom object":
-                m = df[(df["Object A"] == name) | (df["Object B"] == name)]
+                if "_a" in df.columns and "_b" in df.columns:
+                    m = df[(df["_a"] == name) | (df["_b"] == name)]
+                    is_a = lambda r: r["_a"] == name
+                else:
+                    m = df[(df["Object A"] == name) | (df["Object B"] == name)]
+                    is_a = lambda r: r["Object A"] == name
                 if not m.empty:
                     row = m.sort_values("Miss Distance (km)").iloc[0]
-                    res["hit"] = {"other": str(row["Object B"] if row["Object A"] == name else row["Object A"]),
+                    res["hit"] = {"other": str(row["Object B"] if is_a(row) else row["Object A"]),
                                   "miss": round(float(row["Miss Distance (km)"]), 2), "risk": str(row.get("Risk", ""))}
         elif meta:
             res["n"] = int(meta.get("count", 0))
@@ -2000,7 +2028,9 @@ if st.session_state.active_page == PAGES[0]:
                 sv = html_escape(str(v))
                 u = str(v).upper()
                 if df.columns[j] in ("Status", "Durum"):
-                    k = "ok" if ("CREWED" in u or "MÜRETTEBATLI" in u) else ("warn" if ("DECAY" in u or "ALÇAL" in u) else "nom")
+                    k = ("ok" if ("CREWED" in u or "MÜRETTEBATLI" in u)
+                         else "warn" if any(w in u for w in ("DECAY", "ALÇAL", "DEB", "ENKAZ", "ROCKET", "ROKET"))
+                         else "nom")
                     tds.append(f'<td><span class="ops-chip {k}">{sv}</span></td>')
                 elif j == 0:
                     tds.append(f'<td class="nm">{sv}</td>')
@@ -2431,7 +2461,7 @@ elif st.session_state.active_page == PAGES[1]:
                 return parse_tles(f.read()), "cache"
         try:
             r = requests.get("https://celestrak.org/NORAD/elements/gp.php",
-                             params={**params, "FORMAT": "tle"}, timeout=(5, 60), headers=HEADERS)
+                             params={**params, "FORMAT": "tle"}, timeout=(4, 15), headers=HEADERS)
             r.raise_for_status()
             tles = parse_tles(r.text)
             if not tles:
@@ -2443,7 +2473,7 @@ elif st.session_state.active_page == PAGES[1]:
         except Exception:
             if has_cache:
                 with open(path, encoding="utf-8") as f:
-                    return parse_tles(f.read()), "stale"
+                    return parse_tles(f.read()), "cache"
             return [], "fail"
 
     def _load_satcat():
@@ -2452,7 +2482,7 @@ elif st.session_state.active_page == PAGES[1]:
         fresh = os.path.exists(path) and time.time() - os.path.getmtime(path) < 12 * 3600
         if not fresh:
             try:
-                r = requests.get(SATCAT_URL, timeout=(5, 90), headers=HEADERS)
+                r = requests.get(SATCAT_URL, timeout=(4, 20), headers=HEADERS)
                 r.raise_for_status()
                 os.makedirs(CACHE_DIR, exist_ok=True)
                 with open(path, "wb") as f:
@@ -2680,7 +2710,8 @@ input[type=range]{width:240px;accent-color:#38bdf8;cursor:pointer;margin:0}
 @media (max-width:900px){
  #app{flex-direction:column}
  #panel{width:100%;flex:0 0 40%;padding:16px;border-right:0;border-bottom:1px solid var(--line)}
- h1{font-size:28px}.big b{font-size:38px}#hud{display:none}
+ h1{font-size:28px}.big b{font-size:38px}
+ #hud{top:52px;right:10px;width:190px;padding:10px 12px}#hud h4{font-size:9.5px;margin-bottom:4px}#hud p{margin:3px 0;font-size:11px}#hud p span{font-size:11px;max-width:110px}
  input[type=range]{width:140px}
 }
 </style>
@@ -2774,8 +2805,17 @@ function refresh(i, t) {
 
 /* ---------- Sahne ---------- */
 const stage = $('stage'), cv = $('cv');
-const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
 const PR = Math.min(window.devicePixelRatio || 1, 2);
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
+} catch (_e1) {
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: cv });
+  } catch (_e2) {
+    renderer = { setPixelRatio(){}, setClearColor(){}, setSize(){}, render(){} };
+  }
+}
 renderer.setPixelRatio(PR); renderer.setClearColor(0x040817, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 400);
@@ -3092,7 +3132,7 @@ elif st.session_state.active_page == PAGES[2]:
         t0 = utc_now()
         n = int(hours * 3600 / step_s)
         best = {}
-        # 1) Kaba tarama: her adımda KD-Tree ile eşik altındaki çiftler
+        # 1) Kaba tarama: her adımda (ve adım ortasında) KD-Tree + doğrusal kesit üzerinde analitik en yakın mesafe
         for c0 in range(0, n, 240):
             times = [t0 + timedelta(seconds=step_s * k) for k in range(c0, min(n, c0 + 240))]
             e, r, v = arr.sgp4(*to_jd_arrays(times))
@@ -3101,14 +3141,22 @@ elif st.session_state.active_page == PAGES[2]:
                 if len(ok) < 2:
                     continue
                 p = r[ok, j, :]
-                for a, b in cKDTree(p).query_pairs(thr):
+                pv = v[ok, j, :]
+                pairs = cKDTree(p).query_pairs(thr) | cKDTree(p + (0.5 * step_s) * pv).query_pairs(max(thr, 90.0))
+                for a, b in pairs:
                     i1, i2 = int(ok[a]), int(ok[b])
+                    dr = p[a] - p[b]
+                    dv = pv[a] - pv[b]
+                    dv2 = float(np.dot(dv, dv))
                     # Aynı yörüngede birlikte uçan nesneleri (ör. kenetli modüller) atla
-                    if np.linalg.norm(v[i1, j] - v[i2, j]) < 0.5:
+                    if dv2 < 0.25:
                         continue
-                    d = float(np.linalg.norm(p[a] - p[b]))
-                    if (i1, i2) not in best or d < best[(i1, i2)][0]:
-                        best[(i1, i2)] = (d, t)
+                    tau = max(0.0, min(float(step_s), -float(np.dot(dr, dv)) / dv2))
+                    d = float(np.linalg.norm(dr + dv * tau))
+                    if d <= thr:
+                        t_est = t + timedelta(seconds=tau)
+                        if (i1, i2) not in best or d < best[(i1, i2)][0]:
+                            best[(i1, i2)] = (d, t_est)
         # 2) İnce tarama: en yakın 40 çift için ±35 s pencerede 0.25 s adımla TCA
         top = sorted(best.items(), key=lambda kv: kv[1][0])[:40]
         offs = np.arange(-35, 35.01, 0.25)
@@ -3140,7 +3188,7 @@ elif st.session_state.active_page == PAGES[2]:
     _CH = ["Active (random 1200)", "Debris fields (random 1200)", "Active × Debris (600 + 600)"]
     _CH_TR = {_CH[0]: "Aktif (rastgele 1200)", _CH[1]: "Enkaz alanları (rastgele 1200)", _CH[2]: "Aktif × Enkaz (600 + 600)"}
     choice = c1.selectbox(T("Taranacak katalog", "Catalog to screen"), _CH, index=2, key="sg_choice",
-                          format_func=lambda x: _CH_TR[x] if st.session_state.lang == "tr" else x)
+                          format_func=lambda x: _CH_TR.get(x, x) if st.session_state.get("lang", "tr") == "tr" else x)
     hours = c2.slider(T("İleri bakış (saat)", "Look-ahead (hours)"), 1, 24, 12, key="sg_hours")
     thr = c3.slider(T("Kaba tarama eşiği (km)", "Coarse screening threshold (km)"), 20, 120, 60, key="sg_thr")
 
@@ -3267,11 +3315,13 @@ elif st.session_state.active_page == PAGES[2]:
         st.plotly_chart(fig, **stretch(st.plotly_chart))
 
         # Canlı Yakınlaşma / Conjunction Tablosu
+        _has_live_conj = df is not None and not df.empty
+        _live_breach = bool(_has_live_conj and (df["Miss Distance (km)"] < 50.0).any())
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
             st.subheader(T("🌐 Aktif Yakınlaşmalar ve Güvenlik Küresi Durumu", "🌐 Active Conjunctions & Safety Sphere Status"))
         with col_t2:
-            if st.session_state.red_alert:
+            if st.session_state.red_alert or _live_breach:
                 st.error(T("KIRMIZI ALARM: Güvenlik Küresi İhlal Edildi (<50 km)!", "RED ALARM: Safety Sphere Breached (<50km)!"))
             else:
                 st.success(T("Tüm Sistemler Normal", "All Systems Nominal"))
@@ -3281,12 +3331,32 @@ elif st.session_state.active_page == PAGES[2]:
             T("Hedef Uydu", "Target Satellite"), T("Enkaz / Nesne Kimliği", "Debris / Object ID"),
             T("En Yakın Geçiş", "Closest Approach"), T("Kinetik Potansiyel", "Kinetic Potential"),
             T("Dinamik Risk Skoru", "Dynamic Risk Score"), T("Durum", "Status"))
-        table_data = [
-            {k_sat: "Sat-Alpha (LEO 650km)", k_deb: "COSMOS 2251 Frg", k_app: T("18,4 km", "18.4 km"),
-             k_kin: T("34,2 J/g (Yıkıcı Değil)", "34.2 J/g (Non-Catastrophic)"), k_score: "64 / 100", k_stat: T("Uyarı", "Warning")},
-            {k_sat: "IRIDIUM-97 Fleet", k_deb: T("Roket Gövdesi (SL-8 R/B)", "Rocket Body (SL-8 R/B)"), k_app: T("72,1 km", "72.1 km"),
-             k_kin: T("12,1 J/g", "12.1 J/g"), k_score: "22 / 100", k_stat: T("Temiz", "Clear")}
-        ]
+        if _has_live_conj:
+            table_data = []
+            for _, _r in df.head(6).iterrows():
+                _md = float(_r["Miss Distance (km)"])
+                _rv = float(_r["Rel. Velocity (km/s)"])
+                _jg = round(0.25 * (_rv ** 2), 1)
+                _cat = T("Yıkıcı", "Catastrophic") if _jg >= 40.0 else T("Yıkıcı Değil", "Non-Catastrophic")
+                _sc = min(99, max(12, round(100 - _md * 1.15 + (_jg / 4.0))))
+                _st_lbl = (T("KIRMIZI ALARM", "RED ALARM") if _md < 15.0
+                           else T("Uyarı", "Warning") if _md < 50.0
+                           else T("Temiz", "Clear"))
+                table_data.append({
+                    k_sat: str(_r["Object A"]),
+                    k_deb: str(_r["Object B"]),
+                    k_app: f"{_md:.2f} km" + (T(" (KRİTİK)", " (CRITICAL)") if _md < 15.0 else ""),
+                    k_kin: f"{_jg} J/g ({_cat})",
+                    k_score: f"{_sc} / 100",
+                    k_stat: _st_lbl,
+                })
+        else:
+            table_data = [
+                {k_sat: "Sat-Alpha (LEO 650km)", k_deb: "COSMOS 2251 Frg", k_app: T("18,4 km", "18.4 km"),
+                 k_kin: T("34,2 J/g (Yıkıcı Değil)", "34.2 J/g (Non-Catastrophic)"), k_score: "64 / 100", k_stat: T("Uyarı", "Warning")},
+                {k_sat: "IRIDIUM-97 Fleet", k_deb: T("Roket Gövdesi (SL-8 R/B)", "Rocket Body (SL-8 R/B)"), k_app: T("72,1 km", "72.1 km"),
+                 k_kin: T("12,1 J/g", "12.1 J/g"), k_score: "22 / 100", k_stat: T("Temiz", "Clear")}
+            ]
 
         # Red Alert tetiklendiyse yeni satır ekle
         if st.session_state.red_alert:
@@ -3389,7 +3459,29 @@ elif st.session_state.active_page == PAGES[3]:
     st.markdown("---")
 
     sat_names = df_api["Satellite Name"].tolist() if not df_api.empty else []
+    _cdf = st.session_state.get("conj_df")
+    if _cdf is not None and not _cdf.empty and "_a" in _cdf.columns and "_b" in _cdf.columns:
+        for _cn in list(_cdf["_a"]) + list(_cdf["_b"]):
+            if _cn and _cn not in sat_names:
+                sat_names.insert(0, _cn)
+
+    def _on_target_change():
+        _t = str(st.session_state.get("sg_target", "Custom object")).upper()
+        if _t == "CUSTOM OBJECT":
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1200, 4.0, "Aluminum 7075"
+        elif any(k in _t for k in ("ISS", "CSS", "TIANGONG", "TIANHE", "MIR", "SALYUT")):
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000, 30.0, "Titanium Ti-6Al-4V"
+        elif any(k in _t for k in ("HST", "HUBBLE", "ENVISAT", "OAO", "KH-")):
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 4200, 18.0, "Aluminum 7075"
+        elif any(k in _t for k in ("R/B", "CENTAUR", "AGENA", "SL-", "BREEZE", "FREGAT", "CZ-")):
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 2400, 11.5, "Stainless Steel 316"
+        elif "DEB" in _t:
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 120, 0.8, "Aluminum 7075"
+        else:
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1450, 5.5, "Aluminum 7075"
+
     st.selectbox(T("Hedef Enkaz / Uydu:", "Target Debris / Satellite:"), ["Custom object"] + sat_names, key="sg_target",
+                 on_change=_on_target_change,
                  format_func=lambda x: T("Özel nesne", "Custom object") if x == "Custom object" else x)
     s1, s2, s3 = st.columns(3)
     s1.slider(T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50, 5000, 1200, key="sg_mass")
@@ -3455,26 +3547,26 @@ BOT_QA_TR = {
         "Aynı yerde kümelenen noktalar aynı yörünge kabuğunu paylaşır. Okunabilirlik için rastgele "
         "örneklem ve 2200 km altı gösterilir.")),
     "table": ("Canlı tabloyu açıkla", lambda c: (
-        "Tablo 'visual' grubundaki uyduları listeler; irtifa, eğim, periyot ve hız SGP4 ile anlık "
-        "hesaplanır. ISS, CSS ve Tiangong <b>MÜRETTEBATLI</b> olarak işaretlenir.")),
+        "Tablo 'visual' grubundaki parlak nesneleri listeler; irtifa, eğim, periyot ve hız SGP4 ile anlık "
+        "hesaplanır. ISS ve Tiangong <b>MÜRETTEBATLI</b>, üst kademeler <b>ROKET GÖVDESİ 🚀</b>, parçalar <b>ENKAZ ⚠️</b> olarak işaretlenir.")),
     "decaying": ("ALÇALIYOR ne demek?", lambda c: (
         "<b>ALÇALIYOR ⚠️</b>, irtifası 300 km'nin altına inen nesneler için kullanılan etikettir. "
         "Bu yükseklikte atmosfer sürtünmesi yörüngeyi hızla düşürür.")),
     # --- 3D Radar ---
     "radar_use": ("Radarı nasıl kullanırım?", lambda c: (
-        "Küreyi sürükleyerek döndür, tekerlekle yakınlaştır. Bir nesnenin üstüne gelince yörünge "
-        "çizgisi belirir ve sağdaki panelde isim, NORAD ID, irtifa ve hız görünür. Sol üstteki "
-        "seçici zaman hızını (60×–900×) değiştirir.")),
+        "Küreyi sürükleyerek döndür, tekerlekle yakınlaştır. Bir nesnenin üstüne gelince veya tıklayınca yörünge "
+        "çizgisi belirir ve sağ üstteki HUD panelinde isim, NORAD ID, sınıf, irtifa ve hız görünür. Alttaki "
+        "kontrol çubuğu zaman hızını (1×–3000×) değiştirir veya simülasyonu duraklatır.")),
     "radar_colors": ("Renkler ne demek?", lambda c: (
-        "Açık gri gövdeli küçük uydular aktif uydulardır, <b>yeşil</b> olan ISS, <b>kırmızı</b> parçalar "
-        "enkazdır. Etrafında kırmızı halka olan nesne, çarpışma taramasında 25 km altında yaklaşma "
-        "yapmıştır (panelde İŞARETLİ yazar).")),
+        "<b>Mavi</b> noktalar çalışan uydular, <b>turuncu</b> ölü uydular, <b>sarı</b> roket gövdeleri ve "
+        "<b>pembe/kırmızı</b> olanlar enkaz parçalarıdır. Çarpışma taramasında 25 km altında yaklaşma "
+        "yapan nesneler daha büyük çizilir ve HUD panelinde <b>İŞARETLİ (&lt;25 km)</b> yazar.")),
     "radar_calc": ("Konumlar nasıl hesaplanıyor?", lambda c: (
-        "Her nesne için gerçek TLE'den SGP4 ile 100 adımlık (60 sn aralıklı) bir yörünge hesaplanır; "
-        "tarayıcıda akıcı hareket için ara değerler üretilir. Hareket yaklaşık 99 dakikada bir başa sarar.")),
-    "radar_limit": ("Neden hepsi gösterilmiyor?", lambda c: (
-        "Performans için slider'larla en fazla 400 aktif uydu ve 600 enkaz parçası (rastgele seçilmiş) "
-        "gösterilir. 'visual' grubundaki uydular her zaman eklenir.")),
+        "Her nesnenin TLE verisinden yörünge elemanları çıkarılır; tarayıcıda J2 basıklık pertürbasyonlu "
+        "Kepler çözücüsü ile tüm katalog gerçek zamanlı ve kesintisiz ilerletilir.")),
+    "radar_limit": ("Filtreler nasıl çalışıyor?", lambda c: (
+        "Sol panelden <b>Çalışan uydular</b>, <b>Ölü uydular</b>, <b>Roket gövdeleri</b> ve <b>Parça (enkaz)</b> "
+        "sınıflarını tek tıkla açıp kapatabilir, ayrıca fırlatma yaşına (son 30 gün, 1 yıl, 5 yıl vb.) göre filtreleyebilirsin.")),
     # --- Collision ---
     "col_scan": ("Tarama nasıl çalışıyor?", lambda c: (
         "İki aşamalı: önce 30 sn adımlarla KD-Tree ile eşik mesafenin altındaki çiftler bulunur; sonra "
@@ -3507,18 +3599,18 @@ BOT_QA_TR = {
         "kurumları ve sigortacılar).")),
     # --- Re-entry ---
     "re_how": ("Simülasyon nasıl çalışıyor?", lambda c: (
-        "Nesne 120 km'de 7,8 km/s ile başlar. Üstel atmosfer, balistik sürükleme ve Sutton-Graves ısı "
-        "akısı modeliyle irtifa, hız, sıcaklık ve yavaşlama 0,05 sn adımlarla hesaplanır. "
-        "▶ TEKRAR OYNAT animasyonu yeniden oynatır.")),
+        "Nesne 120 km'de yörünge hızıyla başlar. Üstel atmosfer, balistik sürükleme ve Sutton-Graves ısı "
+        "akısı modeliyle ana gövde ve parçalanma sonrası oluşan alt parçalar (yakıt tankı, güneş paneli vb.) "
+        "hesaplanır; yer izi haritası ve Kırmızı/Sarı/Yeşil tehlike bölgeleri çizilir.")),
     "re_demise": ("Parçalanma neye bağlı?", lambda c: (
-        "Biriken ısı (MJ/kg) malzemenin eşiğine ulaşınca nesne parçalanır (<b>PARÇALANMA</b>): alüminyum 0,97, "
+        "Biriken ısı (MJ/kg) veya dinamik basınç malzemenin eşiğine ulaşınca nesne parçalanır: alüminyum 0,97, "
         "çelik 1,0, titanyum 1,15, karbon kompozit 3,0 MJ/kg.")),
     "re_params": ("Hangi ayarlar sonucu değiştirir?", lambda c: (
-        "Dört şey: <b>kütle</b>, <b>kesit alanı</b>, 120 km'deki <b>uçuş yolu açısı</b> ve <b>malzeme</b>. "
-        "Dik açı daha kısa ve sert, sığ açı daha uzun bir giriş demektir.")),
+        "Dört ana parametre: <b>kütle</b>, <b>kesit alanı</b>, 120 km'deki <b>uçuş yolu açısı</b> ve <b>malzeme</b>. "
+        "Odak modunda ayrıca düşüş bölgesi ve nüfus yoğunluğu değiştirilebilir.")),
     "re_phase": ("Animasyon aşamaları?", lambda c: (
-        "<b>ALÇALMA</b> alçalma, <b>🔥 PLAZMA ISINMASI</b> ısı akısı zirvenin %10'unu aşınca, "
-        "<b>💥 PARÇALANMA</b> parçalanma anıdır.")),
+        "<b>ALÇALMA</b> atmosferik giriş, <b>🔥 PLAZMA ISINMASI</b> yüksek ısı akısı bölgesi, "
+        "<b>💥 PARÇALANMA</b> çoklu parçalara ayrılma ve <b>YERE ÇARPMA / TAMAMEN YANDI</b> son durumdur.")),
     "re_carbon": ("Karbon kompozit neden farklı?", lambda c: (
         "Parçalanması için gereken ısı 3,0 MJ/kg ile alüminyumun yaklaşık 3 katıdır; yani daha zor "
         "yanar ve yere ulaşan parça olasılığı artabilir.")),
@@ -3559,26 +3651,26 @@ BOT_QA_EN = {
         "Dots clustering in the same place share the same orbital shell. For readability, a random "
         "sample below 2200 km is shown.")),
     "table": ("Explain the live table", lambda c: (
-        "The table lists satellites from the 'visual' group; altitude, inclination, period and speed are "
-        "computed live with SGP4. ISS, CSS and Tiangong are marked <b>CREWED</b>.")),
+        "The table lists bright objects from the 'visual' group; altitude, inclination, period and speed are "
+        "computed live with SGP4. ISS and Tiangong are marked <b>CREWED</b>, upper stages <b>ROCKET BODY 🚀</b>, and fragments <b>DEBRIS ⚠️</b>.")),
     "decaying": ("What does DECAYING mean?", lambda c: (
         "<b>DECAYING ⚠️</b> is the label for objects whose altitude drops below 300 km. "
         "At that height atmospheric drag lowers the orbit quickly.")),
     # --- 3D Radar ---
     "radar_use": ("How do I use the radar?", lambda c: (
-        "Drag the globe to rotate it and use the wheel to zoom. Hover over an object to see its orbit "
-        "line and its name, NORAD ID, altitude and velocity in the HUD on the right. The selector at the "
-        "top left changes the time warp (60×–900×).")),
+        "Drag the globe to rotate it and use the wheel to zoom. Hover over or click an object to see its orbit "
+        "line and its name, NORAD ID, class, altitude and velocity in the HUD on the top right. The bottom "
+        "control bar changes the time warp (1×–3000×) or pauses the simulation.")),
     "radar_colors": ("What do the colors mean?", lambda c: (
-        "Small satellites with light grey bodies are active satellites, the <b>green</b> one is the ISS and the "
-        "<b>red</b> pieces are debris. An object with a red ring around it came within 25 km of another "
-        "in the collision screening (the HUD shows FLAGGED).")),
+        "<b>Blue</b> dots are active satellites, <b>orange</b> dead satellites, <b>yellow</b> rocket bodies and "
+        "<b>pink/red</b> debris fragments. Objects that came within 25 km in the collision screening are "
+        "rendered larger and show <b>FLAGGED (&lt;25 km)</b> in the HUD.")),
     "radar_calc": ("How are positions computed?", lambda c: (
-        "For each object a 100-step orbit (60 s apart) is computed from the real TLE with SGP4; "
-        "the browser interpolates between steps for smooth motion. The motion loops back about every 99 minutes.")),
-    "radar_limit": ("Why aren't all objects shown?", lambda c: (
-        "For performance, the sliders show at most 400 active satellites and 600 debris fragments (randomly "
-        "picked). Satellites in the 'visual' group are always added.")),
+        "Orbital elements are extracted from each object's real TLE; the browser propagates the full catalog "
+        "in real time with a J2-perturbed Keplerian solver for smooth, continuous motion.")),
+    "radar_limit": ("How do the filters work?", lambda c: (
+        "Use the left panel to toggle <b>Active satellites</b>, <b>Dead satellites</b>, <b>Rocket bodies</b> and "
+        "<b>Debris fragments</b>, or filter objects by launch age (last 30 days, 1 yr, 5 yrs, etc.).")),
     # --- Collision ---
     "col_scan": ("How does the screening work?", lambda c: (
         "Two stages: first, pairs below the threshold distance are found with a KD-Tree at 30 s steps; then, "
@@ -3611,18 +3703,18 @@ BOT_QA_EN = {
         "agencies and insurers).")),
     # --- Re-entry ---
     "re_how": ("How does the simulation work?", lambda c: (
-        "The object starts at 120 km at 7.8 km/s. Altitude, velocity, temperature and deceleration are computed "
-        "in 0.05 s steps with an exponential atmosphere, ballistic drag and a Sutton-Graves heat flux model. "
-        "The ▶ REPLAY button plays the animation again.")),
+        "The object starts at 120 km at orbital speed. Using an exponential atmosphere, ballistic drag and "
+        "Sutton-Graves heating, the main body and post-breakup sub-fragments (propellant tank, solar arrays, etc.) "
+        "are integrated, plotting the ground-track footprint and Red/Amber/Green hazard zones.")),
     "re_demise": ("What does disintegration depend on?", lambda c: (
-        "When accumulated heat (MJ/kg) reaches the material's threshold, the object breaks up (<b>DEMISE</b>): aluminum 0.97, "
-        "steel 1.0, titanium 1.15, carbon composite 3.0 MJ/kg.")),
+        "When accumulated heat (MJ/kg) or dynamic pressure reaches the material's threshold, the object breaks up: "
+        "aluminum 0.97, steel 1.0, titanium 1.15, carbon composite 3.0 MJ/kg.")),
     "re_params": ("Which settings change the result?", lambda c: (
-        "Four things: <b>mass</b>, <b>cross-section area</b>, the <b>flight-path angle</b> at 120 km and the <b>material</b>. "
-        "A steep angle means a shorter, harsher entry, a shallow angle a longer one.")),
+        "Four main settings: <b>mass</b>, <b>cross-section area</b>, the <b>flight-path angle</b> at 120 km and the <b>material</b>. "
+        "Inside Focus Mode you can also change the target impact region and population density.")),
     "re_phase": ("What are the animation phases?", lambda c: (
-        "<b>DESCENT</b> is the fall, <b>🔥 PLASMA HEATING</b> starts when heat flux exceeds 10% of its peak, "
-        "and <b>💥 DEMISE</b> is the moment of break-up.")),
+        "<b>DESCENT</b> is atmospheric entry, <b>🔥 PLASMA HEATING</b> is the peak heating regime, "
+        "<b>💥 BREAK-UP</b> is multi-fragment disintegration, and <b>GROUND IMPACT / COMPLETE DEMISE</b> is the final state.")),
     "re_carbon": ("Why is carbon composite different?", lambda c: (
         "The heat needed to break it up is 3.0 MJ/kg, about 3 times that of aluminum; so it burns up "
         "less easily and the chance of fragments reaching the ground can increase.")),
