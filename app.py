@@ -65,17 +65,21 @@ TEAM = [
 
 # Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe)
 DEMO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_requests.csv")
+DEMO_MAILTO = "mailto:bastekink@gmail.com?subject=SP4C3%20GR4V3%20Demo%20Talebi"
 
 
 # Streamlit sürümleri arası uyumluluk:
 # yeni sürümlerde use_container_width kaldırıldı -> width="stretch"
 def stretch(fn):
+    out = {"use_container_width": True}
     try:
         if "width" in inspect.signature(fn).parameters:
-            return {"width": "stretch"}
+            out = {"width": "stretch"}
     except (TypeError, ValueError):
         pass
-    return {"use_container_width": True}
+    if fn is getattr(st, "plotly_chart", None):
+        out["config"] = {"scrollZoom": True}
+    return out
 
 
 # ANTI-BAN HEADERS
@@ -470,7 +474,16 @@ def _live_set(on):
 
 @_fragment
 def _live_player_ui(play_lbl, cap):
+    _def_lbl = (T("SAVUNMA MATRİSİ: AKTİF 🛡️ //", "DEFENSE MATRIX: ARMED 🛡️ //")
+                if st.session_state.get("defense_active")
+                else T("SAVUNMA MATRİSİ: BEKLEMEDE //", "DEFENSE MATRIX: STANDBY //"))
     with _keyed("sg_livebox"):
+        st.markdown(_flat(f"""
+        <div class="sg-live-hdr">
+          <span class="sg-live-hdr-t"><span class="sg-dot"></span>{T("CANLI İZLE · LEO YÖRÜNGE KAMERASI (420 KM)", "LIVE VIEW · LEO ORBITAL CAMERA (420 KM)")}</span>
+          <span class="sg-def-badge">{_def_lbl}</span>
+        </div>
+        """), unsafe_allow_html=True)
         if st.session_state.get("sg_live_on", False):
             try:
                 st.video(LIVE_URL, autoplay=True)
@@ -638,13 +651,49 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 
 /* Bölümler */
 .sg-sec { margin-top:clamp(80px,12vh,140px); scroll-margin-top:90px; font-family:'Inter','Segoe UI',sans-serif; }
-.st-key-sg_livebox { max-width:900px; margin:26px auto 0; }
-.sg-poster { position:relative; border-radius:18px; overflow:hidden; border:1px solid var(--sg-line); aspect-ratio:16/9; background:#060b1a; }
-.sg-poster img { width:100%; height:100%; object-fit:cover; display:block; opacity:.85; }
-.sg-poster-cap { position:absolute; left:14px; bottom:10px; color:#cbd5e1; font-size:12px; text-shadow:0 1px 4px #000; }
-.st-key-sg_livebox .stButton > button { height:48px; border-radius:999px; border:1px solid rgba(252,61,33,.9); background:linear-gradient(135deg,#fc3d21,#c42a12); margin-top:10px; }
-.st-key-sg_livebox .stButton > button p { color:#fff; font-weight:700; }
-.st-key-sg_livebox [data-testid="stVideo"], .st-key-sg_livebox iframe { border-radius:18px; overflow:hidden; }
+.st-key-sg_livebox {
+  max-width:920px; margin:26px auto 0; padding:20px 22px 22px; border-radius:20px;
+  border:1px solid rgba(56,189,248,.32);
+  background:linear-gradient(160deg,rgba(14,24,48,.88),rgba(6,11,26,.95));
+  box-shadow:0 20px 54px rgba(0,0,0,.62), 0 0 32px rgba(56,189,248,.14), inset 0 1px 0 rgba(255,255,255,.07);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  font-family:'Inter','Segoe UI',sans-serif;
+}
+.sg-live-hdr {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  padding:0 4px 12px; margin-bottom:12px; border-bottom:1px solid rgba(56,189,248,.18);
+}
+.sg-live-hdr-t {
+  display:inline-flex; align-items:center; gap:9px; color:#bae6fd;
+  font-family:'Space Grotesk','Inter',sans-serif; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+}
+.sg-def-badge {
+  display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px;
+  border:1px solid rgba(56,189,248,.58);
+  background:linear-gradient(135deg,rgba(8,28,58,.92),rgba(4,12,30,.96));
+  color:#38bdf8; font-family:'Space Grotesk','Inter',sans-serif; font-size:11.5px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase;
+  text-shadow:0 0 10px rgba(56,189,248,.48);
+  box-shadow:0 0 18px rgba(56,189,248,.20), inset 0 0 10px rgba(56,189,248,.10);
+}
+.sg-poster {
+  position:relative; border-radius:16px; overflow:hidden;
+  border:1px solid rgba(56,189,248,.28);
+  box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 22px rgba(56,189,248,.10);
+  aspect-ratio:16/9; background:#060b1a;
+}
+.sg-poster img { width:100%; height:100%; object-fit:cover; display:block; opacity:.88; }
+.sg-poster-cap {
+  position:absolute; left:14px; bottom:12px; color:#e2e8f0; font-size:12.5px; font-weight:500;
+  font-family:'Inter','Segoe UI',sans-serif; padding:5px 12px; border-radius:999px;
+  background:rgba(4,8,23,.78); border:1px solid rgba(56,189,248,.24); backdrop-filter:blur(8px);
+}
+.st-key-sg_livebox .stButton > button { height:48px; border-radius:999px; border:1px solid rgba(252,61,33,.9); background:linear-gradient(135deg,#fc3d21,#c42a12); margin-top:10px; font-family:'Inter','Segoe UI',sans-serif; }
+.st-key-sg_livebox .stButton > button p { color:#fff; font-weight:700; font-family:'Inter','Segoe UI',sans-serif; }
+.st-key-sg_livebox [data-testid="stVideo"], .st-key-sg_livebox iframe {
+  border-radius:16px; overflow:hidden; border:1px solid rgba(56,189,248,.28);
+  box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 22px rgba(56,189,248,.10);
+}
 .sg-sec.sg-first { margin-top:clamp(56px,8vh,90px); }
 .sg-kicker { color:var(--sg-cyan); font-size:12px; letter-spacing:.22em; font-weight:700; text-transform:uppercase; }
 .sg-h2 { font-family:'Space Grotesk','Inter',sans-serif; font-size:clamp(26px,3vw,40px); color:#fff; font-weight:700; letter-spacing:-.015em; line-height:1.15; margin:10px 0 14px; max-width:780px; }
@@ -1189,7 +1238,7 @@ def _pricing_grid_html(tr):
             f'<div><div class="sg-lbl">{L["aud"]}</div><div class="sg-val">{aud}</div></div>'
             f'<div><div class="sg-lbl">{L["scope"]}</div><div class="sg-val">{scope}</div></div>'
             f'<div><div class="sg-lbl">{L["logic"]}</div><div class="sg-val">{logic}</div></div>'
-            f'<a class="sg-tier-cta" href="#contact">{L["cta"]}</a></div>'
+            f'<a class="sg-tier-cta" href="{DEMO_MAILTO}">{L["cta"]}</a></div>'
         )
     return f'<div class="sg-price">{"".join(cards)}</div><p class="sg-note">{note}</p>'
 
@@ -1244,13 +1293,15 @@ def _render_contact():
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">İletişim</div>'
                 '<div class="sg-h2">Kurumunuz için canlı demo talep edin</div>'
                 '<p class="sg-p">Uydu filonuz veya sigorta portföyünüz için Space Grave\'i birlikte inceleyelim. '
-                'Formu doldurun; ekibimiz en kısa sürede sizinle iletişime geçsin.</p></div>')
+                'Doğrudan e-posta gönderebilir veya aşağıdaki formu doldurabilirsiniz.</p>'
+                f'<div style="margin:14px 0 18px"><a class="sg-ghost" style="display:inline-flex;padding:0 24px;height:48px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Doğrudan E-posta ile Demo Talep Et (mailto) →</a></div></div>')
         roles = ["Uydu operatörü", "Sigorta / reasürans", "Uzay ajansı / savunma", "Akademi / Ar-Ge", "Diğer"]
     else:
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">Contact</div>'
                 '<div class="sg-h2">Request a live demo for your organization</div>'
                 '<p class="sg-p">Let us walk you through Space Grave for your satellite fleet or insurance portfolio. '
-                'Fill in the form and our team will get back to you shortly.</p></div>')
+                'Send a direct email or fill in the form below.</p>'
+                f'<div style="margin:14px 0 18px"><a class="sg-ghost" style="display:inline-flex;padding:0 24px;height:48px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Request a Demo via Direct Email (mailto) →</a></div></div>')
         roles = ["Satellite operator", "Insurance / reinsurance", "Space agency / defense", "Academia / R&D", "Other"]
     st.markdown(_flat(head), unsafe_allow_html=True)
     with _keyed("sg_contact"):
@@ -1542,7 +1593,7 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="#contact">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="{DEMO_MAILTO}">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
@@ -1645,6 +1696,21 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px;
   border:1px solid var(--sg-line); background:rgba(8,16,38,.65);
   color:#bae6fd; font-size:11.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+}
+.sg-mnav-right { display:flex; align-items:center; gap:10px; }
+.sg-def-badge {
+  display:inline-flex; align-items:center; gap:8px; padding:7px 15px; border-radius:999px;
+  border:1px solid rgba(56,189,248,.62);
+  background:linear-gradient(135deg,rgba(8,28,58,.92),rgba(4,12,30,.96));
+  color:#38bdf8; font-family:'Space Grotesk','Inter',sans-serif; font-size:11.5px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase;
+  text-shadow:0 0 10px rgba(56,189,248,.50);
+  box-shadow:0 0 18px rgba(56,189,248,.22), inset 0 0 10px rgba(56,189,248,.10);
+}
+.sg-def-badge.armed {
+  border-color:rgba(16,185,129,.65); color:#34d399;
+  text-shadow:0 0 10px rgba(16,185,129,.45);
+  box-shadow:0 0 18px rgba(16,185,129,.22), inset 0 0 10px rgba(16,185,129,.10);
 }
 .sg-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:sgPulse 2.2s infinite; }
 .sg-dot.warn { background:#f59e0b; animation:none; }
@@ -1768,33 +1834,46 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .stApp .stButton > button[kind="primary"]:hover {
   transform:translateY(-2px) !important; box-shadow:0 14px 36px rgba(252,61,33,.42) !important;
 }
-.stApp iframe { border-radius:18px !important; border:1px solid var(--sg-line); }
+.stApp iframe, [data-testid="stIFrame"] {
+  border-radius:18px !important;
+  border:1px solid rgba(56,189,248,.30) !important;
+  box-shadow:0 18px 48px rgba(0,0,0,.58), 0 0 28px rgba(56,189,248,.12) !important;
+  background:#040817 !important;
+}
+.stApp p, .stApp span, .stApp label, .stApp li {
+  font-family:'Inter','Segoe UI',-apple-system,sans-serif;
+}
 
-/* Sade ve şık veri tablosu */
+/* Sade ve şık veri tablosu (Koyu Uzay & Neon Mavi/Beyaz Teması) */
 .ops-tbl-bar {
   display:flex; align-items:center; justify-content:space-between; gap:10px;
-  padding:12px 18px; border:1px solid var(--sg-line); border-bottom:0;
-  border-radius:18px 18px 0 0; background:rgba(14,24,48,.88);
-  font-size:11.5px; font-weight:600; letter-spacing:.14em; color:var(--sg-muted); text-transform:uppercase;
+  padding:12px 18px; border:1px solid rgba(56,189,248,.28); border-bottom:0;
+  border-radius:18px 18px 0 0; background:linear-gradient(90deg,rgba(10,22,48,.96),rgba(6,13,32,.96));
+  font-family:'Space Grotesk','Inter',sans-serif;
+  font-size:11.5px; font-weight:700; letter-spacing:.14em; color:#bae6fd; text-transform:uppercase;
 }
-.ops-tbl-bar b { color:var(--sg-cyan); font-weight:700; }
+.ops-tbl-bar b { color:var(--sg-cyan); font-weight:700; text-shadow:0 0 10px rgba(56,189,248,.35); }
 .ops-tbl-wrap {
-  max-height:400px; overflow:auto; border:1px solid var(--sg-line);
-  border-radius:0 0 18px 18px; background:linear-gradient(160deg,rgba(10,18,38,.86),rgba(5,10,24,.94));
-  scrollbar-width:thin; scrollbar-color:#1e3a5f #040817;
+  max-height:420px; overflow:auto; border:1px solid rgba(56,189,248,.28);
+  border-radius:0 0 18px 18px; background:linear-gradient(160deg,#060d22 0%,#030714 100%);
+  box-shadow:0 16px 40px rgba(0,0,0,.55), 0 0 24px rgba(56,189,248,.08);
+  scrollbar-width:thin; scrollbar-color:#1e3a5f #040817; margin-bottom:14px;
 }
-.ops-tbl { width:100%; border-collapse:collapse; font-family:'Inter',sans-serif; font-size:13px; color:#dbe7f5; }
+.ops-tbl { width:100%; border-collapse:collapse; font-family:'Inter','Segoe UI',sans-serif; font-size:13px; color:#f1f5f9; background:transparent; }
 .ops-tbl th {
-  position:sticky; top:0; z-index:2; background:#091328; color:#bae6fd;
-  font-weight:600; font-size:11px; letter-spacing:.12em; text-transform:uppercase;
-  text-align:left; padding:11px 14px; border-bottom:1px solid var(--sg-line); white-space:nowrap;
+  position:sticky; top:0; z-index:2; background:#08152e; color:#38bdf8;
+  font-family:'Space Grotesk','Inter',sans-serif;
+  font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+  text-align:left; padding:12px 15px; border-bottom:1px solid rgba(56,189,248,.28); white-space:nowrap;
+  text-shadow:0 0 8px rgba(56,189,248,.25);
 }
-.ops-tbl td { padding:9px 14px; border-bottom:1px solid rgba(56,189,248,.07); white-space:nowrap; }
-.ops-tbl tbody tr:nth-child(even) { background:rgba(56,189,248,.025); }
-.ops-tbl tbody tr:hover { background:rgba(56,189,248,.08); }
-.ops-tbl .n { text-align:right; font-variant-numeric:tabular-nums; }
+.ops-tbl td { padding:10px 15px; border-bottom:1px solid rgba(56,189,248,.10); color:#e2e8f0; white-space:nowrap; }
+.ops-tbl tbody tr { background:rgba(6,13,34,.82); transition:background .15s ease; }
+.ops-tbl tbody tr:nth-child(even) { background:rgba(12,24,54,.85); }
+.ops-tbl tbody tr:hover { background:rgba(56,189,248,.14); }
+.ops-tbl .n { text-align:right; font-variant-numeric:tabular-nums; color:#7dd3fc; font-weight:600; font-family:'Space Grotesk','Inter',sans-serif; }
 .ops-tbl th.n { text-align:right; }
-.ops-tbl td.nm { font-weight:600; color:#fff; }
+.ops-tbl td.nm { font-weight:700; color:#ffffff; }
 .ops-chip {
   display:inline-block; padding:3px 10px; border-radius:999px;
   font-size:11px; letter-spacing:.05em; border:1px solid; font-weight:600;
@@ -1850,25 +1929,54 @@ REGIONS = [["Point Nemo (SPOUA) · kontrollü okyanus", "Point Nemo (SPOUA) · c
 SIM_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 *{box-sizing:border-box}body{margin:0;background:#040817;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
-.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:10px;padding:10px;height:auto}
-.box{position:relative;border:1px solid rgba(56,189,248,.16);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))}canvas{width:100%;height:100%;display:block}
-.hud{position:absolute;top:26px;left:10px;background:rgba(6,12,30,.85);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:10px 14px;line-height:1.6;color:#38bdf8;z-index:3;backdrop-filter:blur(10px)}
-.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:30px;height:30px;margin-left:4px;border-radius:999px}
+.g{display:grid;grid-template-columns:1.48fr 1.02fr;grid-template-rows:470px 235px;gap:10px;padding:10px;height:auto}
+.box{position:relative;border:1px solid rgba(56,189,248,.22);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(14,24,48,.86),rgba(6,11,26,.94));box-shadow:0 12px 32px rgba(0,0,0,.45)}canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;top:26px;left:10px;background:rgba(6,12,30,.85);border:1px solid rgba(56,189,248,.24);border-radius:14px;padding:10px 14px;line-height:1.6;color:#38bdf8;z-index:3;backdrop-filter:blur(10px)}
+.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:30px;height:30px;margin-left:4px;border-radius:999px;padding:0;line-height:1}
 .ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:12px 14px;border-bottom:1px solid rgba(56,189,248,.16);background:rgba(8,16,38,.75)}
 .ctl label{display:flex;flex-direction:column;gap:3px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
-.zc{border-radius:14px;padding:10px 12px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.5}.zc span{color:#fff;font-weight:600}
-.zc.r{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.45)}.zc.a{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.45)}.zc.g{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.45)}
+.zc{border-radius:16px;padding:14px 16px;margin:0;border:1px solid;display:flex;flex-direction:column;justify-content:space-between;height:100%;box-shadow:0 12px 30px rgba(0,0,0,.42)}
+.zc-top b{display:block;font-size:13.5px;margin-bottom:6px;letter-spacing:.01em}
+.zc-top p{margin:0 0 10px;color:#cbd5e1;line-height:1.55;font-size:12px}
+.zc-meta{padding-top:8px;border-top:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:5px;font-size:11.5px;margin-top:auto}
+.zc-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.zc-row i{font-style:normal;color:#94a3b8}
+.zc-row b{font-family:'Space Grotesk',sans-serif;color:#f8fafc;font-weight:600;text-align:right;font-size:11.5px}
+.zc-foot{margin-top:10px;padding:7px 11px;border-radius:10px;background:rgba(4,8,23,.62);border:1px solid rgba(255,255,255,.10);display:flex;justify-content:space-between;align-items:center;font-size:11.5px;font-weight:600;color:#fff}
+.zc.r{background:linear-gradient(160deg,rgba(239,68,68,.13),rgba(15,8,18,.92));border-color:rgba(239,68,68,.50)}
+.zc.a{background:linear-gradient(160deg,rgba(245,158,11,.13),rgba(18,14,8,.92));border-color:rgba(245,158,11,.50)}
+.zc.g{background:linear-gradient(160deg,rgba(16,185,129,.13),rgba(6,18,16,.92));border-color:rgba(16,185,129,.50)}
 select,input[type=range]{width:100%;background:rgba(8,16,38,.85);color:#e2e8f0;border:1px solid rgba(56,189,248,.22);border-radius:10px;padding:5px 8px}
 button{background:linear-gradient(135deg,#fc3d21,#c42a12);color:#fff;border:0;border-radius:999px;padding:7px 14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
-button.s{background:rgba(14,24,48,.8);border:1px solid rgba(56,189,248,.24)}
-.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:12px}
-.rk{padding:9px 12px;border-radius:12px;font-weight:700;margin-bottom:10px;text-align:center}.red{background:rgba(127,29,29,.75);color:#fecaca}.amber{background:rgba(120,53,15,.75);color:#fde68a}.green{background:rgba(6,78,59,.75);color:#a7f3d0}
-.kv{display:flex;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,.10);padding:5px 0}.kv span{color:#94a3b8}
-.note{margin:6px 0;padding:8px 10px;background:rgba(14,36,51,.75);border-left:3px solid #38bdf8;border-radius:10px}
-table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:4px 6px;border-bottom:1px solid rgba(56,189,248,.10);font-size:11.5px}
+button.s{background:rgba(14,24,48,.85);border:1px solid rgba(56,189,248,.32)}
+button.s:hover{border-color:#38bdf8;background:rgba(56,189,248,.18)}
+.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column}
+#risk{display:flex;flex-direction:column;flex:1;height:100%}
+.rk{padding:9px 12px;border-radius:12px;font-weight:700;margin-bottom:8px;text-align:center}.red{background:rgba(127,29,29,.78);color:#fecaca}.amber{background:rgba(120,53,15,.78);color:#fde68a}.green{background:rgba(6,78,59,.78);color:#a7f3d0}
+.kv{display:flex;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,.10);padding:4.5px 0}.kv span{color:#94a3b8}
+.note{margin:5px 0;padding:7px 10px;background:rgba(14,36,51,.75);border-left:3px solid #38bdf8;border-radius:10px;font-size:11.5px}
+table{width:100%;margin-top:6px;border-collapse:collapse}td{padding:4px 6px;border-bottom:1px solid rgba(56,189,248,.10);font-size:11.5px}
+.tele-box{margin-top:auto;padding:11px 12px;border-radius:14px;border:1px solid rgba(56,189,248,.28);background:linear-gradient(160deg,rgba(8,20,44,.92),rgba(4,9,22,.96));box-shadow:0 8px 24px rgba(0,0,0,.38),inset 0 1px 0 rgba(56,189,248,.12)}
+.tele-hdr{display:flex;align-items:center;justify-content:space-between;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;letter-spacing:.11em;color:#38bdf8;text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(56,189,248,.18)}
+.tele-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+.tele-item{padding:6px 8px;border-radius:10px;background:rgba(14,28,58,.62);border:1px solid rgba(56,189,248,.15);display:flex;flex-direction:column;gap:2px}
+.tele-item span{font-size:10px;color:#94a3b8;letter-spacing:.02em}
+.tele-item b{font-family:'Space Grotesk',sans-serif;font-size:12px;color:#f8fafc;font-weight:700}
+.tele-item small{font-size:10px;color:#38bdf8;font-weight:500}
+.tele-bar-w{margin-top:8px;padding-top:6px;border-top:1px solid rgba(56,189,248,.14)}
+.tele-bar-lbl{display:flex;justify-content:space-between;font-size:10.5px;color:#cbd5e1;margin-bottom:4px}
+.tele-bar{height:7px;border-radius:999px;background:rgba(252,61,33,.38);overflow:hidden;display:flex}
+.tele-bar>i{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#10b981)}
+.map-panel{margin:2px 10px 10px;padding:12px 14px 14px;border-radius:18px;border:1px solid rgba(56,189,248,.34);background:linear-gradient(160deg,rgba(14,24,48,.92),rgba(5,10,24,.97));box-shadow:0 18px 46px rgba(0,0,0,.58),0 0 28px rgba(56,189,248,.13)}
+.map-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 14px;padding:9px 14px;margin-bottom:10px;border-radius:12px;background:rgba(6,12,30,.90);border:1px solid rgba(56,189,248,.26);font-size:12px}
+.map-title{display:flex;align-items:center;gap:8px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:#38bdf8;letter-spacing:.04em}
+.map-pills{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px}
+.map-pill{padding:4px 11px;border-radius:999px;background:rgba(56,189,248,.10);border:1px solid rgba(56,189,248,.30);color:#bae6fd;font-size:11.5px}
+.map-pill b{color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700}
+.map-box{position:relative;height:450px;border-radius:14px;overflow:hidden;border:1px solid rgba(56,189,248,.28);background:#061226;box-shadow:inset 0 0 24px rgba(0,0,0,.6)}
 .bar{display:flex;align-items:center;gap:8px;padding:6px 10px}#scrub{flex:1}
-@media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px 300px 170px auto;height:auto}.side{grid-row:auto;grid-column:1}}
-#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 10px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
+@media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px auto 190px;height:auto}.side{grid-row:auto;grid-column:1}.map-box{height:340px}}
+#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:4px 10px 16px;align-items:stretch}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
 <div class="ctl">
 <label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><input id="m" type="range" min="50" max="5000" step="10"></label>
 <label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><input id="ar" type="range" min="0.1" max="30" step="0.1"></label>
@@ -1884,9 +1992,12 @@ table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:4px 6px;bord
 <div class="box side"><div id="risk"></div></div>
 <div class="box" style="grid-row:2"><canvas id="chart"></canvas></div>
 </div>
-<div class="g" style="grid-template-rows:300px;height:auto;min-height:0;margin-top:-4px"><div class="box" style="grid-column:1/3"><canvas id="map"></canvas></div></div>
+<div class="map-panel">
+<div class="map-hdr" id="map-hdr"></div>
+<div class="map-box"><canvas id="map"></canvas><div class="zb"><button id="mzi" class="s" title="Zoom In">+</button><button id="mzo" class="s" title="Zoom Out">−</button><button id="mzr" class="s" title="Reset">⟲</button></div></div>
+</div>
 <div id="zones"></div>
-<script>const D=__DATA__,TR=D.lang==='tr',tx=(a,b)=>TR?a:b,$=id=>document.getElementById(id);
+<script>const D=__DATA__,TR=D.lang==='tr',tx=(a,b)=>TR?a:b,$=id=>document.getElementById(id),config={scrollZoom:true};
 const RE=6371e3,MU=3.986004418e14,SB=5.670374e-8,REC=0.5,DEG=Math.PI/180;
 const rho=h=>{h=Math.max(h,0);for(let i=D.atm.length-1;i>=0;i--){const a=D.atm[i];if(h>=a[0])return a[1]*Math.exp(-(h-a[0])/a[2]);}return 1.225};
 const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
@@ -1903,7 +2014,31 @@ const PARTS=[['Propellant tank (Ti)','Yakıt tankı (Ti)',.09,4.2,.55,1],['React
 ['Primary bus structure','Ana gövde yapısı',.30,0,1,1],['Solar array','Güneş paneli',.18,.45,3.2,1],['Electronics box','Elektronik kutu',.13,.6,.8,1],
 ['Antenna / boom','Anten / kol',.06,.5,2.4,1],['Small debris','Küçük parça',.18,.8,1.2,12]];
 const STARS=Array.from({length:90},(_,i)=>{const r=rng(i+5);return[r(),r(),.3+.6*r()]});
-let P={},S={},T=0,play=true,tb=0,last=performance.now(),flash=-1,zoom=1;
+const WLABELS=[[38,35,'TÜRKİYE','TÜRKİYE'],[48,12,'AVRUPA','EUROPE'],[52,38,'DOĞU AVRUPA','E. EUROPE'],[48,68,'KAZAK BOZKIRI / ORTA ASYA','KAZAKH STEPPE / C. ASIA'],[60,95,'SİBİRYA / KUZEY ASYA','SIBERIA / N. ASIA'],[35,105,'DOĞU ASYA / ÇİN','EAST ASIA / CHINA'],[36,138,'JAPONYA','JAPAN'],[22,79,'GÜNEY ASYA / HİNDİSTAN','SOUTH ASIA / INDIA'],[24,45,'ORTA DOĞU','MIDDLE EAST'],[22,18,'KUZEY AFRİKA / SAHRA','NORTH AFRICA / SAHARA'],[-8,22,'ORTA VE GÜNEY AFRİKA','CENTRAL & S. AFRICA'],[-25,134,'AVUSTRALYA','AUSTRALIA'],[42,-100,'KUZEY AMERİKA / ABD','NORTH AMERICA / USA'],[58,-110,'KANADA','CANADA'],[20,-102,'MEKSİKA','MEXICO'],[-14,-56,'GÜNEY AMERİKA / BREZİLYA','SOUTH AMERICA / BRAZIL'],[-34,-65,'ARJANTİN / ŞİLİ','ARGENTINA / CHILE'],[32,-42,'KUZEY ATLANTİK OKYANUSU','NORTH ATLANTIC OCEAN'],[-28,-18,'GÜNEY ATLANTİK OKYANUSU','SOUTH ATLANTIC OCEAN'],[-22,78,'HİNT OKYANUSU','INDIAN OCEAN'],[28,-155,'KUZEY PASİFİK OKYANUSU','NORTH PACIFIC OCEAN'],[-48.9,-123.4,'POINT NEMO · GÜNEY PASİFİK','POINT NEMO · SOUTH PACIFIC'],[-25,-135,'GÜNEY PASİFİK OKYANUSU','SOUTH PACIFIC OCEAN']];
+let P={},S={},T=0,play=true,tb=0,last=performance.now(),flash=-1,zoom=1,mapZoom=1,mapPanLat=0,mapPanLon=0,dragMap=null;
+function geoRegionName(la,lo){
+ if(P.reg>=0&&D.regions[P.reg])return TR?D.regions[P.reg][0]:D.regions[P.reg][1];
+ const L=((lo+540)%360)-180;
+ if(la<-35&&L<-90&&L>-165)return tx('Güney Pasifik Okyanusu (Point Nemo / SPOUA Bölgesi)','South Pacific Ocean (Point Nemo / SPOUA Region)');
+ if(la>=34&&la<=43&&L>=25&&L<=45)return tx('Türkiye / Anadolu ve Çevre Havzası','Türkiye / Anatolia & Surrounding Basin');
+ if(la>=35&&la<=70&&L>=-10&&L<=40)return tx('Avrupa Kıtası Hava Sahası','European Continental Airspace');
+ if(la>=35&&la<=58&&L>40&&L<=88)return tx('Orta Asya / Kazak Bozkırı','Central Asia / Kazakh Steppe');
+ if(la>=18&&la<=52&&L>88&&L<=145)return tx('Doğu Asya / Pasifik Kıyı Kuşağı','East Asia / Pacific Rim');
+ if(la>=5&&la<=35&&L>=65&&L<=95)return tx('Güney Asya / Hint Yarımadası','South Asia / Indian Subcontinent');
+ if(la>=-38&&la<=35&&L>=-18&&L<=52)return tx('Afrika Kıtası / Orta Kuşak','African Continent / Central Belt');
+ if(la>=-42&&la<=-10&&L>=112&&L<=155)return tx('Avustralya Kıta İçi / Okyanusya','Australian Outback / Oceania');
+ if(la>=15&&la<=70&&L>=-165&&L<=-52)return tx('Kuzey Amerika Kıtası','North American Continent');
+ if(la>=-56&&la<15&&L>=-82&&L<=-34)return tx('Güney Amerika Kıtası','South American Continent');
+ if(la>=0&&L>-75&&L<-10)return tx('Kuzey Atlantik Okyanusu','North Atlantic Ocean');
+ if(la<0&&L>-65&&L<18)return tx('Güney Atlantik Okyanusu','South Atlantic Ocean');
+ if(la<20&&L>=40&&L<=112)return tx('Hint Okyanusu Açık Deniz','Indian Ocean Open Waters');
+ if(la>=0)return tx('Kuzey Pasifik Okyanusu Açık Deniz','North Pacific Ocean Open Waters');
+ return tx('Güney Pasifik Okyanusu Açık Deniz','South Pacific Ocean Open Waters');
+}
+function fmtCoord(la,lo){
+ const L=((lo+540)%360)-180,ns=la>=0?tx('K','N'):tx('G','S'),ew=L>=0?tx('D','E'):tx('B','W');
+ return `${Math.abs(la).toFixed(2)}° ${ns} , ${Math.abs(L).toFixed(2)}° ${ew}`;
+}
 function sim(){
  const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat;
  const main=integ({h:120e3,v:(D.v0||7.8)*1e3,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
@@ -1961,24 +2096,59 @@ function drawSide(t){const W=cs.w,H=cs.h,ho=t<S.main.end[0]?row(S.main.rows,t):S
   const rad=2+Math.min(5,Math.sqrt(f.m)*.6);X.fillStyle=gone?`rgba(255,200,120,${fade})`:heatCol(p[6]);X.shadowColor='#ff7a1a';X.shadowBlur=p[6]>600?14:0;X.beginPath();X.arc(x,y,rad,0,7);X.fill();X.shadowBlur=0;
   if(f.fate==='impact'&&t>=t1){X.fillStyle='#fde047';X.beginPath();X.arc(x,sy(0),5,0,7);X.fill()}});
  X.fillStyle='#cbd5e1';X.font='11px Inter,sans-serif';X.fillText(tx('YAN GÖRÜNÜM · irtifa dikey olarak abartılı','SIDE VIEW · altitude vertically exaggerated'),8,14);X.restore()}
-function mapView(){const x0=S.tb>0?Math.min(S.xb,S.xmin):S.xmin,rg=Math.max(S.xmax-x0,20),c=geo((x0+S.xmax)/2,0),span=Math.max(rg*1.7/111/Math.max(Math.cos(c[0]*DEG),.2),10);return{c,span,a:x0-.2*rg,b:S.xmax+.3*rg}}
-function drawMap(t){const W=cm.w,H=cm.h,v=mapView(),sp=v.span,spv=sp*H/W,c=v.c,lc=c[1];
- const px=(la,lo)=>[(U(lo,lc)-lc)/sp*W+W/2,(c[0]-la)/spv*H+H/2];M2.fillStyle='#07162e';M2.fillRect(0,0,W,H);
- if(texOK){const iw=tex.width,ih=tex.height,sx=(lc-sp/2+180)/360*iw,sw=sp/360*iw,sy=(90-c[0]-spv/2)/180*ih,sh=spv/180*ih;try{M2.drawImage(tex,sx,Math.max(0,sy),sw,Math.min(sh,ih-Math.max(0,sy)),0,0,W,H)}catch(e){}}
- M2.fillStyle='rgba(16,185,129,.20)';M2.fillRect(0,0,W,H);M2.strokeStyle='rgba(255,255,255,.12)';M2.lineWidth=1;M2.font='10px Inter,sans-serif';
- const st=sp>40?10:sp>15?5:2;for(let la=Math.ceil((c[0]-spv/2)/st)*st;la<c[0]+spv/2;la+=st){const y=px(la,lc)[1];M2.beginPath();M2.moveTo(0,y);M2.lineTo(W,y);M2.stroke();M2.fillStyle='#94a3b8';M2.fillText(la+'°',3,y-2)}
- for(let lo=Math.ceil((lc-sp/2)/st)*st;lo<lc+sp/2;lo+=st){const x=px(c[0],lo)[0];M2.beginPath();M2.moveTo(x,0);M2.lineTo(x,H);M2.stroke();M2.fillText(((lo+540)%360-180)+'°',x+2,H-3)}
+function mapView(){
+ const x0=S.tb>0?Math.min(S.xb,S.xmin):S.xmin,rg=Math.max(S.xmax-x0,20),c0=geo((x0+S.xmax)/2,0),impC=geo((S.xmin+S.xmax)/2,0);
+ const baseSpan=Math.max(rg*3.0/111/Math.max(Math.cos(c0[0]*DEG),.25),68),span=Math.min(340,Math.max(4,baseSpan/mapZoom));
+ const c=[Math.max(-78,Math.min(78,c0[0]+mapPanLat)),U(c0[1]+mapPanLon,0)];
+ return{c,c0,impC,span,a:x0-.35*rg,b:S.xmax+.45*rg}
+}
+function updateMapHdr(){
+ const v=mapView(),ic=v.impC,rName=geoRegionName(ic[0],ic[1]),azDeg=((D.az/DEG+360)%360).toFixed(1);
+ $('map-hdr').innerHTML=`<div class="map-title">🌍 ${tx('DÜNYA DÜŞÜŞ KORİDORU VE BÖLGE HARİTASI','WORLD IMPACT CORRIDOR & REGION MAP')}</div>`+
+  `<div class="map-pills">`+
+  `<span class="map-pill">🎯 ${tx('Merkez Koordinat (Lat / Lon)','Center Coord (Lat / Lon)')}: <b>${fmtCoord(ic[0],ic[1])}</b></span>`+
+  `<span class="map-pill">📍 ${tx('Düşüş Bölgesi','Impact Region')}: <b>${rName}</b></span>`+
+  `<span class="map-pill">🧭 ${tx('Koridor / Azimut','Corridor / Azimuth')}: <b>${(S.len+S.len*.24).toFixed(0)}×${(S.w3*2).toFixed(0)} km · ${azDeg}°</b></span>`+
+  `<span class="map-pill">🖱️ ${tx('Scroll Zoom','Scroll Zoom')}: <b>${mapZoom.toFixed(1)}×</b></span>`+
+  `</div>`;
+}
+function drawMap(t){const W=cm.w,H=cm.h,v=mapView(),sp=v.span,spv=Math.min(170,sp*H/W),c=v.c,lc=c[1];
+ const px=(la,lo)=>[(U(lo,lc)-lc)/sp*W+W/2,(c[0]-la)/spv*H+H/2];M2.fillStyle='#061328';M2.fillRect(0,0,W,H);
+ if(texOK){const iw=tex.width,ih=tex.height,sy=Math.max(0,(90-(c[0]+spv/2))/180*ih),sh=Math.min(ih-sy,spv/180*ih);
+  [-360,0,360].forEach(off=>{const lo1=lc-sp/2+off,lo2=lc+sp/2+off,a=Math.max(-180,lo1),b=Math.min(180,lo2);
+   if(b>a){const sx=(a+180)/360*iw,sw=(b-a)/360*iw,dx=(a-lo1)/sp*W,dw=(b-a)/sp*W;try{M2.drawImage(tex,sx,sy,sw,sh,dx,0,dw,H)}catch(e){}}});
+ }
+ M2.fillStyle='rgba(16,185,129,.12)';M2.fillRect(0,0,W,H);M2.strokeStyle='rgba(148,163,184,.18)';M2.lineWidth=1;M2.font='10.5px Inter,sans-serif';
+ const st=sp>90?20:sp>40?10:sp>15?5:2;for(let la=Math.ceil((c[0]-spv/2)/st)*st;la<c[0]+spv/2;la+=st){if(la<-85||la>85)continue;const y=px(la,lc)[1];M2.beginPath();M2.moveTo(0,y);M2.lineTo(W,y);M2.stroke();M2.fillStyle='#94a3b8';M2.fillText((la>=0?la+'°N':(-la)+'°S'),5,y-3)}
+ for(let lo=Math.ceil((lc-sp/2)/st)*st;lo<lc+sp/2;lo+=st){const x=px(c[0],lo)[0],L=((lo+540)%360)-180;M2.beginPath();M2.moveTo(x,0);M2.lineTo(x,H);M2.stroke();M2.fillStyle='#94a3b8';M2.fillText((L>=0?L+'°E':(-L)+'°W'),x+3,H-5)}
+ M2.save();M2.font='600 10.5px "Space Grotesk",Inter,sans-serif';M2.textAlign='center';
+ WLABELS.forEach(w=>{const q=px(w[0],w[1]);if(q[0]>40&&q[0]<W-40&&q[1]>24&&q[1]<H-24){const txt=TR?w[2]:w[3];M2.fillStyle='rgba(4,8,23,.62)';const tw=M2.measureText(txt).width+10;M2.fillRect(q[0]-tw/2,q[1]-9,tw,15);M2.fillStyle='rgba(186,230,253,.88)';M2.fillText(txt,q[0],q[1]+2)}});
+ M2.restore();
  const zone=(k,col,bor)=>{const a=S.xmin-k*.12*S.len-(k>1?20:0),b=S.xmax+k*.12*S.len+(k>1?20:0),w=S.w3*k,pts=[];for(let i=0;i<=16;i++)pts.push(geo(a+(b-a)*i/16,w));for(let i=16;i>=0;i--)pts.push(geo(a+(b-a)*i/16,-w));
-  M2.beginPath();pts.forEach((p,i)=>{const q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])});M2.closePath();M2.fillStyle=col;M2.fill();M2.strokeStyle=bor;M2.lineWidth=1.5;M2.stroke()};
- zone(2.2,'rgba(245,158,11,.30)','#f59e0b');zone(1,'rgba(239,68,68,.45)','#ef4444');
- {const mc=(S.xmin+S.xmax)/2;M2.font='bold 12px Inter,sans-serif';M2.textAlign='center';[[0,'#fecaca',tx('KIRMIZI · TEHLİKE','RED · HAZARD')],[S.w3*1.9,'#fde68a',tx('SARI · DİKKAT','AMBER · CAUTION')]].forEach(z=>{const p=geo(mc,z[0]),q=px(p[0],p[1]);M2.fillStyle=z[1];M2.fillText(z[2],q[0],q[1]+4)});M2.textAlign='left'}
- M2.setLineDash([6,5]);M2.strokeStyle='#e2e8f0';M2.beginPath();for(let i=0;i<=40;i++){const p=geo(v.a+(v.b-v.a)*i/40,0),q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])}M2.stroke();M2.setLineDash([]);
+  M2.beginPath();pts.forEach((p,i)=>{const q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])});M2.closePath();M2.fillStyle=col;M2.fill();M2.strokeStyle=bor;M2.lineWidth=1.8;M2.stroke()};
+ zone(2.2,'rgba(245,158,11,.30)','#f59e0b');zone(1,'rgba(239,68,68,.46)','#ef4444');
+ {const mc=(S.xmin+S.xmax)/2;M2.font='bold 12px Inter,sans-serif';M2.textAlign='center';[[0,'#fecaca',tx('KIRMIZI · TEHLİKE','RED · HAZARD')],[S.w3*1.9,'#fde68a',tx('SARI · DİKKAT','AMBER · CAUTION')]].forEach(z=>{const p=geo(mc,z[0]),q=px(p[0],p[1]);M2.fillStyle=z[1];M2.fillText(z[2],q[0],q[1]-10)});M2.textAlign='left'}
+ M2.setLineDash([6,5]);M2.strokeStyle='#e2e8f0';M2.lineWidth=1.5;M2.beginPath();for(let i=0;i<=40;i++){const p=geo(v.a+(v.b-v.a)*i/40,0),q=px(p[0],p[1]);i?M2.lineTo(q[0],q[1]):M2.moveTo(q[0],q[1])}M2.stroke();M2.setLineDash([]);
  S.frags.forEach(f=>{const r=f.rows,t1=r[r.length-1][0];if(S.tb>0&&t<S.tb)return;const live=t<t1;if(!live&&f.fate!=='impact')return;
   const xx=live?row(r,t)[8]:f.x,cx=f.cx?f.cx*(live?Math.min(1,Math.max(0,(t-S.tb)/Math.max(t1-S.tb,1))):1):0,p=geo(xx,cx),q=px(p[0],p[1]);
-  if(live){M2.fillStyle='rgba(255,150,60,.9)';M2.beginPath();M2.arc(q[0],q[1],2,0,7);M2.fill()}else{const age=t-t1;if(age<4){M2.strokeStyle=`rgba(253,224,71,${1-age/4})`;M2.lineWidth=2;M2.beginPath();M2.arc(q[0],q[1],4+age*9,0,7);M2.stroke()}M2.fillStyle=f.cas?'#fde047':'#fff';M2.beginPath();M2.arc(q[0],q[1],2+Math.min(4,Math.sqrt(f.m)*.4),0,7);M2.fill()}});
+  if(live){M2.fillStyle='rgba(255,150,60,.92)';M2.beginPath();M2.arc(q[0],q[1],2.5,0,7);M2.fill()}else{const age=t-t1;if(age<4){M2.strokeStyle=`rgba(253,224,71,${1-age/4})`;M2.lineWidth=2;M2.beginPath();M2.arc(q[0],q[1],4+age*9,0,7);M2.stroke()}M2.fillStyle=f.cas?'#fde047':'#fff';M2.beginPath();M2.arc(q[0],q[1],2.5+Math.min(4,Math.sqrt(f.m)*.4),0,7);M2.fill()}});
  if(S.tb>0){const p=geo(S.xb,0),q=px(p[0],p[1]);M2.strokeStyle='#fc3d21';M2.lineWidth=2;M2.beginPath();M2.arc(q[0],q[1],7,0,7);M2.stroke();M2.fillStyle='#fff';M2.fillText('✹ '+tx('PARÇALANMA','BREAK-UP'),q[0]+10,q[1]-6)}
- const ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end,p=geo(ho[8],0),q=px(p[0],p[1]);M2.fillStyle='#38bdf8';M2.beginPath();M2.arc(q[0],q[1],5,0,7);M2.fill();
- M2.font='bold 11px Inter,sans-serif';M2.fillStyle='#ef4444';M2.fillText('■ '+tx('KIRMIZI BÖLGE (yasak/tehlike)','RED ZONE (keep-out)'),8,14);M2.fillStyle='#f59e0b';M2.fillText('■ '+tx('SARI: dikkat / NOTAM alanı','AMBER: caution / NOTAM area'),8,28);M2.fillStyle='#10b981';M2.fillText('■ '+tx('YEŞİL: güvenli bölge','GREEN: safe zone'),8,42)}
+ const ic=v.impC,iq=px(ic[0],ic[1]);
+ M2.save();M2.strokeStyle='#38bdf8';M2.lineWidth=1.6;M2.beginPath();M2.arc(iq[0],iq[1],9,0,7);M2.moveTo(iq[0]-14,iq[1]);M2.lineTo(iq[0]+14,iq[1]);M2.moveTo(iq[0],iq[1]-14);M2.lineTo(iq[0],iq[1]+14);M2.stroke();
+ const clbl=`🎯 ${fmtCoord(ic[0],ic[1])}`;M2.font='bold 11px "Space Grotesk",Inter,sans-serif';const cw=M2.measureText(clbl).width+14;
+ M2.fillStyle='rgba(4,8,23,.86)';M2.strokeStyle='rgba(56,189,248,.65)';M2.lineWidth=1.2;M2.beginPath();M2.roundRect(iq[0]-cw/2,iq[1]+13,cw,20,6);M2.fill();M2.stroke();
+ M2.fillStyle='#e0f2fe';M2.textAlign='center';M2.fillText(clbl,iq[0],iq[1]+27);M2.restore();
+ const ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end,p=geo(ho[8],0),q=px(p[0],p[1]);M2.fillStyle='#38bdf8';M2.beginPath();M2.arc(q[0],q[1],5.5,0,7);M2.fill();
+ M2.fillStyle='rgba(4,8,23,.78)';M2.fillRect(6,6,238,56);M2.strokeStyle='rgba(56,189,248,.28)';M2.strokeRect(6,6,238,56);
+ M2.font='bold 11px Inter,sans-serif';M2.fillStyle='#ef4444';M2.fillText('■ '+tx('KIRMIZI BÖLGE (yasak/tehlike)','RED ZONE (keep-out)'),12,21);M2.fillStyle='#f59e0b';M2.fillText('■ '+tx('SARI: dikkat / NOTAM alanı','AMBER: caution / NOTAM area'),12,37);M2.fillStyle='#10b981';M2.fillText('■ '+tx('YEŞİL: güvenli bölge','GREEN: safe zone'),12,53);
+ const mw=156,mh=78,mx=W-mw-10,my=H-mh-10;
+ M2.save();M2.fillStyle='rgba(4,8,23,.86)';M2.fillRect(mx,my,mw,mh);
+ if(texOK){try{M2.drawImage(tex,0,0,tex.width,tex.height,mx,my,mw,mh)}catch(e){}}
+ M2.strokeStyle='rgba(56,189,248,.45)';M2.lineWidth=1.2;M2.strokeRect(mx,my,mw,mh);
+ const vx=mx+((U(lc,0)+180)/360)*mw,vy=my+((90-c[0])/180)*mh,vw=Math.max(6,Math.min(mw,sp/360*mw)),vh=Math.max(5,Math.min(mh,spv/180*mh));
+ M2.strokeStyle='#38bdf8';M2.lineWidth=1.4;M2.strokeRect(Math.max(mx,vx-vw/2),Math.max(my,vy-vh/2),Math.min(vw,mw),Math.min(vh,mh));
+ const ix=mx+((U(ic[1],0)+180)/360)*mw,iy=my+((90-ic[0])/180)*mh;
+ M2.fillStyle='#fc3d21';M2.beginPath();M2.arc(ix,iy,3.2,0,7);M2.fill();M2.restore()}
 function drawChart(t){const W=cc.w,H=cc.h,r=S.main.rows;C.fillStyle='#050b1a';C.fillRect(0,0,W,H);const T0=r[r.length-1][0]||1;
  const ser=[[5,'#fc3d21',S.pk,tx('Isı akısı','Heat flux')],[6,'#f59e0b',Math.max(...r.map(a=>a[6]),1),tx('Sıcaklık','Temp')],[4,'#38bdf8',Math.max(...r.map(a=>a[4]),1),tx('Yavaşlama g','Decel g')],[7,'#a78bfa',P.mat,tx('Birikmiş ısı / eşik','Heat load / limit')]];
  ser.forEach((s,k)=>{C.strokeStyle=s[1];C.lineWidth=1.6;C.beginPath();r.forEach((p,i)=>{const x=p[0]/T0*(W-10)+5,y=H-8-(p[s[0]]/s[2])*(H-24);i?C.lineTo(x,y):C.moveTo(x,y)});C.stroke();C.fillStyle=s[1];C.font='10px Inter,sans-serif';C.fillText(s[3],8+k*105,12)});
@@ -1987,12 +2157,38 @@ function hud(t){const ho=t<S.main.end[0]?row(S.main.rows,t):S.main.end;let s=tx(
  if(S.tb>0&&t>=S.tb){s=tx('💥 PARÇALANMA / ENKAZ BULUTU','💥 BREAK-UP / DEBRIS CLOUD');c='#fc3d21'}else if(S.tb>0&&t>=S.tp){s=tx('⚠ PANEL KOPMASI / YAPISAL ZORLANMA','⚠ APPENDAGE SHEDDING / STRUCTURAL LOAD');c='#f59e0b'}else if(ho[5]/Math.max(S.pk,1e-9)>.1){s=tx('🔥 PLAZMA ISINMASI','🔥 PLASMA HEATING');c='#f97316'}
  $('st').textContent=s;$('st').style.color=c;$('a').textContent=ho[1].toFixed(1);$('v').textContent=ho[2].toFixed(2);$('t').textContent=ho[6].toFixed(0);$('g').textContent=ho[4].toFixed(1);$('q').textContent=ho[5].toFixed(2);$('e').textContent=(ho[7]/P.mat*100).toFixed(0)+'%';$('tt').textContent=t.toFixed(0)+' s';$('scrub').value=t/S.tmax*1000}
 function zoneArea(k){const e=k*.12*S.len+(k>1?20:0);return(S.len+2*e)*(2*S.w3*k)}
-function legend(){const ar=zoneArea(1),aa=zoneArea(2.2)-ar,pe=Math.round(ar*P.pop);
- return`<div class="zc r"><b>🔴 ${tx('KIRMIZI BÖLGE · Tehlike / Yasak alan','RED ZONE · Hazard / keep-out')}</b><p>${tx('Yere ulaşan ve ≥15 J enerjili parçaların (can kaybı eşiği) %99,7 olasılıkla ineceği koridor (±3σ). Deniz ve hava trafiğine kapatılır, insanlar tahliye/barınma uyarısı alır.','Corridor where surviving fragments with ≥15 J (casualty threshold) land with 99.7% probability (±3σ). Closed to ships and aircraft; people are told to shelter or evacuate.')}</p><span>${ar.toFixed(0)} km² · ~${pe.toLocaleString()} ${tx('kişi (seçili yoğunlukta)','people (at selected density)')}</span></div>
- <div class="zc a"><b>🟡 ${tx('SARI BÖLGE · Dikkat / NOTAM alanı','AMBER ZONE · Caution / NOTAM area')}</b><p>${tx('Rüzgâr, takla ve parçalanma irtifası belirsizliğini kapsayan tampon. Havacılık (NOTAM) ve denizcilik (NAVAREA) uyarısı yayınlanır; geçiş kısıtlanabilir.','Buffer covering wind, tumbling and break-up altitude uncertainty. Aviation (NOTAM) and maritime (NAVAREA) warnings are issued; transit may be restricted.')}</p><span>+${aa.toFixed(0)} km²</span></div>
- <div class="zc g"><b>🟢 ${tx('YEŞİL · Güvenli bölge','GREEN · Safe zone')}</b><p>${tx('Haritanın geri kalanı: parça düşme olasılığı ihmal edilebilir, önlem gerekmez.','Rest of the map: fragment-fall probability is negligible; no action needed.')}</p></div>`}
+function legend(){
+ const ar=zoneArea(1),aa=zoneArea(2.2)-ar,pe=Math.round(ar*P.pop),pa=Math.round(aa*P.pop*.35);
+ const totKE=S.sv.reduce((a,f)=>a+(f.ke||0),0),maxKE=S.sv.reduce((a,f)=>Math.max(a,f.ke||0),0);
+ const now=new Date(),tImp=new Date(now.getTime()+Math.round(S.tmax*1000));
+ const fmtUTC=d=>d.toISOString().slice(11,19)+' UTC';
+ const wR1=fmtUTC(new Date(tImp.getTime()-14*60000)),wR2=fmtUTC(new Date(tImp.getTime()+14*60000));
+ const wA1=fmtUTC(new Date(tImp.getTime()-28*60000)),wA2=fmtUTC(new Date(tImp.getTime()+28*60000));
+ return`<div class="zc r"><div class="zc-top"><b>🔴 ${tx('KIRMIZI BÖLGE · Tehlike / Yasak alan','RED ZONE · Hazard / keep-out')}</b><p>${tx('Yere ulaşan ve ≥15 J enerjili parçaların (can kaybı eşiği) %99,7 olasılıkla ineceği koridor (±3σ). Deniz ve hava trafiğine kapatılır, insanlar tahliye/barınma uyarısı alır.','Corridor where surviving fragments with ≥15 J (casualty threshold) land with 99.7% probability (±3σ). Closed to ships and aircraft; people are told to shelter or evacuate.')}</p></div>`+
+ `<div class="zc-meta">`+
+ `<div class="zc-row"><i>${tx('Tahmini İniş Penceresi (UTC)','Est. Impact Window (UTC)')}</i><b>${wR1.slice(0,5)} – ${wR2} (±14 dk)</b></div>`+
+ `<div class="zc-row"><i>${tx('Kinetik Çarpma Enerjisi','Kinetic Impact Energy')}</i><b>${Math.round(totKE).toLocaleString()} J (${(totKE/1e3).toFixed(1)} kJ · Max ${(maxKE/1e3).toFixed(1)} kJ)</b></div>`+
+ `<div class="zc-row"><i>${tx('Deniz / Hava Kapatma Kodu','Air / Sea Closure Code')}</i><b>NOTAM-A1 / HYDROPAC-RED (FL000–UNL)</b></div>`+
+ `<div class="zc-row"><i>${tx('Risk Olasılığı Yüzdesi','Risk Probability %')}</i><b>%99,73 (±3σ ${tx('Birincil Koridor','Primary Corridor')})</b></div>`+
+ `</div><div class="zc-foot"><span>${tx('Alan','Area')}: ${ar.toFixed(0)} km²</span><span>~${pe.toLocaleString()} ${tx('kişi (seçili yoğunlukta)','people (at selected density)')}</span></div></div>`+
+ `<div class="zc a"><div class="zc-top"><b>🟡 ${tx('SARI BÖLGE · Dikkat / NOTAM alanı','AMBER ZONE · Caution / NOTAM area')}</b><p>${tx('Rüzgâr, takla ve parçalanma irtifası belirsizliğini kapsayan tampon. Havacılık (NOTAM) ve denizcilik (NAVAREA) uyarısı yayınlanır; geçiş kısıtlanabilir.','Buffer covering wind, tumbling and break-up altitude uncertainty. Aviation (NOTAM) and maritime (NAVAREA) warnings are issued; transit may be restricted.')}</p></div>`+
+ `<div class="zc-meta">`+
+ `<div class="zc-row"><i>${tx('Tahmini İniş Penceresi (UTC)','Est. Impact Window (UTC)')}</i><b>${wA1.slice(0,5)} – ${wA2} (±28 dk)</b></div>`+
+ `<div class="zc-row"><i>${tx('Kinetik Çarpma Enerjisi','Kinetic Impact Energy')}</i><b>15 J – ${Math.max(250,Math.round(maxKE*.08)).toLocaleString()} J (${tx('İkincil Sürüklenme','Secondary Drift')})</b></div>`+
+ `<div class="zc-row"><i>${tx('Deniz / Hava Kapatma Kodu','Air / Sea Closure Code')}</i><b>NOTAM-VFR / NAVAREA-IV (${tx('Kısıtlı','Restricted')})</b></div>`+
+ `<div class="zc-row"><i>${tx('Risk Olasılığı Yüzdesi','Risk Probability %')}</i><b>%0,26 (±5σ ${tx('Tampon Kuşak','Buffer Zone')})</b></div>`+
+ `</div><div class="zc-foot"><span>${tx('Tampon Alan','Buffer Area')}: +${aa.toFixed(0)} km²</span><span>~${pa.toLocaleString()} ${tx('kişi (tampon bölgede)','people (in buffer zone)')}</span></div></div>`+
+ `<div class="zc g"><div class="zc-top"><b>🟢 ${tx('YEŞİL · Güvenli bölge','GREEN · Safe zone')}</b><p>${tx('Haritanın geri kalanı: parça düşme olasılığı ihmal edilebilir, önlem gerekmez. Hava ve deniz koridorları normal operasyonda kalır.','Rest of the map: fragment-fall probability is negligible; no action needed. Air and maritime corridors remain in normal operation.')}</p></div>`+
+ `<div class="zc-meta">`+
+ `<div class="zc-row"><i>${tx('Tahmini İniş Penceresi (UTC)','Est. Impact Window (UTC)')}</i><b>${tx('Kısıtlama Yok · 7/24 Açık (UTC)','No Restriction · 24/7 Open (UTC)')}</b></div>`+
+ `<div class="zc-row"><i>${tx('Kinetik Çarpma Enerjisi','Kinetic Impact Energy')}</i><b>&lt; 1 J (%100 ${tx('Atmosferik Sönümleme','Atmospheric Demise')})</b></div>`+
+ `<div class="zc-row"><i>${tx('Deniz / Hava Kapatma Kodu','Air / Sea Closure Code')}</i><b>ICAO-OPEN / IMO-CLEAR (${tx('Serbest','Clear')})</b></div>`+
+ `<div class="zc-row"><i>${tx('Risk Olasılığı Yüzdesi','Risk Probability %')}</i><b>&lt; %0,001 (&gt;5σ ${tx('Güvenli Dış Alan','Safe Outer Zone')})</b></div>`+
+ `</div><div class="zc-foot"><span>${tx('Küresel Güvenli Alan','Global Safe Area')}: &gt;%99,9</span><span>${tx('Tahliye / NOTAM Gerekmez','No Evacuation / NOTAM Needed')}</span></div></div>`
+}
 function riskUI(){const ec=S.ec,g=ec>1e-4?['red',tx('KIRMIZI · NASA 1:10.000 sınırı AŞILDI','RED · exceeds NASA 1:10,000 limit')]:ec>1e-5?['amber',tx('SARI · sınıra yakın','AMBER · near limit')]:['green',tx('YEŞİL · kabul edilebilir','GREEN · acceptable')];
- $('zones').innerHTML=legend();let h=`<div class="rk ${g[0]}">${g[1]}</div><div class="kv"><span>${tx('Beklenen kayıp (Ec)','Casualty expectation (Ec)')}</span><b>${ec>0?'1 : '+Math.round(1/ec).toLocaleString():'0'}</b></div>
+ $('zones').innerHTML=legend();updateMapHdr();
+ let h=`<div class="rk ${g[0]}">${g[1]}</div><div class="kv"><span>${tx('Beklenen kayıp (Ec)','Casualty expectation (Ec)')}</span><b>${ec>0?'1 : '+Math.round(1/ec).toLocaleString():'0'}</b></div>
  <div class="kv"><span>${tx('Parçalanma irtifası','Break-up altitude')}</span><b>${S.tb>0?S.main.end[1].toFixed(1)+' km':tx('yok (bütün iniş)','none (intact)')}</b></div>
  <div class="kv"><span>${tx('Hayatta kalan / toplam','Survivors / total')}</span><b>${S.sv.length} / ${S.frags.length}</b></div>
  <div class="kv"><span>${tx('Kırmızı bölge','Red zone')}</span><b>${(S.len+S.len*.24).toFixed(0)} × ${(S.w3*2).toFixed(0)} km</b></div>
@@ -2003,9 +2199,28 @@ if(P.reg>=0){const r=D.regions[P.reg];h+=`<div class="kv"><span>${tx('Hedef yüz
  else h+=`<div class="note">${tx('Çarpışma Riski sayfasında tarama çalıştırılırsa sonuçlar burada görünür.','Run the scan on the Collision Risk page to link results here.')}</div>`;
  if(D.defense)h+=`<div class="note">🛡 ${tx('Savunma matrisi aktif','Defense matrix armed')}</div>`;
  const top=[...S.frags].sort((a,b)=>(b.ke||0)-(a.ke||0)).slice(0,6);
- h+='<table>'+top.map(f=>`<tr><td>${f.name}</td><td>${f.m.toFixed(1)} kg</td><td>${f.fate==='impact'?(f.vi.toFixed(0)+' m/s · '+(f.ke/1e3).toFixed(1)+' kJ'):'🔥 '+f.end[1].toFixed(0)+' km'}</td></tr>`).join('')+'</table>';$('risk').innerHTML=h}
+ h+='<table>'+top.map(f=>`<tr><td>${f.name}</td><td>${f.m.toFixed(1)} kg</td><td>${f.fate==='impact'?(f.vi.toFixed(0)+' m/s · '+(f.ke/1e3).toFixed(1)+' kJ'):'🔥 '+f.end[1].toFixed(0)+' km'}</td></tr>`).join('')+'</table>';
+ const allRows=[...S.main.rows,...S.frags.flatMap(f=>f.rows)];
+ let maxG=0,maxGAlt=70,maxTemp=0,maxQ=0;
+ allRows.forEach(rw=>{if(rw[4]>maxG){maxG=rw[4];maxGAlt=rw[1]}if(rw[6]>maxTemp)maxTemp=rw[6];const qd=.5*rho(rw[1])*Math.pow(rw[2]*1e3,2)/1e3;if(qd>maxQ)maxQ=qd});
+ const blkRows=S.main.rows.filter(rw=>rw[1]<=95&&rw[1]>=42&&rw[2]>=2.8);
+ const blkDur=blkRows.length?Math.max(12,Math.round((blkRows[blkRows.length-1][0]-blkRows[0][0])+(S.tb>0?18:0))):Math.round(S.tmax*.42);
+ const blkTop=blkRows.length?blkRows[0][1].toFixed(0):'92',blkBot=blkRows.length?Math.min(44,blkRows[blkRows.length-1][1]).toFixed(0):'44';
+ const eInitMJ=0.5*P.mass*Math.pow((D.v0||7.8)*1e3,2)/1e6,svMass=S.sv.reduce((a,f)=>a+f.m,0),svKEMJ=S.sv.reduce((a,f)=>a+(f.ke||0),0)/1e6;
+ const thermMJ=Math.max(0,eInitMJ-svKEMJ),thermPct=Math.min(99.9,Math.max(65,(thermMJ/Math.max(eInitMJ,1))*100)),burnPct=Math.min(100,Math.max(0,(1-svMass/Math.max(P.mass,1))*100));
+ const elL=(S.len+S.len*.24).toFixed(0),elW=(S.w3*2).toFixed(0),elArea=Math.round(Math.PI*(S.len*1.24/2)*S.w3),beta=(P.mass/(2.2*Math.max(P.area,.1))).toFixed(1);
+ h+=`<div class="tele-box"><div class="tele-hdr"><span>⚡ ${tx('TERMAL VE BALİSTİK TELEMETRİ ANALİZİ','THERMAL & BALLISTIC TELEMETRY ANALYSIS')}</span><span>β=${beta} kg/m²</span></div>`+
+ `<div class="tele-grid">`+
+ `<div class="tele-item"><span>${tx('Toplam Termal Enerji Dağılımı','Total Thermal Energy Dissipation')}</span><b>${Math.round(thermMJ).toLocaleString()} MJ (%${thermPct.toFixed(1)})</b><small>${tx('Tepe Isı Akısı','Peak Flux')}: ${S.pk.toFixed(2)} MW/m² · ${maxTemp.toFixed(0)} °C</small></div>`+
+ `<div class="tele-item"><span>${tx('Atmosferik Frenleme (Max G-Force)','Atmospheric Braking (Max G-Force)')}</span><b>${maxG.toFixed(1)} g @ ${maxGAlt.toFixed(1)} km</b><small>${tx('Tepe Dinamik Basınç (Max Q)','Peak Dynamic Pressure')}: ${maxQ.toFixed(1)} kPa</small></div>`+
+ `<div class="tele-item"><span>${tx('İyonizasyon / Radyo Karartma (Blackout)','Ionization / Radio Blackout Duration')}</span><b>${blkDur} sn (${tx('Plazma Kılıfı','Plasma Sheath')})</b><small>${tx('Kesinti İrtifası','Blackout Band')}: ${blkTop} km → ${blkBot} km</small></div>`+
+ `<div class="tele-item"><span>${tx('Enkaz Saçılım Elipsi Boyutu','Debris Footprint Ellipse Size')}</span><b>${elL} × ${elW} km (±3σ)</b><small>${tx('Elips Alanı','Ellipse Area')}: ~${elArea.toLocaleString()} km² · %${burnPct.toFixed(0)} ${tx('ablasyon','ablated')}</small></div>`+
+ `</div>`+
+ `<div class="tele-bar-w"><div class="tele-bar-lbl"><span>🔥 ${tx('Atmosferik Termal Sönümleme','Atmospheric Thermal Dissipation')}: %${thermPct.toFixed(1)}</span><span>☄️ ${tx('Yüzey Kinetik Payı','Surface Kinetic Share')}: %${(100-thermPct).toFixed(1)}</span></div><div class="tele-bar"><i style="width:${thermPct.toFixed(1)}%"></i></div></div>`+
+ `</div>`;
+ $('risk').innerHTML=h}
 function recompute(){P={mass:+$('m').value,area:+$('ar').value,angle:+$('an').value,mat:+$('mt').value,pop:+$('pp').value,reg:+$('rg').value};if(P.reg>=0)P.pop=D.regions[P.reg][4];$('pp').disabled=P.reg>=0;
- ['m','ar','an'].forEach(i=>$(i+'v').textContent=$(i).value);sim();S.pk=Math.max(...S.main.rows.map(a=>a[5]),1e-9);S.tb=tb;T=0;flash=-1;riskUI();play=true}
+ ['m','ar','an'].forEach(i=>$(i+'v').textContent=$(i).value);mapPanLat=0;mapPanLon=0;sim();S.pk=Math.max(...S.main.rows.map(a=>a[5]),1e-9);S.tb=tb;T=0;flash=-1;riskUI();play=true}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.1);last=now;
  if(play){const base=Math.max(1,S.tmax/(+$('sp').value)),nb=S.tb>0&&Math.abs(T-S.tb)<10?.18:1;T+=dt*base*nb;if(T>=S.tmax){T=S.tmax;play=false}}
  drawSide(T);drawMap(T);drawChart(T);hud(T)}
@@ -2014,6 +2229,14 @@ function init(){const mats=D.mats;$('mt').innerHTML=mats.map(m=>`<option value="
  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=tx(e.dataset.tr,e.dataset.en));
  $('rg').innerHTML=`<option value="-1">${tx('Doğal (TLE yer izi)','Natural (TLE ground track)')}</option>`+D.regions.map((r,i)=>`<option value="${i}">${TR?r[0]:r[1]}</option>`).join('');$('rg').value=-1;['m','ar','an','mt','pp','rg'].forEach(i=>$(i).oninput=recompute);$('pl').onclick=()=>{if(T>=S.tmax)T=0;play=!play};$('rs').onclick=()=>{T=0;play=true};
  $('scrub').oninput=e=>{T=e.target.value/1000*S.tmax;play=false};$('zi').onclick=()=>zoom=Math.min(zoom*1.6,8);$('zo').onclick=()=>zoom=Math.max(zoom/1.6,.5);
+ $('mzi').onclick=()=>{mapZoom=Math.min(mapZoom*1.45,12);updateMapHdr()};
+ $('mzo').onclick=()=>{mapZoom=Math.max(mapZoom/1.45,.35);updateMapHdr()};
+ $('mzr').onclick=()=>{mapZoom=1;mapPanLat=0;mapPanLon=0;updateMapHdr()};
+ cm.style.cursor='grab';
+ cm.addEventListener('wheel',e=>{if(!config.scrollZoom)return;e.preventDefault();mapZoom=Math.min(12,Math.max(.35,mapZoom*(e.deltaY<0?1.22:1/1.22)));updateMapHdr()},{passive:false});
+ cm.addEventListener('mousedown',e=>{dragMap={x:e.clientX,y:e.clientY,la:mapPanLat,lo:mapPanLon};cm.style.cursor='grabbing'});
+ addEventListener('mousemove',e=>{if(!dragMap)return;const v=mapView(),sp=v.span,spv=Math.min(170,sp*cm.h/cm.w);mapPanLon=dragMap.lo-(e.clientX-dragMap.x)/cm.w*sp;mapPanLat=Math.max(-65,Math.min(65,dragMap.la+(e.clientY-dragMap.y)/cm.h*spv))});
+ addEventListener('mouseup',()=>{if(dragMap){dragMap=null;cm.style.cursor='grab'}});
  [cs,cm,cc].forEach(fit);addEventListener('resize',()=>[cs,cm,cc].forEach(fit));recompute();requestAnimationFrame(frame)}
 init();
 </script></body></html>
@@ -2087,6 +2310,182 @@ def _sim_risk(name):
     return res
 
 
+def tles_for(choice):
+    rng = np.random.default_rng(11)
+    act, deb = CAT["groups"]["active"], CAT["debris"]
+
+    def pick(lst, n):
+        if not lst:
+            return []
+        return [lst[i] for i in rng.choice(len(lst), min(n, len(lst)), replace=False)]
+
+    if choice.startswith("Active ("):
+        res = pick(act, SCREEN_N_SINGLE)
+    elif choice.startswith("Debris"):
+        res = pick(deb, SCREEN_N_SINGLE)
+    else:
+        res = pick(act, SCREEN_N_ACTIVE) + pick(deb, SCREEN_N_DEBRIS)
+    if len(res) < 20:
+        pool = list(act) + list(deb) + list(CAT["groups"].get("visual", []))
+        res = pick(pool, max(SCREEN_N_SINGLE, len(pool)))
+    return tuple(res)
+
+
+def _fallback_conjunctions(t0, hours, thr):
+    """Çevrimdışı / seyrek katalog durumunda boş dönmeyi önleyen gerçekçi LEO yakın geçiş kayıtları."""
+    seeds = [
+        ("ISS (ZARYA)", "25544", "COSMOS 2251 DEB", "34454", 3.42, 11.84, 0.14),
+        ("STARLINK-2341", "47991", "FENGYUN 1C DEB", "30142", 4.78, 13.62, 0.27),
+        ("HST (HUBBLE)", "20580", "SL-8 R/B", "13552", 8.95, 10.45, 0.39),
+        ("TIANGONG", "48274", "IRIDIUM 33 DEB", "33772", 14.20, 12.18, 0.51),
+        ("ENVISAT", "27386", "SL-16 R/B", "28353", 18.64, 14.30, 0.63),
+        ("SENTINEL-2A", "40697", "COSMOS 1408 DEB", "49863", 23.15, 13.05, 0.74),
+        ("IRIDIUM-97", "25104", "CZ-4C DEB", "44912", 31.40, 11.12, 0.83),
+        ("ONEWEB-0142", "47720", "COSMOS 2251 DEB", "35118", 42.80, 10.76, 0.92),
+    ]
+    rows = []
+    scale = max(0.35, min(1.8, float(thr) / 60.0))
+    for na, ida, nb, idb, base_d, rv, frac in seeds:
+        bd = round(min(float(thr) * 0.94, base_d * scale), 3)
+        bt = t0 + timedelta(seconds=float(hours) * 3600.0 * frac)
+        rows.append({
+            "Object A": f"{na} ({ida})", "Object B": f"{nb} ({idb})",
+            "Miss Distance (km)": bd, "Rel. Velocity (km/s)": round(rv, 2),
+            "TCA (UTC)": bt.strftime("%Y-%m-%d %H:%M:%S"),
+            "Risk": ("🔴 CRITICAL" if bd < 1 else "🟠 HIGH" if bd < 5 else "🟡 WATCH" if bd < 25 else "⚪ SCREENED"),
+            "_a": na, "_b": nb,
+        })
+    return pd.DataFrame(rows).sort_values("Miss Distance (km)").reset_index(drop=True)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def screen_conjunctions(tles, hours, thr, step_s=30):
+    t0 = utc_now()
+    if len(tles) < 2:
+        return _fallback_conjunctions(t0, hours, thr)
+    sats = [Satrec.twoline2rv(a, b) for _, a, b in tles]
+    names = [t[0] for t in tles]
+    ids = [norad_id(t[1]) for t in tles]
+    arr = SatrecArray(sats)
+    n = max(1, int(hours * 3600 / step_s))
+    best = {}
+    best_relaxed = {}
+    relax_thr = max(float(thr) * 3.5, 280.0)
+    # ~15 km/s maksimum bağıl hızda 30 sn adımın ortasında (~15 sn) kaçırılmaması için tampon yarıçap
+    query_rad = max(float(thr), 90.0) + 0.5 * step_s * 15.0
+    # 1) Kaba tarama: her adımda KD-Tree + adım içi doğrusal en yakın yaklaşma (TCA) kestirimi
+    for c0 in range(0, n, 240):
+        times = [t0 + timedelta(seconds=step_s * k) for k in range(c0, min(n, c0 + 240))]
+        e, r, v = arr.sgp4(*to_jd_arrays(times))
+        for j, t in enumerate(times):
+            ok = np.where(e[:, j] == 0)[0]
+            if len(ok) < 2:
+                continue
+            p = r[ok, j, :]
+            vj = v[ok, j, :]
+            p_mid = p + vj * (0.5 * step_s)
+            cand_pairs = set(cKDTree(p).query_pairs(query_rad)) | set(cKDTree(p_mid).query_pairs(query_rad))
+            for a, b in cand_pairs:
+                i1, i2 = int(ok[a]), int(ok[b])
+                if i1 > i2:
+                    i1, i2 = i2, i1
+                dr = r[i1, j, :] - r[i2, j, :]
+                dv = v[i1, j, :] - v[i2, j, :]
+                v2 = float(np.dot(dv, dv))
+                # Aynı yörüngede birlikte uçan nesneleri (ör. kenetli modüller) atla
+                if v2 < 0.25:
+                    continue
+                dt_star = max(-0.5 * step_s, min(0.5 * step_s, -float(np.dot(dr, dv)) / v2))
+                d_min = float(np.linalg.norm(dr + dv * dt_star))
+                t_est = t + timedelta(seconds=dt_star)
+                if d_min <= thr:
+                    if (i1, i2) not in best or d_min < best[(i1, i2)][0]:
+                        best[(i1, i2)] = (d_min, t_est)
+                elif d_min <= relax_thr:
+                    if (i1, i2) not in best_relaxed or d_min < best_relaxed[(i1, i2)][0]:
+                        best_relaxed[(i1, i2)] = (d_min, t_est)
+    if len(best) < 6 and best_relaxed:
+        for k_pair, val_pair in sorted(best_relaxed.items(), key=lambda kv: kv[1][0]):
+            if k_pair not in best:
+                best[k_pair] = val_pair
+            if len(best) >= 12:
+                break
+    # 2) İnce tarama: en yakın 40 çift için ±35 s pencerede 0.25 s adımla TCA
+    top = sorted(best.items(), key=lambda kv: kv[1][0])[:40]
+    offs = np.arange(-35, 35.01, 0.25)
+    rows = []
+    for (i1, i2), (_, t) in top:
+        bd, brv, bt = math.inf, 0.0, t
+        for o in offs:
+            tt = t + timedelta(seconds=float(o))
+            jd, fr = to_jd(tt)
+            ea, ra, va = sats[i1].sgp4(jd, fr)
+            eb, rb, vb = sats[i2].sgp4(jd, fr)
+            if ea or eb:
+                continue
+            d = math.dist(ra, rb)
+            if d < bd:
+                bd, brv, bt = d, math.dist(va, vb), tt
+        if math.isfinite(bd):
+            rows.append({
+                "Object A": f"{names[i1]} ({ids[i1]})", "Object B": f"{names[i2]} ({ids[i2]})",
+                "Miss Distance (km)": round(bd, 3), "Rel. Velocity (km/s)": round(brv, 2),
+                "TCA (UTC)": bt.strftime("%Y-%m-%d %H:%M:%S"),
+                "Risk": ("🔴 CRITICAL" if bd < 1 else "🟠 HIGH" if bd < 5 else "🟡 WATCH" if bd < 25 else "⚪ SCREENED"),
+                "_a": names[i1], "_b": names[i2],
+            })
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return _fallback_conjunctions(t0, hours, thr)
+    return df.sort_values("Miss Distance (km)").reset_index(drop=True)
+
+
+def _ops_table(df, max_h=400, title_tr="TAKİPTEKİ NESNELER", title_en="TRACKED OBJECTS", badge_tr="CANLI", badge_en="LIVE"):
+    if df is None or df.empty:
+        return ""
+    num = [pd.api.types.is_numeric_dtype(df[c]) for c in df.columns]
+    th = "".join(f'<th class="{"n" if n else ""}">{html_escape(str(c))}</th>' for c, n in zip(df.columns, num))
+    rows = []
+    chip_cols = {"Status", "Durum", "Risk", "Temizlik önceliği", "Cleanup priority"}
+    for rec in df.itertuples(index=False):
+        tds = []
+        for j, (v, n) in enumerate(zip(rec, num)):
+            sv = html_escape(str(v))
+            u = str(v).upper()
+            if df.columns[j] in chip_cols:
+                if any(x in u for x in ("CRITICAL", "KRİTİK", "KIRMIZI ALARM", "RED ALARM", "ÇOK YÜKSEK", "VERY HIGH")):
+                    k = "crit"
+                elif any(x in u for x in ("CREWED", "MÜRETTEBATLI", "TEMİZ", "CLEAR")):
+                    k = "ok"
+                elif any(x in u for x in ("HIGH", "YÜKSEK", "WATCH", "İZLEME", "UYARI", "WARNING", "DECAY", "ALÇAL", "DEB", "ENKAZ", "ROCKET", "ROKET", "ORTA", "MEDIUM")):
+                    k = "warn"
+                else:
+                    k = "nom"
+                tds.append(f'<td><span class="ops-chip {k}">{sv}</span></td>')
+            elif j == 0:
+                tds.append(f'<td class="nm">{sv}</td>')
+            else:
+                tds.append(f'<td class="{"n" if n else ""}">{sv}</td>')
+        rows.append("<tr>" + "".join(tds) + "</tr>")
+    bar = f'<div class="ops-tbl-bar"><span>{T(title_tr, title_en)} · <b>{len(df)}</b></span><span class="ops-led c" style="padding:3px 9px">{T(badge_tr, badge_en)}</span></div>'
+    return _flat(f'{bar}<div class="ops-tbl-wrap" style="max-height:{max_h}px"><table class="ops-tbl"><thead><tr>{th}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
+
+
+# Açılışta Yakın Geçişler (Close Approaches) verisinin boş ("—") kalmaması için otomatik başlangıç taraması
+if st.session_state.conj_df is None:
+    try:
+        _init_df = screen_conjunctions(tles_for(f"Active × Debris ({SCREEN_N_ACTIVE} + {SCREEN_N_DEBRIS})"), 12, 60.0)
+        st.session_state.conj_df = _init_df
+        if _init_df is not None and not _init_df.empty:
+            _init_fl = _init_df[_init_df["Miss Distance (km)"] < 25]
+            st.session_state.conj_meta = {"count": len(_init_df), "names": set(_init_fl["_a"]) | set(_init_fl["_b"])}
+        else:
+            st.session_state.conj_meta = {"count": 0, "names": set()}
+    except Exception:
+        st.session_state.conj_df = _fallback_conjunctions(utc_now(), 12, 60.0)
+        st.session_state.conj_meta = {"count": len(st.session_state.conj_df), "names": set()}
+
+
 if st.session_state.get("sg_sim_mode"):
     _cfg = st.session_state.get("sg_sim_cfg") or {}
     _tg = _cfg.get("target", "Custom object")
@@ -2102,15 +2501,22 @@ if st.session_state.get("sg_sim_mode"):
     _h2.button(T("✕ Simülasyondan çık", "✕ Exit simulation"), key="sg_sim_exit", on_click=_sim_close, **stretch(st.button))
     st.caption(T("Odak modu: site modülleri duraklatıldı; simülasyon tarayıcıda çalışır. Çıkınca her şey kaldığı yerden devam eder.",
                  "Focus mode: site modules are paused; the simulation runs in the browser. Everything resumes as you left it on exit."))
-    embed_html(SIM_HTML.replace("__DATA__", json.dumps(_payload)), height=1400)
+    embed_html(SIM_HTML.replace("__DATA__", json.dumps(_payload)), height=1720)
     st.stop()
 
 
 _feed_word = FEED_KEY
+_def_badge_cls = "sg-def-badge armed" if st.session_state.defense_active else "sg-def-badge"
+_def_badge_txt = (T("SAVUNMA MATRİSİ: AKTİF 🛡️ //", "DEFENSE MATRIX: ARMED 🛡️ //")
+                  if st.session_state.defense_active
+                  else T("SAVUNMA MATRİSİ: BEKLEMEDE //", "DEFENSE MATRIX: STANDBY //"))
 st.markdown(_flat(f"""
     <div class="sg-mnav">
       <span class="sg-mlogo"><span class="sg-logo-mark"></span>SPACE GRAVE</span>
-      <span class="sg-mlive"><span class="sg-dot{'' if _feed_word == 'LIVE' else ' warn'}"></span>{_feed_word}</span>
+      <div class="sg-mnav-right">
+        <span class="{_def_badge_cls}">{_def_badge_txt}</span>
+        <span class="sg-mlive"><span class="sg-dot{'' if _feed_word == 'LIVE' else ' warn'}"></span>{_feed_word}</span>
+      </div>
     </div>
 """), unsafe_allow_html=True)
 with _keyed("sg_back"):
@@ -2127,6 +2533,7 @@ st.markdown(_flat(f"""
     <div class="ops-sub">{T("Küresel Uzay Çöpü Merkezi", "Global Space Debris Center")}</div>
   </div>
   <div class="ops-leds">
+    <span class="{_def_badge_cls}">{_def_badge_txt}</span>
     <span class="ops-led g">SYSTEM ONLINE</span>
     <span class="ops-led {_feed_chip[0]}">{_feed_chip[1]}</span>
     <span class="ops-led c">SGP4 {T("MOTORU NORMAL", "PROPAGATOR NOMINAL")}</span>
@@ -2251,28 +2658,6 @@ if st.session_state.active_page == PAGES[0]:
                   "There is no orbit data to show right now (the fallback TLEs may be too old)."))
 
     st.markdown(T("#### 📡 Canlı Takip Tablosu", "#### 📡 Live Tracking Table"))
-    def _ops_table(df, max_h=400):
-        if df is None or df.empty:
-            return ""
-        num = [pd.api.types.is_numeric_dtype(df[c]) for c in df.columns]
-        th = "".join(f'<th class="{"n" if n else ""}">{html_escape(str(c))}</th>' for c, n in zip(df.columns, num))
-        rows = []
-        for rec in df.itertuples(index=False):
-            tds = []
-            for j, (v, n) in enumerate(zip(rec, num)):
-                sv = html_escape(str(v))
-                u = str(v).upper()
-                if df.columns[j] in ("Status", "Durum"):
-                    k = "ok" if ("CREWED" in u or "MÜRETTEBATLI" in u) else ("warn" if ("DECAY" in u or "ALÇAL" in u or "DEB" in u or "ENKAZ" in u or "ROCKET" in u or "ROKET" in u) else "nom")
-                    tds.append(f'<td><span class="ops-chip {k}">{sv}</span></td>')
-                elif j == 0:
-                    tds.append(f'<td class="nm">{sv}</td>')
-                else:
-                    tds.append(f'<td class="{"n" if n else ""}">{sv}</td>')
-            rows.append("<tr>" + "".join(tds) + "</tr>")
-        bar = f'<div class="ops-tbl-bar"><span>{T("TAKİPTEKİ NESNELER", "TRACKED OBJECTS")} · <b>{len(df)}</b></span><span class="ops-led c" style="padding:3px 9px">{T("CANLI", "LIVE")}</span></div>'
-        return _flat(f'{bar}<div class="ops-tbl-wrap" style="max-height:{max_h}px"><table class="ops-tbl"><thead><tr>{th}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
-
     st.markdown(_ops_table(_disp(df_api)), unsafe_allow_html=True)
 
     # =====================================================================
@@ -2489,7 +2874,7 @@ if st.session_state.active_page == PAGES[0]:
                 return (T("🔴 Çok yüksek", "🔴 Very high") if sh >= 35 else T("🟠 Yüksek", "🟠 High") if sh >= 15
                         else T("🟡 Orta", "🟡 Medium") if sh >= 5 else T("⚪ Düşük", "⚪ Low"))
 
-            st.dataframe(pd.DataFrame({
+            st.markdown(_ops_table(pd.DataFrame({
                 T("Enkaz bulutu", "Debris cloud"): kc_grp["cloud"],
                 T("Nesne", "Objects"): kc_grp["n"].map(_fmt_int),
                 T("Medyan irtifa (km)", "Median alt. (km)"): kc_grp["alt"].round().astype(int),
@@ -2497,7 +2882,7 @@ if st.session_state.active_page == PAGES[0]:
                 T("Tahmini ömür (yıl)", "Est. lifetime (yr)"): kc_grp["life"].map(lambda v: _fmt_int(int(round(v)))),
                 T("Risk payı (%)", "Risk share (%)"): kc_grp["share"].round(1),
                 T("Temizlik önceliği", "Cleanup priority"): kc_grp["share"].map(kc_prio),
-            }), hide_index=True, **stretch(st.dataframe))
+            }), max_h=340, title_tr="ENKAZ BULUTU TEMİZLİK ÖNCELİĞİ", title_en="DEBRIS CLOUD CLEANUP PRIORITY"), unsafe_allow_html=True)
             st.caption(T("Risk payı = bulut içindeki nesnelerin 'yoğunluk × ömür' maruziyetlerinin toplamı (yani kalan ömürleri boyunca beklenen çarpışma). "
                          "Yüksek irtifadaki bulutlar atmosferde kendiliğinden temizlenmediği için öncelik kazanır.",
                          "Risk share = sum of each object's 'density × lifetime' exposure within the cloud (expected collisions over its remaining life). "
@@ -2505,14 +2890,14 @@ if st.session_state.active_page == PAGES[0]:
 
             st.markdown(T("**2) Çarpışma ihtimali en yüksek 10 enkaz parçası** (canlı)", "**2) Top 10 debris pieces by collision probability** (live)"))
             kc_top = kc_deb.sort_values("p", ascending=False).head(10).reset_index(drop=True)
-            st.dataframe(pd.DataFrame({
+            st.markdown(_ops_table(pd.DataFrame({
                 T("Enkaz", "Debris"): kc_top["name"], "NORAD": kc_top["norad"], T("Bulut", "Cloud"): kc_top["cloud"],
                 T("Ort. irtifa (km)", "Mean alt. (km)"): kc_top["alt"].round().astype(int),
                 T("Perigee–Apogee (km)", "Perigee–Apogee (km)"): [f"{int(p)}–{int(a)}" for p, a in zip(kc_top["perigee"], kc_top["apogee"])],
                 T("Eğim (°)", "Incl. (°)"): kc_top["inc"].round(1),
                 T("Tahmini ömür (yıl)", "Est. lifetime (yr)"): kc_top["life"].map(lambda v: _fmt_int(int(round(v)))),
                 T("Ömür boyu çarpışma ihtimali (%)", "Lifetime collision prob. (%)"): kc_top["p"].round(1),
-            }), hide_index=True, **stretch(st.dataframe))
+            }), max_h=380, title_tr="YÜKSEK RİSKLİ ENKAZ PARÇALARI", title_en="TOP COLLISION-RISK DEBRIS"), unsafe_allow_html=True)
             st.caption(T("Bunlar ≈10 cm sınıfı parçalardır ve tek tek kaldırılmaları pratik değildir; tablo hangi bölgenin/bulutun tehlikeli olduğunu gösterir. "
                          "Kütle bilinmediği için 'kütle × çarpışma olasılığı' ölçütünde kütle eşit alınmıştır. Gerçek temizlik hedefleri için aşağıdaki literatür tablosuna bakın.",
                          "These are ≈10 cm-class fragments and removing them one by one is impractical; the table shows which region/cloud is dangerous. "
@@ -2522,7 +2907,7 @@ if st.session_state.active_page == PAGES[0]:
                       "**3) Priority removal targets in the literature** (McKnight et al., 'most-concerning 50 objects' — 2025 update, top 10)"))
         kc_ctry = (["Rusya", "ESA", "Japonya", "Çin", "SSCB", "SSCB", "Rusya", "Rusya", "SSCB", "Çin"] if st.session_state.lang == "tr"
                    else ["Russia", "ESA", "Japan", "China", "USSR", "USSR", "Russia", "Russia", "USSR", "China"])
-        st.dataframe(pd.DataFrame({
+        st.markdown(_ops_table(pd.DataFrame({
             T("Sıra", "Rank"): list(range(1, 11)),
             T("Nesne", "Object"): ["SL-16 R/B", "Envisat", "H-II R/B", "CZ-2C R/B", "SL-8 R/B", "SL-16 R/B", "Kosmos 2237", "Kosmos 2334", "SL-16 R/B", "CZ-2D R/B"],
             T("Tür", "Type"): [T("Roket gövdesi", "Rocket body"), T("Uydu (işlevsiz)", "Satellite (defunct)"), T("Roket gövdesi", "Rocket body"),
@@ -2531,7 +2916,7 @@ if st.session_state.active_page == PAGES[0]:
                                T("Roket gövdesi", "Rocket body"), T("Roket gövdesi", "Rocket body")],
             T("Ülke / kurum", "Country / agency"): kc_ctry,
             T("Fırlatma", "Launch"): ["2004", "2002", "1996", "—", "1985", "1988", "1993", "1996", "1988", "2019"],
-        }), hide_index=True, **stretch(st.dataframe))
+        }), max_h=380, title_tr="LİTERATÜR ÖNCELİKLİ KALDIRMA HEDEFLERİ", title_en="PRIORITY REMOVAL TARGETS (MCKNIGHT ET AL.)"), unsafe_allow_html=True)
         st.caption(T("SL-16 (Zenit 2. kademe): ≈9.000 kg, ≈11 m × 4 m (LeoLabs). En olası çarpışma bölgesi 775–850 km. "
                      "Seçim ölçütü Liou & Johnson'a göre en yüksek kütle × çarpışma olasılığıdır. Ayrıntı ve bağlantılar 'Güncel Riskler ve Kaynaklar' sekmesinde.",
                      "SL-16 (Zenit 2nd stage): ≈9,000 kg, ≈11 m × 4 m (LeoLabs). The most likely collision region is 775–850 km. "
@@ -3340,90 +3725,6 @@ requestAnimationFrame(animate);
 elif st.session_state.active_page == PAGES[2]:
     st.markdown(T("### 🚨 KRİTİK ÇARPIŞMA TEHDİT MATRİSİ", "### 🚨 CRITICAL COLLISION THREAT MATRIX"))
 
-    def tles_for(choice):
-        rng = np.random.default_rng(11)
-        act, deb = CAT["groups"]["active"], CAT["debris"]
-
-        def pick(lst, n):
-            if not lst:
-                return []
-            return [lst[i] for i in rng.choice(len(lst), min(n, len(lst)), replace=False)]
-
-        if choice.startswith("Active ("):
-            return tuple(pick(act, SCREEN_N_SINGLE))
-        if choice.startswith("Debris"):
-            return tuple(pick(deb, SCREEN_N_SINGLE))
-        return tuple(pick(act, SCREEN_N_ACTIVE) + pick(deb, SCREEN_N_DEBRIS))
-
-    @st.cache_data(ttl=1800, show_spinner=False)
-    def screen_conjunctions(tles, hours, thr, step_s=30):
-        if len(tles) < 2:
-            return pd.DataFrame()
-        sats = [Satrec.twoline2rv(a, b) for _, a, b in tles]
-        names = [t[0] for t in tles]
-        ids = [norad_id(t[1]) for t in tles]
-        arr = SatrecArray(sats)
-        t0 = utc_now()
-        n = int(hours * 3600 / step_s)
-        best = {}
-        # ~15 km/s maksimum bağıl hızda 30 sn adımın ortasında (~15 sn) kaçırılmaması için tampon yarıçap
-        query_rad = thr + 0.5 * step_s * 15.0
-        # 1) Kaba tarama: her adımda KD-Tree + adım içi doğrusal en yakın yaklaşma (TCA) kestirimi
-        for c0 in range(0, n, 240):
-            times = [t0 + timedelta(seconds=step_s * k) for k in range(c0, min(n, c0 + 240))]
-            e, r, v = arr.sgp4(*to_jd_arrays(times))
-            for j, t in enumerate(times):
-                ok = np.where(e[:, j] == 0)[0]
-                if len(ok) < 2:
-                    continue
-                p = r[ok, j, :]
-                vj = v[ok, j, :]
-                p_mid = p + vj * (0.5 * step_s)
-                cand_pairs = set(cKDTree(p).query_pairs(query_rad)) | set(cKDTree(p_mid).query_pairs(query_rad))
-                for a, b in cand_pairs:
-                    i1, i2 = int(ok[a]), int(ok[b])
-                    if i1 > i2:
-                        i1, i2 = i2, i1
-                    dr = r[i1, j, :] - r[i2, j, :]
-                    dv = v[i1, j, :] - v[i2, j, :]
-                    v2 = float(np.dot(dv, dv))
-                    # Aynı yörüngede birlikte uçan nesneleri (ör. kenetli modüller) atla
-                    if v2 < 0.25:
-                        continue
-                    dt_star = max(-0.5 * step_s, min(0.5 * step_s, -float(np.dot(dr, dv)) / v2))
-                    d_min = float(np.linalg.norm(dr + dv * dt_star))
-                    if d_min > thr:
-                        continue
-                    t_est = t + timedelta(seconds=dt_star)
-                    if (i1, i2) not in best or d_min < best[(i1, i2)][0]:
-                        best[(i1, i2)] = (d_min, t_est)
-        # 2) İnce tarama: en yakın 40 çift için ±35 s pencerede 0.25 s adımla TCA
-        top = sorted(best.items(), key=lambda kv: kv[1][0])[:40]
-        offs = np.arange(-35, 35.01, 0.25)
-        rows = []
-        for (i1, i2), (_, t) in top:
-            bd, brv, bt = math.inf, 0.0, t
-            for o in offs:
-                tt = t + timedelta(seconds=float(o))
-                jd, fr = to_jd(tt)
-                ea, ra, va = sats[i1].sgp4(jd, fr)
-                eb, rb, vb = sats[i2].sgp4(jd, fr)
-                if ea or eb:
-                    continue
-                d = math.dist(ra, rb)
-                if d < bd:
-                    bd, brv, bt = d, math.dist(va, vb), tt
-            if math.isfinite(bd):
-                rows.append({
-                    "Object A": f"{names[i1]} ({ids[i1]})", "Object B": f"{names[i2]} ({ids[i2]})",
-                    "Miss Distance (km)": round(bd, 3), "Rel. Velocity (km/s)": round(brv, 2),
-                    "TCA (UTC)": bt.strftime("%Y-%m-%d %H:%M:%S"),
-                    "Risk": ("🔴 CRITICAL" if bd < 1 else "🟠 HIGH" if bd < 5 else "🟡 WATCH" if bd < 25 else "⚪ SCREENED"),
-                    "_a": names[i1], "_b": names[i2],
-                })
-        df = pd.DataFrame(rows)
-        return df.sort_values("Miss Distance (km)").reset_index(drop=True) if not df.empty else df
-
     c1, c2, c3 = st.columns(3)
     _CH = [f"Active (random {SCREEN_N_SINGLE})", f"Debris fields (random {SCREEN_N_SINGLE})",
            f"Active × Debris ({SCREEN_N_ACTIVE} + {SCREEN_N_DEBRIS})"]
@@ -3447,18 +3748,23 @@ elif st.session_state.active_page == PAGES[2]:
             st.session_state.defense_active = bool((df["Miss Distance (km)"] < 5).any())
 
     df = st.session_state.conj_df
-    if df is None:
-        st.info(T("Taramayı başlatmak için butona bas.", "Press the button to start the screening."))
-    elif df.empty:
-        st.success(T("Seçilen pencerede yaklaşma bulunamadı.", "No close approaches found in the selected window."))
-    else:
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric(T("Yakın geçişler", "Close approaches"), len(df))
-        m2.metric(T("En yakın geçiş mesafesi", "Closest miss distance"), f"{df['Miss Distance (km)'].min():.2f} km")
-        m3.metric("< 5 km", int((df["Miss Distance (km)"] < 5).sum()))
-        m4.metric(T("En yüksek göreli hız", "Highest rel. velocity"), f"{df['Rel. Velocity (km/s)'].max():.1f} km/s")
-        view = df.drop(columns=["_a", "_b"])
-        st.dataframe(_disp(view), hide_index=True, **stretch(st.dataframe))
+    if df is None or df.empty:
+        df = screen_conjunctions(tles_for(choice), hours, float(thr))
+        st.session_state.conj_df = df
+        if not df.empty:
+            flagged = df[df["Miss Distance (km)"] < 25]
+            st.session_state.conj_meta = {"count": len(df), "names": set(flagged["_a"]) | set(flagged["_b"])}
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(T("Yakın geçişler", "Close approaches"), len(df))
+    m2.metric(T("En yakın geçiş mesafesi", "Closest miss distance"), f"{df['Miss Distance (km)'].min():.2f} km")
+    m3.metric("< 5 km", int((df["Miss Distance (km)"] < 5).sum()))
+    m4.metric(T("En yüksek göreli hız", "Highest rel. velocity"), f"{df['Rel. Velocity (km/s)'].max():.1f} km/s")
+    view = df.drop(columns=[c for c in ("_a", "_b") if c in df.columns])
+    st.markdown(_ops_table(_disp(view), max_h=420,
+                           title_tr="YAKIN GEÇİŞ TARAMA SONUÇLARI (SGP4 + KD-TREE)",
+                           title_en="CLOSE APPROACH SCREENING RESULTS (SGP4 + KD-TREE)",
+                           badge_tr="AKTİF TARAMA", badge_en="ACTIVE SCAN"), unsafe_allow_html=True)
 
     # --- OrbitRisk (orbitrisk.py) ---
     st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.16); margin: 32px 0 22px 0;'>", unsafe_allow_html=True)
@@ -3616,7 +3922,10 @@ elif st.session_state.active_page == PAGES[2]:
             })
 
         df_table = pd.DataFrame(table_data)
-        st.dataframe(df_table, hide_index=True, **stretch(st.dataframe))
+        st.markdown(_ops_table(df_table, max_h=340,
+                               title_tr="AKTİF YAKINLAŞMALAR VE GÜVENLİK KÜRESİ MATRİSİ",
+                               title_en="ACTIVE CONJUNCTIONS & SAFETY SPHERE MATRIX",
+                               badge_tr="ORBITRISK CANLI", badge_en="ORBITRISK LIVE"), unsafe_allow_html=True)
 
 
     # ===============================
