@@ -49,7 +49,7 @@ PRICING = {"basic": 99, "pro": 250, "inst": 450}
 
 # --- Ekip (Hakkımızda). İsteğe bağlı: "link" alanına LinkedIn adresi yazılabilir ---
 TEAM = [
-    {"name": "Kaan Baştekin", "link": "", "email": "bastekink@gmail.com", "age": 20,
+    {"name": "Kaan Baştekin", "link": "", "email": "spacegrave4343@gmail.com", "age": 20,
      "role_tr": "Takım Lideri & Ön Yüz / 3D Görselleştirme", "role_en": "Team Leader & Front-End / 3D Visualization"},
     {"name": "Nehir Koca", "link": "", "email": "nehir.koca1234@gmail.com", "age": 19,
      "role_tr": "Veri Mühendisi & Sunum Yöneticisi", "role_en": "Data Engineer & Presentation Manager"},
@@ -63,11 +63,11 @@ TEAM = [
      "role_tr": "Sistem Analisti & Teknik Ürün Sahibi", "role_en": "Systems Analyst & Technical Product Owner"},
 ]
 
-# Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe) ve bastekink@gmail.com adresine bağlanır
+# Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe) ve doğrudan Google Mail üzerinden spacegrave4343@gmail.com adresine bağlanır
 DEMO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_requests.csv")
-DEMO_EMAIL = "bastekink@gmail.com"
-DEMO_MAILTO = "mailto:bastekink@gmail.com?subject=SP4C3%20GR4V3%20Demo%20Talebi&body=Merhaba%20Space%20Grave%20Ekibi%2C%0A%0AKurumumuz%20i%C3%A7in%20SP4C3%20GR4V3%20canl%C4%B1%20demo%20talebinde%20bulunmak%20istiyoruz.%0A%0AAd%20Soyad%3A%20%0AKurum%3A%20%0A%C4%B0leti%C5%9Fim%3A%20"
-DEMO_GMAIL = "https://mail.google.com/mail/?view=cm&fs=1&to=bastekink@gmail.com&su=SP4C3%20GR4V3%20Demo%20Talebi&body=Merhaba%20Space%20Grave%20Ekibi%2C%0A%0AKurumumuz%20i%C3%A7in%20SP4C3%20GR4V3%20canl%C4%B1%20demo%20talebinde%20bulunmak%20istiyoruz.%0A%0AAd%20Soyad%3A%20%0AKurum%3A%20%0A%C4%B0leti%C5%9Fim%3A%20"
+DEMO_EMAIL = "spacegrave4343@gmail.com"
+DEMO_GMAIL = "https://mail.google.com/mail/?view=cm&fs=1&to=spacegrave4343@gmail.com&su=SP4C3%20GR4V3%20Demo%20Talebi&body=Merhaba%20Space%20Grave%20Ekibi%2C%0A%0AKurumumuz%20i%C3%A7in%20SP4C3%20GR4V3%20canl%C4%B1%20demo%20talebinde%20bulunmak%20istiyoruz.%0A%0AAd%20Soyad%3A%20%0AKurum%3A%20%0A%C4%B0leti%C5%9Fim%3A%20"
+DEMO_MAILTO = DEMO_GMAIL
 
 
 # Streamlit sürümleri arası uyumluluk:
@@ -492,7 +492,7 @@ def _def_tooltip():
 
 
 def _defense_protocol_html():
-    """Savunma Matrisi aktif olduğunda gösterilen otonom çarpışma önleme ve manevra öneri özeti."""
+    """Savunma Matrisi aktif olduğunda Genel Durum Özeti'nde gösterilen otonom çarpışma önleme ve manevra öneri özeti."""
     if not st.session_state.get("defense_active"):
         return ""
     cdf = st.session_state.get("conj_df")
@@ -511,23 +511,26 @@ def _defense_protocol_html():
     return _flat(f"""
     <div class="sg-def-panel" role="status">
       <div class="sg-def-panel-hdr">
-        <span>🛡️ <b>{T("GUARDIAN PROTOCOL v4.2 // OTONOM ÇARPIŞMA ÖNLEME VE MANEVRA SİSTEMİ DEVREDE", "GUARDIAN PROTOCOL v4.2 // AUTONOMOUS COLLISION AVOIDANCE & MANEUVER SYSTEM ENGAGED")}</b></span>
-        <span class="ops-led g" style="padding:3px 10px">{T("KORUMA AKTİF", "PROTECTION ACTIVE")}</span>
+        <div class="sg-def-hdr-left">
+          <span class="sg-def-dot"></span>
+          <span>🛡️ <b>{T("GUARDIAN PROTOCOL v4.2 // OTONOM ÇARPIŞMA ÖNLEME VE MANEVRA SİSTEMİ DEVREDE", "GUARDIAN PROTOCOL v4.2 // AUTONOMOUS COLLISION AVOIDANCE & MANEUVER SYSTEM ENGAGED")}</b></span>
+        </div>
+        <span class="ops-led c" style="padding:4px 12px">{T("KORUMA PROTOKOLÜ AKTİF", "PROTECTION PROTOCOL ACTIVE")}</span>
       </div>
       <div class="sg-def-panel-grid">
-        <div class="sg-def-cell">
+        <div class="sg-def-cell" style="--acc:#f59e0b">
           <i>{T("ÖNCELİKLİ TEHDİT ÇİFTİ &amp; TCA", "PRIMARY THREAT PAIR &amp; TCA")}</i>
           <b>{pair_txt}</b>
-          <small>{T("En Yakın Geçiş", "Miss Distance")}: {md_val:.2f} km · {rv_val:.2f} km/s · TCA: {tca_txt} UTC</small>
+          <small>{T("En Yakın Geçiş", "Miss Distance")}: <span style="color:#fbbf24;font-weight:600">{md_val:.2f} km</span> · {rv_val:.2f} km/s · TCA: {tca_txt} UTC</small>
         </div>
-        <div class="sg-def-cell">
+        <div class="sg-def-cell" style="--acc:#38bdf8">
           <i>{T("OTONOM KAÇINMA MANEVRASI (DELTA-V)", "AUTONOMOUS AVOIDANCE BURN (DELTA-V)")}</i>
-          <b style="color:#34d399">Δv = +{dv_ms:.2f} m/s ({T("Prograde / İleri İtki", "Prograde / In-Track")})</b>
-          <small>{T("Ateşleme Zamanı", "Burn Window")}: TCA − 45 {T("dk", "min")} → {T("Yeni Güvenli Mesafe", "New Safe Separation")}: {safe_sep:.1f} km</small>
+          <b style="color:#38bdf8">Δv = +{dv_ms:.2f} m/s ({T("Prograde / İleri İtki", "Prograde / In-Track")})</b>
+          <small>{T("Ateşleme Zamanı", "Burn Window")}: TCA − 45 {T("dk", "min")} → {T("Yeni Güvenli Mesafe", "New Safe Separation")}: <span style="color:#34d399;font-weight:600">{safe_sep:.1f} km</span></small>
         </div>
-        <div class="sg-def-cell">
+        <div class="sg-def-cell" style="--acc:#10b981">
           <i>{T("KORUMA PROTOKOLÜ &amp; YAKIT MALİYETİ", "PROTECTION PROTOCOL &amp; FUEL COST")}</i>
-          <b style="color:#38bdf8">{fuel_kg:.2f} kg {T("Hidrazin", "Hydrazine")} (~&#36;{int(fuel_kg * 8200):,})</b>
+          <b style="color:#34d399">{fuel_kg:.2f} kg {T("Hidrazin", "Hydrazine")} (~&#36;{int(fuel_kg * 8200):,})</b>
           <small>{T("50 km Güvenlik Küresi Aktif · SGP4 Telemetri Kilidi Açık", "50 km Safety Sphere Active · SGP4 Telemetry Lock Engaged")}</small>
         </div>
       </div>
@@ -576,30 +579,14 @@ def _live_ticker_html():
 
 @_fragment
 def _live_player_ui(play_lbl, cap):
-    _is_armed = bool(st.session_state.get("defense_active"))
-    _def_cls = "sg-def-badge armed" if _is_armed else "sg-def-badge"
-    _def_lbl = _def_badge_label()
-    _def_tip = html_escape(_def_tooltip())
     with _keyed("sg_livebox"):
         st.markdown(_live_ticker_html(), unsafe_allow_html=True)
         st.markdown(_flat(f"""
         <div class="sg-live-hdr">
           <span class="sg-live-hdr-t"><span class="sg-dot"></span>{T("CANLI İZLE · LEO YÖRÜNGE KAMERASI (420 KM)", "LIVE VIEW · LEO ORBITAL CAMERA (420 KM)")}</span>
-          <span class="{_def_cls}" title="{_def_tip}"><span class="sg-def-dot"></span>{_def_lbl}</span>
+          <span class="ops-led c" style="padding:4px 12px">{T("CANLI HD YAYIN", "LIVE HD FEED")}</span>
         </div>
         """), unsafe_allow_html=True)
-        with _keyed("sg_def_live_bar"):
-            st.button(
-                (T("🛡️ SAVUNMA MATRİSİ: AKTİF // OTONOM KAÇINMA DEVREDE (Beklemeye Al)", "🛡️ DEFENSE MATRIX: ARMED // AUTONOMOUS AVOIDANCE ENGAGED (Standby)")
-                 if _is_armed else
-                 T("🛡️ SAVUNMA MATRİSİ: BEKLEMEDE // (Otonom Kaçınma Protokolünü Aktif Et)", "🛡️ DEFENSE MATRIX: STANDBY // (Activate Autonomous Avoidance Protocol)")),
-                key="sg_live_def_btn",
-                on_click=_toggle_defense,
-                help=_def_tooltip(),
-                **stretch(st.button)
-            )
-        if _is_armed:
-            st.markdown(_defense_protocol_html(), unsafe_allow_html=True)
         if st.session_state.get("sg_live_on", False):
             try:
                 st.video(LIVE_URL, autoplay=True)
@@ -1492,7 +1479,7 @@ def _pricing_grid_html(tr):
         return "&#36;" + _dh_num(PRICING[k], tr)
     if tr:
         L = dict(frm="Başlangıç fiyatı", aud="Hedef kitle", scope="Sigorta ve Risk Kapsamı", logic="Fiyatlandırma mantığı",
-                 cta="✉️ Demo talep et (bastekink@gmail.com)", gmail="📧 Google Mail (Gmail) ile Gönder", pop="Popüler")
+                 cta=f"📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL})", pop="Popüler")
         tiers = [
             ("basic", "Temel", "#3b82f6", False, "/ ay",
              "Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br>Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.",
@@ -1510,7 +1497,7 @@ def _pricing_grid_html(tr):
         note = "Fiyatlar USD cinsindendir ve başlangıç seviyesini gösterir; nihai bedel kapsama ve uydu sayısına göre netleşir."
     else:
         L = dict(frm="Starting at", aud="Target audience", scope="Scope and modeled data", logic="Pricing logic",
-                 cta="✉️ Request a demo (bastekink@gmail.com)", gmail="📧 Send via Google Mail (Gmail)", pop="Popular")
+                 cta=f"📧 Request Demo via Google Mail (Gmail) ({DEMO_EMAIL})", pop="Popular")
         tiers = [
             ("basic", "Basic", "#3b82f6", False, "/ month",
              "Early-stage and small constellation operators<br>R&amp;D centers and academic institutions",
@@ -1540,9 +1527,8 @@ def _pricing_grid_html(tr):
             f'<div><div class="sg-lbl">{L["aud"]}</div><div class="sg-val">{aud}</div></div>'
             f'<div><div class="sg-lbl">{L["scope"]}</div><div class="sg-val">{scope}</div></div>'
             f'<div><div class="sg-lbl">{L["logic"]}</div><div class="sg-val">{logic}</div></div>'
-            f'<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">'
-            f'<a class="sg-tier-cta" href="{DEMO_MAILTO}">{L["cta"]}</a>'
-            f'<a class="sg-tier-cta sg-tier-gmail" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{L["gmail"]}</a>'
+            f'<div style="margin-top:auto">'
+            f'<a class="sg-tier-cta" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{L["cta"]}</a>'
             f'</div></div>'
         )
     return f'<div class="sg-price">{"".join(cards)}</div><p class="sg-note">{note}</p>'
@@ -1565,7 +1551,7 @@ def _team_html():
         rows.append(
             f'<details class="sg-mem"><summary><div class="sg-avatar">{ini}</div><div class="sg-mem-t"><b>{name}</b></div></summary>'
             f'<div class="sg-mem-b"><span class="sg-mem-role">{role}</span>'
-            f'<span><a href="mailto:{mail}">✉️ {mail}</a> &nbsp;·&nbsp; <a href="{gm_url}" target="_blank" rel="noopener" style="color:#fca5a5 !important">📧 Google Mail</a></span>'
+            f'<span><a href="{gm_url}" target="_blank" rel="noopener">📧 {mail} (Google Mail)</a></span>'
             f'<span>{age_lbl}: {int(m["age"])}</span>{link}</div></details>'
         )
     lbl = "Ekibimiz" if tr else "Our Team"
@@ -1605,53 +1591,137 @@ def _render_contact():
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">İletişim</div>'
                 '<div class="sg-h2">Kurumunuz için canlı demo talep edin</div>'
                 '<p class="sg-p">Uydu filonuz veya sigorta portföyünüz için Space Grave\'i birlikte inceleyelim. '
-                f'Doğrudan <b>{DEMO_EMAIL}</b> adresine e-posta / Google Mail gönderebilir veya aşağıdaki formu doldurabilirsiniz.</p>'
+                f'Doğrudan Google Mail (Gmail) üzerinden <b>{DEMO_EMAIL}</b> adresine ulaşabilir veya aşağıdaki formu doldurarak tüm bilgilerinizle birlikte gönderim ekranını açabilirsiniz.</p>'
                 '<div class="sg-mail-row">'
-                f'<a class="sg-ghost" style="display:inline-flex;padding:0 22px;height:46px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ E-posta Gönder ({DEMO_EMAIL}) →</a>'
-                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Google Mail (Gmail) ile Demo Talep Et →</a>'
+                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL}) →</a>'
                 '</div></div>')
         roles = ["Uydu operatörü", "Sigorta / reasürans", "Uzay ajansı / savunma", "Akademi / Ar-Ge", "Diğer"]
     else:
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">Contact</div>'
                 '<div class="sg-h2">Request a live demo for your organization</div>'
                 '<p class="sg-p">Let us walk you through Space Grave for your satellite fleet or insurance portfolio. '
-                f'Send a direct email / Google Mail to <b>{DEMO_EMAIL}</b> or fill in the form below.</p>'
+                f'Reach out via Google Mail (Gmail) to <b>{DEMO_EMAIL}</b> or fill in the form below to open the compose screen with all your details pre-filled.</p>'
                 '<div class="sg-mail-row">'
-                f'<a class="sg-ghost" style="display:inline-flex;padding:0 22px;height:46px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Send Email ({DEMO_EMAIL}) →</a>'
-                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Request Demo via Google Mail (Gmail) →</a>'
+                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Request Demo via Google Mail (Gmail) ({DEMO_EMAIL}) →</a>'
                 '</div></div>')
         roles = ["Satellite operator", "Insurance / reinsurance", "Space agency / defense", "Academia / R&D", "Other"]
     st.markdown(_flat(head), unsafe_allow_html=True)
     with _keyed("sg_contact"):
-        with st.form("sg_demo_form", clear_on_submit=True, border=False) if "border" in inspect.signature(st.form).parameters else st.form("sg_demo_form", clear_on_submit=True):
+        with st.form("sg_demo_form", clear_on_submit=False, border=False) if "border" in inspect.signature(st.form).parameters else st.form("sg_demo_form", clear_on_submit=False):
             c1, c2 = st.columns(2)
-            name = c1.text_input(T("Ad Soyad *", "Full name *"), max_chars=100)
-            email = c2.text_input(T("İş e-postası *", "Work email *"), max_chars=150)
+            name = c1.text_input(T("Ad Soyad *", "Full name *"), key="sg_dm_name", max_chars=100)
+            email = c2.text_input(T("İş e-postası *", "Work email *"), key="sg_dm_email", max_chars=150)
             c3, c4 = st.columns(2)
-            company = c3.text_input(T("Kurum *", "Company *"), max_chars=120)
-            role = c4.selectbox(T("Kurum türü", "Organization type"), roles)
-            msg = st.text_area(T("Notunuz (isteğe bağlı)", "Your note (optional)"), height=100, max_chars=1000)
-            sent = st.form_submit_button(T("Demo talep et (bastekink@gmail.com)  →", "Request a demo (bastekink@gmail.com)  →"), **stretch(st.form_submit_button))
-        st.markdown('<p class="sg-consent">' + T(f"Formu göndererek talebinizin {DEMO_EMAIL} adresine iletilmesini kabul edersiniz.",
-                                               f"By submitting, you agree to forward your demo request to {DEMO_EMAIL}.") + "</p>", unsafe_allow_html=True)
+            company = c3.text_input(T("Kurum *", "Company *"), key="sg_dm_company", max_chars=120)
+            role = c4.selectbox(T("Kurum türü", "Organization type"), roles, key="sg_dm_role")
+            msg = st.text_area(T("Notunuz (isteğe bağlı)", "Your note (optional)"), key="sg_dm_msg", height=100, max_chars=1000)
+            sent = st.form_submit_button(
+                T(f"📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL})  →",
+                  f"📧 Request a Demo via Google Mail (Gmail) ({DEMO_EMAIL})  →"),
+                **stretch(st.form_submit_button)
+            )
+        st.markdown('<p class="sg-consent">' + T(f"Formu göndererek talebinizin Google Mail (Gmail) üzerinden {DEMO_EMAIL} adresine iletilmesini kabul edersiniz.",
+                                               f"By submitting, you agree to forward your demo request via Google Mail (Gmail) to {DEMO_EMAIL}.") + "</p>", unsafe_allow_html=True)
+        # Tarayıcı pop-up engelleyicisine takılmadan doğrudan kullanıcı tıklaması anında form verilerini alıp Gmail sekmesini açan köprü
+        with _keyed("sg_scroll_fix"):
+            embed_html(f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;overflow:hidden"><script>
+            (function(){{
+              try {{
+                var d = window.parent.document;
+                var box = d.querySelector('.st-key-sg_contact');
+                if (!box) return;
+                var btn = box.querySelector('[data-testid="stFormSubmitButton"] button') || box.querySelector('button');
+                if (btn && !btn.dataset.sgGmailBound) {{
+                  btn.dataset.sgGmailBound = '1';
+                  btn.addEventListener('click', function() {{
+                    try {{
+                      var ins = box.querySelectorAll('input[type="text"]');
+                      var nm = (ins[0] ? ins[0].value : '').trim();
+                      var em = (ins[1] ? ins[1].value : '').trim();
+                      var co = (ins[2] ? ins[2].value : '').trim();
+                      var sel = box.querySelector('[data-baseweb="select"]');
+                      var rl = (sel ? sel.innerText : '').replace(/\\n/g, ' ').trim();
+                      var ta = box.querySelector('textarea');
+                      var nt = (ta ? ta.value : '').trim();
+                      if (nm && co && em.indexOf('@') > 0) {{
+                        var isTr = {json.dumps(bool(tr))};
+                        var su = isTr
+                          ? ('SP4C3 GR4V3 Canlı Demo Talebi - ' + co + ' (' + nm + ')')
+                          : ('SP4C3 GR4V3 Live Demo Request - ' + co + ' (' + nm + ')');
+                        var bd = isTr
+                          ? ('Merhaba Space Grave (SP4C3 GR4V3) Ekibi,\\n\\nKurumumuz için canlı demo talebinde bulunmak istiyoruz:\\n\\n'
+                             + 'Ad Soyad: ' + nm + '\\n'
+                             + 'İş E-postası: ' + em + '\\n'
+                             + 'Kurum: ' + co + '\\n'
+                             + 'Kurum Türü: ' + rl + '\\n\\n'
+                             + 'Notunuz:\\n' + (nt || '—') + '\\n')
+                          : ('Hello Space Grave (SP4C3 GR4V3) Team,\\n\\nWe would like to request a live demo for our organization:\\n\\n'
+                             + 'Full Name: ' + nm + '\\n'
+                             + 'Work Email: ' + em + '\\n'
+                             + 'Company: ' + co + '\\n'
+                             + 'Organization Type: ' + rl + '\\n\\n'
+                             + 'Note:\\n' + (nt || '—') + '\\n');
+                        var u = 'https://mail.google.com/mail/?view=cm&fs=1&to={DEMO_EMAIL}&su=' + encodeURIComponent(su) + '&body=' + encodeURIComponent(bd);
+                        window.parent.__sgLastOpenedGmail = u;
+                        window.parent.open(u, '_blank', 'noopener,noreferrer');
+                      }}
+                    }} catch(e) {{}}
+                  }}, true);
+                }}
+              }} catch(e) {{}}
+            }})();
+            </script></body></html>""", height=1)
         if sent:
-            if not name.strip() or not company.strip() or not _EMAIL_RE.match(email.strip()):
-                st.error(T("Lütfen ad soyad, kurum ve geçerli bir e-posta girin.", "Please enter your name, company and a valid email."))
-            elif _save_demo_request([utc_now().strftime("%Y-%m-%d %H:%M:%S"), name, email, company, role, msg, st.session_state.lang]):
-                subj_q = url_quote(f"SP4C3 GR4V3 Demo Talebi - {company.strip()}")
-                body_q = url_quote(f"Ad Soyad: {name.strip()}\nE-posta: {email.strip()}\nKurum: {company.strip()}\nKurum Türü: {role}\n\nNot:\n{msg.strip()}")
-                dyn_mailto = f"mailto:{DEMO_EMAIL}?subject={subj_q}&body={body_q}"
+            name_s, email_s, company_s, msg_s = name.strip(), email.strip(), company.strip(), msg.strip()
+            if not name_s or not company_s or not _EMAIL_RE.match(email_s):
+                st.error(T("Lütfen Ad Soyad, Kurum ve geçerli bir İş e-postası girin.", "Please enter your Full name, Company and a valid Work email."))
+            else:
+                _save_demo_request([utc_now().strftime("%Y-%m-%d %H:%M:%S"), name_s, email_s, company_s, role, msg_s, st.session_state.lang])
+                if tr:
+                    subj_txt = f"SP4C3 GR4V3 Canlı Demo Talebi - {company_s} ({name_s})"
+                    body_txt = (
+                        f"Merhaba Space Grave (SP4C3 GR4V3) Ekibi,\n\n"
+                        f"Kurumumuz için canlı demo talebinde bulunmak istiyoruz:\n\n"
+                        f"Ad Soyad: {name_s}\n"
+                        f"İş E-postası: {email_s}\n"
+                        f"Kurum: {company_s}\n"
+                        f"Kurum Türü: {role}\n\n"
+                        f"Notunuz:\n{msg_s or '—'}\n"
+                    )
+                else:
+                    subj_txt = f"SP4C3 GR4V3 Live Demo Request - {company_s} ({name_s})"
+                    body_txt = (
+                        f"Hello Space Grave (SP4C3 GR4V3) Team,\n\n"
+                        f"We would like to request a live demo for our organization:\n\n"
+                        f"Full Name: {name_s}\n"
+                        f"Work Email: {email_s}\n"
+                        f"Company: {company_s}\n"
+                        f"Organization Type: {role}\n\n"
+                        f"Note:\n{msg_s or '—'}\n"
+                    )
+                subj_q = url_quote(subj_txt)
+                body_q = url_quote(body_txt)
                 dyn_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={DEMO_EMAIL}&su={subj_q}&body={body_q}"
-                st.success(T(f"Talebiniz kaydedildi! Aşağıdaki seçeneklerden doğrudan {DEMO_EMAIL} adresine iletebilirsiniz:",
-                             f"Request saved! Use one of the options below to send directly to {DEMO_EMAIL}:"))
+                st.session_state.sg_demo_gmail_url = dyn_gmail
+                with _keyed("sg_scroll_fix"):
+                    embed_html(f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;overflow:hidden"><script>
+                    (function(){{
+                      try {{
+                        var u = {json.dumps(dyn_gmail)};
+                        if (window.parent.__sgLastOpenedGmail !== u) {{
+                          window.parent.__sgLastOpenedGmail = u;
+                          window.parent.open(u, '_blank', 'noopener,noreferrer');
+                        }}
+                      }} catch(e) {{}}
+                    }})();
+                    </script></body></html>""", height=1)
+                st.success(T(f"Talebiniz hazırlandı! Yeni sekmede Google Mail (Gmail) gönderim ekranı açıldı. Açılmadıysa aşağıdaki butona tıklayarak doğrudan {DEMO_EMAIL} adresine gönderebilirsiniz:",
+                             f"Your demo request is ready! Google Mail (Gmail) opened in a new tab. If blocked, click the button below to send directly to {DEMO_EMAIL}:"))
                 st.markdown(_flat(f"""
                 <div class="sg-mail-row" style="margin-top:8px">
-                  <a class="sg-ghost" style="display:inline-flex;padding:0 20px;height:44px;border-color:rgba(56,189,248,.6);background:rgba(56,189,248,.16);color:#fff !important" href="{dyn_mailto}">✉️ {T('Varsayılan E-posta ile Gönder', 'Send via Default Mail App')} ({DEMO_EMAIL})</a>
-                  <a class="sg-gmail-btn" style="height:44px" href="{dyn_gmail}" target="_blank" rel="noopener">📧 {T('Google Mail (Gmail) ile Gönder', 'Send via Google Mail (Gmail)')} ({DEMO_EMAIL})</a>
+                  <a class="sg-gmail-btn" style="height:46px" href="{dyn_gmail}" target="_blank" rel="noopener">📧 {T('Google Mail (Gmail) Gönderim Ekranını Aç', 'Open Google Mail (Gmail) Compose Screen')} ({DEMO_EMAIL}) →</a>
                 </div>
                 """), unsafe_allow_html=True)
-            else:
-                st.error(T("Talep kaydedilemedi. Lütfen daha sonra tekrar deneyin.", "Your request could not be saved. Please try again later."))
 
 
 def render_intro():
@@ -1923,7 +1993,7 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="{DEMO_MAILTO}">{T("✉️ Demo talep et", "✉️ Request a demo")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{T("📧 Demo talep et", "📧 Request a demo")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
@@ -2047,11 +2117,11 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], 
   transition:all .22s ease;
 }
 .sg-def-badge.armed {
-  border-color:rgba(16,185,129,.72);
-  background:linear-gradient(135deg,rgba(6,44,36,.94),rgba(4,18,16,.97));
-  color:#34d399;
-  text-shadow:0 0 10px rgba(16,185,129,.52);
-  box-shadow:0 0 22px rgba(16,185,129,.28), inset 0 0 10px rgba(16,185,129,.14);
+  border-color:rgba(56,189,248,.68);
+  background:linear-gradient(135deg,rgba(14,28,56,.94),rgba(6,13,32,.97));
+  color:#38bdf8;
+  text-shadow:0 0 10px rgba(56,189,248,.52);
+  box-shadow:0 0 22px rgba(56,189,248,.24), inset 0 0 10px rgba(56,189,248,.12);
 }
 .sg-def-dot {
   width:7px; height:7px; border-radius:50%; background:#38bdf8;
@@ -2061,41 +2131,54 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], 
   background:#10b981; box-shadow:0 0 8px #10b981; animation:opsPulseGreen 1.6s ease-in-out infinite;
 }
 .st-key-sg_def_cmd_bar .stButton > button {
-  height:38px !important; min-height:38px !important; margin:0 0 10px 0 !important;
-  border-radius:999px !important; border:1px solid rgba(56,189,248,.52) !important;
-  background:linear-gradient(135deg,rgba(8,24,52,.92),rgba(4,12,28,.96)) !important;
-  box-shadow:0 6px 20px rgba(56,189,248,.16) !important; transition:all .2s ease !important;
+  height:42px !important; min-height:42px !important; margin:0 0 12px 0 !important;
+  border-radius:14px !important; border:1px solid rgba(56,189,248,.38) !important;
+  background:linear-gradient(160deg,rgba(14,24,48,.88),rgba(6,11,26,.95)) !important;
+  box-shadow:0 10px 28px rgba(0,0,0,.45), 0 0 20px rgba(56,189,248,.12) !important;
+  backdrop-filter:blur(12px) !important; transition:all .22s ease !important;
 }
 .st-key-sg_def_cmd_bar .stButton > button:hover {
-  border-color:#10b981 !important; background:linear-gradient(135deg,rgba(6,44,36,.92),rgba(4,18,16,.96)) !important;
-  box-shadow:0 8px 24px rgba(16,185,129,.26) !important; transform:translateY(-1px) !important;
+  border-color:rgba(56,189,248,.75) !important;
+  background:linear-gradient(160deg,rgba(18,34,68,.92),rgba(8,16,38,.97)) !important;
+  box-shadow:0 12px 32px rgba(0,0,0,.55), 0 0 26px rgba(56,189,248,.24) !important;
+  transform:translateY(-1px) !important;
 }
 .st-key-sg_def_cmd_bar .stButton > button p {
-  font-family:'Space Grotesk','Inter',sans-serif !important; font-size:11.5px !important;
-  font-weight:700 !important; letter-spacing:.09em !important; color:#e0f2fe !important;
+  font-family:'Space Grotesk','Inter',sans-serif !important; font-size:12px !important;
+  font-weight:700 !important; letter-spacing:.11em !important; color:#e0f2fe !important;
 }
 .sg-def-panel {
-  margin:0 0 14px 0; padding:12px 16px; border-radius:16px;
-  border:1px solid rgba(16,185,129,.50);
-  background:linear-gradient(160deg,rgba(6,38,32,.88),rgba(4,14,22,.95));
-  box-shadow:0 12px 30px rgba(0,0,0,.45), 0 0 22px rgba(16,185,129,.15);
+  margin:0 0 18px 0; padding:16px 18px; border-radius:18px;
+  border:1px solid rgba(56,189,248,.28);
+  background:linear-gradient(160deg,rgba(14,24,48,.86),rgba(6,11,26,.95));
+  box-shadow:0 18px 44px rgba(0,0,0,.52), 0 0 28px rgba(56,189,248,.10), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
 }
 .sg-def-panel-hdr {
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
-  padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid rgba(16,185,129,.24);
-  font-family:'Space Grotesk','Inter',sans-serif; font-size:11.5px; color:#a7f3d0; letter-spacing:.06em;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  padding-bottom:11px; margin-bottom:14px; border-bottom:1px solid rgba(56,189,248,.18);
+  font-family:'Space Grotesk','Inter',sans-serif; font-size:12px; color:#bae6fd; letter-spacing:.08em;
+}
+.sg-def-hdr-left {
+  display:inline-flex; align-items:center; gap:9px;
 }
 .sg-def-panel-grid {
-  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:stretch;
 }
 @media (max-width:760px) { .sg-def-panel-grid { grid-template-columns:1fr; } }
 .sg-def-cell {
-  padding:9px 12px; border-radius:11px; background:rgba(4,12,24,.72);
-  border:1px solid rgba(56,189,248,.18); display:flex; flex-direction:column; gap:3px;
+  padding:14px 16px; border-radius:14px;
+  background:linear-gradient(160deg,rgba(10,18,38,.84),rgba(5,10,24,.92));
+  border:1px solid rgba(56,189,248,.18); border-top:2px solid var(--acc,#38bdf8);
+  display:flex; flex-direction:column; justify-content:space-between; gap:6px;
+  box-shadow:0 8px 22px rgba(0,0,0,.32); transition:border-color .2s ease, transform .2s ease;
 }
-.sg-def-cell i { font-style:normal; font-size:10px; font-weight:700; letter-spacing:.10em; color:#94a3b8; text-transform:uppercase; }
-.sg-def-cell b { font-family:'Space Grotesk','Inter',sans-serif; font-size:13px; color:#f8fafc; font-weight:700; }
-.sg-def-cell small { font-size:11px; color:#cbd5e1; line-height:1.4; }
+.sg-def-cell:hover {
+  border-color:rgba(56,189,248,.42); transform:translateY(-2px);
+}
+.sg-def-cell i { font-style:normal; font-size:10.5px; font-weight:700; letter-spacing:.12em; color:#94a3b8; text-transform:uppercase; }
+.sg-def-cell b { font-family:'Space Grotesk','Inter',sans-serif; font-size:14px; color:#f8fafc; font-weight:700; line-height:1.3; }
+.sg-def-cell small { font-size:11.5px; color:#cbd5e1; line-height:1.45; }
 .sg-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:opsPulseGreen 1.8s ease-in-out infinite; }
 .sg-dot.warn { background:#f59e0b; animation:opsPulseAmber 2.2s ease-in-out infinite; }
 @keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
@@ -2843,19 +2926,22 @@ def _parse_num_str(raw, min_v, max_v, fallback):
 def _slider_num(container, label, min_v, max_v, default_v, step_v, key, decimals=2):
     """Sürgü (slider) + hemen altında klavyeden virgüllü/noktalı ondalık değer girilebilen senkronize kutu."""
     min_f, max_f, def_f, step_f = float(min_v), float(max_v), float(default_v), float(step_v)
+    eff_step = min(step_f, round(10.0 ** (-decimals), decimals)) if decimals > 0 else step_f
     txt_key = f"{key}_txt"
     last_key = f"{key}_last"
     lang_key = f"{key}_lang"
     cur_lang = st.session_state.get("lang", "tr")
+
+    # Yalnızca ilk oluşturmada veya dil/preset değişiminde session_state'e yaz (her rerun'da widget kilidini tetikleme)
     if key not in st.session_state:
         st.session_state[key] = round(def_f, decimals)
-    else:
-        try:
-            st.session_state[key] = round(float(min(max_f, max(min_f, float(st.session_state[key])))), decimals)
-        except Exception:
-            st.session_state[key] = round(def_f, decimals)
 
-    cur_val = float(st.session_state[key])
+    try:
+        cur_val = round(float(min(max_f, max(min_f, float(st.session_state[key])))), decimals)
+    except Exception:
+        cur_val = round(def_f, decimals)
+        st.session_state[key] = cur_val
+
     if (txt_key not in st.session_state
             or st.session_state.get(last_key) != cur_val
             or st.session_state.get(lang_key) != cur_lang):
@@ -2876,7 +2962,7 @@ def _slider_num(container, label, min_v, max_v, default_v, step_v, key, decimals
         st.session_state[txt_key] = _fmt_num_str(v, decimals)
 
     fmt_sl = f"%.{decimals}f" if decimals > 0 else "%.0f"
-    container.slider(label, min_value=min_f, max_value=max_f, step=step_f, format=fmt_sl, key=key, on_change=_on_sl)
+    container.slider(label, min_value=min_f, max_value=max_f, step=eff_step, format=fmt_sl, key=key, on_change=_on_sl)
     container.text_input(
         T(f"{label} — Klavyeden değer girin", f"{label} — Type value"),
         key=txt_key,
@@ -3110,11 +3196,13 @@ if st.session_state.conj_df is None:
         if _init_df is not None and not _init_df.empty:
             _init_fl = _init_df[_init_df["Miss Distance (km)"] < 25]
             st.session_state.conj_meta = {"count": len(_init_df), "names": set(_init_fl["_a"]) | set(_init_fl["_b"])}
+            st.session_state.defense_active = True
         else:
             st.session_state.conj_meta = {"count": 0, "names": set()}
     except Exception:
         st.session_state.conj_df = _fallback_conjunctions(utc_now(), 12, 60.0)
         st.session_state.conj_meta = {"count": len(st.session_state.conj_df), "names": set()}
+        st.session_state.defense_active = True
 
 
 if st.session_state.get("sg_sim_mode"):
@@ -3139,9 +3227,6 @@ if st.session_state.get("sg_sim_mode"):
 
 
 _feed_word = FEED_KEY
-_def_badge_cls = "sg-def-badge armed" if st.session_state.defense_active else "sg-def-badge"
-_def_badge_txt = _def_badge_label()
-_def_tip_esc = html_escape(_def_tooltip())
 _scroll_top_js = (
     "try{window.scrollTo({top:0,behavior:'smooth'});"
     "document.documentElement.scrollTo({top:0,behavior:'smooth'});"
@@ -3153,7 +3238,6 @@ st.markdown(_flat(f"""
     <div class="sg-mnav">
       <a href="#sg-cmd-top" class="sg-mlogo" onclick="{_scroll_top_js}" title="{T('Sayfanın en başına git', 'Scroll to top of page')}"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
       <div class="sg-mnav-right">
-        <span class="{_def_badge_cls}" title="{_def_tip_esc}"><span class="sg-def-dot"></span>{_def_badge_txt}</span>
         <span class="sg-mlive"><span class="sg-dot{'' if _feed_word == 'LIVE' else ' warn'}"></span>{_feed_word}</span>
       </div>
     </div>
@@ -3173,26 +3257,12 @@ st.markdown(_flat(f"""
     <div class="ops-sub">{T("Küresel Uzay Çöpü Merkezi", "Global Space Debris Center")}</div>
   </div>
   <div class="ops-leds">
-    <span class="{_def_badge_cls}" title="{_def_tip_esc}"><span class="sg-def-dot"></span>{_def_badge_txt}</span>
     <span class="ops-led g">SYSTEM ONLINE</span>
     <span class="ops-led {_feed_chip[0]}">{_feed_chip[1]}</span>
     <span class="ops-led c">SGP4 {T("MOTORU NORMAL", "PROPAGATOR NOMINAL")}</span>
   </div>
 </div>
 """), unsafe_allow_html=True)
-
-with _keyed("sg_def_cmd_bar"):
-    st.button(
-        (f"🛡️ {T('SAVUNMA MATRİSİ: AKTİF // OTONOM KAÇINMA DEVREDE (Beklemeye almak için tıkla)', 'DEFENSE MATRIX: ACTIVE // AUTONOMOUS AVOIDANCE ENGAGED (Click for Standby)')}"
-         if st.session_state.defense_active
-         else f"🛡️ {T('SAVUNMA MATRİSİ: BEKLEMEDE // Otonom Çarpışma Önleme Protokolünü Başlat', 'DEFENSE MATRIX: STANDBY // Activate Autonomous Collision Avoidance Protocol')}"),
-        key="sg_cmd_def_btn",
-        on_click=_toggle_defense,
-        help=_def_tooltip(),
-        **stretch(st.button),
-    )
-if st.session_state.defense_active:
-    st.markdown(_defense_protocol_html(), unsafe_allow_html=True)
 
 PAGES = ["📊 General Status Overview", "🌍 3D Earth & Orbital Radar",
          "🚨 Collision Risk Analysis", "🔥 Re-Entry & Burn-Up Sim"]
@@ -3225,7 +3295,7 @@ if st.session_state.pop("sg_scroll_top", False):
     _scroll_to_top_now()
 
 
-# on_click ile sayfa tek çalıştırmada değişir (st.rerun ile script iki kez çalışıyordu)
+# ADIM 6: Sekme (modül) butonları en üstte, Savunma Matrisinin üstünde yer alır
 for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
     with col:
         st.button(page_label(page), key=f"sg_nav_{_i}", on_click=go_to, args=(page,), **stretch(st.button))
@@ -3251,6 +3321,20 @@ st.markdown(_flat(f"""<div class="ops-strip">
 # 1. MODÜL: OVERVIEW
 # =====================================================================
 if st.session_state.active_page == PAGES[0]:
+    # ADIM 5 & ADIM 6: Savunma Matrisi SADECE "Genel Durum Özeti" kısmında ve sekme butonlarının altında yer alır
+    with _keyed("sg_def_cmd_bar"):
+        st.button(
+            (f"🛡️ {T('SAVUNMA MATRİSİ: AKTİF // OTONOM KAÇINMA DEVREDE (Beklemeye almak için tıkla)', 'DEFENSE MATRIX: ACTIVE // AUTONOMOUS AVOIDANCE ENGAGED (Click for Standby)')}"
+             if st.session_state.defense_active
+             else f"🛡️ {T('SAVUNMA MATRİSİ: BEKLEMEDE // Otonom Çarpışma Önleme Protokolünü Başlat', 'DEFENSE MATRIX: STANDBY // Activate Autonomous Collision Avoidance Protocol')}"),
+            key="sg_cmd_def_btn",
+            on_click=_toggle_defense,
+            help=_def_tooltip(),
+            **stretch(st.button),
+        )
+    if st.session_state.defense_active:
+        st.markdown(_defense_protocol_html(), unsafe_allow_html=True)
+
     n_active = len(CAT["groups"]["active"])
     n_debris = len(CAT["debris"])
     conj = st.session_state.conj_meta
