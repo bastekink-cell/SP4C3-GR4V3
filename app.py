@@ -1,7 +1,9 @@
+import csv
 import inspect
 import json
 import math
 import os
+import re
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -36,6 +38,33 @@ except ImportError:
 RE = 6378.137  # km, Earth equatorial radius
 WGS84_F = 1 / 298.257223563  # Dünya basıklığı
 CREWED_PREFIXES = ("ISS", "CSS", "TIANGONG")
+
+# --- Sayılar tek yerden yönetilir (arayüz, bot metinleri ve tarama aynı sabiti kullanır) ---
+SCREEN_N_ACTIVE = 600                                  # çarpışma taramasında rastgele seçilen aktif uydu
+SCREEN_N_DEBRIS = 600                                  # çarpışma taramasında rastgele seçilen enkaz parçası
+SCREEN_N_SINGLE = SCREEN_N_ACTIVE + SCREEN_N_DEBRIS    # tek katalog seçildiğinde örneklem (1200)
+
+# --- B2B başlangıç fiyatları (USD / ay). YER TUTUCU: yayınlamadan önce kendi fiyatlarınızla değiştirin ---
+PRICING = {"basic": 99, "pro": 250, "inst": 450}
+
+# --- Ekip (Hakkımızda). İsteğe bağlı: "link" alanına LinkedIn adresi yazılabilir ---
+TEAM = [
+    {"name": "Kaan Baştekin", "link": "", "email": "bastekink@gmail.com", "age": 20,
+     "role_tr": "Takım Lideri & Ön Yüz / 3D Görselleştirme", "role_en": "Team Leader & Front-End / 3D Visualization"},
+    {"name": "Nehir Koca", "link": "", "email": "nehir.koca1234@gmail.com", "age": 19,
+     "role_tr": "Veri Mühendisi & Sunum Yöneticisi", "role_en": "Data Engineer & Presentation Manager"},
+    {"name": "Davut Sabancı", "link": "", "email": "davutsabanci224@gmail.com", "age": 19,
+     "role_tr": "Veri Mühendisi", "role_en": "Data Engineer"},
+    {"name": "Ahmet Batu Kacar", "link": "", "email": "batus80ef@gmail.com", "age": 18,
+     "role_tr": "Backend & Astrodinamik Hesaplama Motoru", "role_en": "Backend & Astrodynamics Calculation Engine"},
+    {"name": "Eda Tuana Bilen", "link": "", "email": "bilenedatuana@gmail.com", "age": 18,
+     "role_tr": "Finansal Uzman", "role_en": "Financial Specialist"},
+    {"name": "Zehra Sude Demir", "link": "", "email": "z.sude.demir.08@gmail.com", "age": 18,
+     "role_tr": "Sistem Analisti & Teknik Ürün Sahibi", "role_en": "Systems Analyst & Technical Product Owner"},
+]
+
+# Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe)
+DEMO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_requests.csv")
 
 
 # Streamlit sürümleri arası uyumluluk:
@@ -97,7 +126,7 @@ if "bot_log" not in st.session_state:
 
 # --- DİL (TÜR / ENG) ---
 def T(tr, en):
-    return tr if st.session_state.get("lang", "tr") == "tr" else en
+    return tr if st.session_state.lang == "tr" else en
 
 
 def _keyed(key):
@@ -153,35 +182,31 @@ def render_lang_switch(right, bottom):
 st.markdown("""
     <style>
     .stApp {
-        background: #040817;
+        background: radial-gradient(circle at 50% 10%, #0b1329 0%, #040817 50%, #000000 100%);
         color: #f3f4f6;
-        font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     [data-testid="stSidebar"] { display: none; }
     .nasa-glass-card {
-        background: linear-gradient(160deg, rgba(14, 24, 48, 0.84), rgba(6, 11, 26, 0.92));
-        border: 1px solid rgba(56, 189, 248, 0.16);
-        padding: 20px 22px; border-radius: 18px;
-        text-align: left; transition: border-color 0.25s ease, transform 0.2s ease;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(7, 11, 25, 0.99) 100%);
+        backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+        border: 1px solid rgba(0, 51, 102, 0.8);
+        padding: 22px; border-radius: 20px;
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(11, 75, 148, 0.15);
+        text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative; overflow: hidden; margin-bottom: 10px;
     }
-    .nasa-glass-card:hover { border-color: rgba(56, 189, 248, 0.45); transform: translateY(-2px); }
     .fin-card {
-        border: 1px solid rgba(56, 189, 248, 0.22) !important;
+        border: 1px solid rgba(16, 185, 129, 0.5) !important;
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(16, 185, 129, 0.1) !important;
     }
-    .metric-title { color: #94a3b8; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; }
-    .metric-value { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #38bdf8; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; }
-    .metric-value-fin { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #10b981; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; }
+    .metric-title { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+    .metric-value { color: #38bdf8; font-size: 26px; font-weight: 900; margin-top: 6px; text-shadow: 0 0 20px rgba(56,189,248,0.7); }
+    .metric-value-fin { color: #10b981; font-size: 26px; font-weight: 900; margin-top: 6px; text-shadow: 0 0 20px rgba(16,185,129,0.7); }
     .stButton>button[kind="primary"] {
-        height: 50px;
-        background: linear-gradient(135deg, #fc3d21 0%, #c42a12 100%);
-        color: #fff; border: 1px solid rgba(252, 61, 33, 0.9); border-radius: 999px; font-weight: 700; padding: 0 26px;
-        box-shadow: 0 10px 34px rgba(252, 61, 33, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .stButton>button[kind="primary"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 16px 44px rgba(252, 61, 33, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        background: linear-gradient(135deg, #fc3d21 0%, #990000 100%);
+        color: white; border: 1px solid rgba(252,61,33,0.8); border-radius: 12px; font-weight: 900; padding: 0.85rem 1.8rem;
+        box-shadow: 0 0 30px rgba(252, 61, 33, 0.7);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -260,43 +285,33 @@ def _fetch_group(g):
     has_cache = os.path.exists(path)
     if has_cache and time.time() - os.path.getmtime(path) < CACHE_TTL_S:
         with open(path, encoding="utf-8") as f:
-            tles = parse_tles(f.read())
-        if tles:
-            return tles, "cache"
-    for attempt in range(2):
-        try:
-            r = requests.get(
-                f"https://celestrak.org/NORAD/elements/gp.php?GROUP={g}&FORMAT=tle",
-                timeout=(4, 15), headers=HEADERS
-            )
-            r.raise_for_status()
-            tles = parse_tles(r.text)
-            if not tles:
-                raise ValueError("boş yanıt")
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(r.text)
-            return tles, "live"
-        except Exception:
-            if attempt == 0 and not has_cache:
-                time.sleep(0.3)
-    # İndirme olmadıysa diskteki gerçek CelesTrak önbellek verisini kullan
-    if has_cache:
-        try:
+            return parse_tles(f.read()), "cache"
+    try:
+        r = requests.get(
+            f"https://celestrak.org/NORAD/elements/gp.php?GROUP={g}&FORMAT=tle",
+            timeout=(5, 30), headers=HEADERS
+        )
+        r.raise_for_status()
+        tles = parse_tles(r.text)
+        if not tles:
+            raise ValueError("boş yanıt")
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(r.text)
+        return tles, "live"
+    except Exception:
+        # İndirme olmadıysa eski de olsa gerçek veriyi kullan
+        if has_cache:
             with open(path, encoding="utf-8") as f:
-                tles = parse_tles(f.read())
-            if tles:
-                return tles, "cache"
-        except Exception:
-            pass
-    return [], "fail"
+                return parse_tles(f.read()), "stale"
+        return [], "fail"
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
 def load_catalog():
-    # Gruplar CelesTrak hız sınırına (403) takılmamak için kontrollü paralellikte indirilir
+    # Tüm gruplar paralel indirilir (sırayla indirmek her biri için ayrı bekleme demekti)
     all_groups = GROUPS + DEBRIS_GROUPS
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=len(all_groups)) as ex:
         fetched = dict(zip(all_groups, ex.map(_fetch_group, all_groups)))
 
     sources = {g: src for g, (_, src) in fetched.items()}
@@ -347,15 +362,10 @@ def build_table(tles):
         s = sats[i]
         epoch = datetime(2000, 1, 1, 12, tzinfo=timezone.utc) + timedelta(days=(s.jdsatepoch + s.jdsatepochF - 2451545.0))
         alt = float(geodetic_alt(r[i, 0]))
-        up = name.upper()
-        if up.startswith(CREWED_PREFIXES):
+        if name.upper().startswith(CREWED_PREFIXES):
             status = "CREWED 🟢"
         elif alt < 300:
             status = "DECAYING ⚠️"
-        elif " DEB" in up or up.endswith("DEB"):
-            status = "DEBRIS ⚠️"
-        elif any(k in up for k in ("R/B", "CENTAUR", "AGENA", "BREEZE", "FREGAT")):
-            status = "ROCKET BODY 🚀"
         else:
             status = "NOMINAL"
         rows.append({
@@ -382,13 +392,15 @@ df_api = _table_cached(CAT["fetched"], CAT["groups"]["visual"])
 
 def _feed_label(s):
     if st.session_state.lang == "tr":
-        return s
+        return (s.replace("PARTIAL", "KISMİ").replace("CACHED", "ÖNBELLEK")
+                 .replace("OFFLINE", "ÇEVRİMDIŞI").replace("LIVE", "CANLI"))
     return (s.replace("(Yedek Veri)", "(Fallback Data)")
              .replace("(Bazı gruplar alınamadı)", "(Some groups unavailable)")
              .replace("(Önbellek)", "(Cache)"))
 
 
 FEED_LABEL = _feed_label(CAT["status_label"])
+FEED_KEY = CAT["status_label"].split(" ")[0]   # LIVE / CACHED / PARTIAL / OFFLINE (dilden bağımsız)
 
 # Tablo başlıkları / değerleri Türkçe modunda yalnızca gösterimde çevrilir (veri aynı kalır)
 _COLS_TR = {
@@ -399,8 +411,7 @@ _COLS_TR = {
     "Rel. Velocity (km/s)": "Göreli Hız (km/s)", "TCA (UTC)": "TCA (UTC)", "Risk": "Risk",
 }
 _VALS_TR = {
-    "CREWED 🟢": "MÜRETTEBATLI 🟢", "DECAYING ⚠️": "ALÇALIYOR ⚠️",
-    "DEBRIS ⚠️": "ENKAZ ⚠️", "ROCKET BODY 🚀": "ROKET GÖVDESİ 🚀", "NOMINAL": "NORMAL",
+    "CREWED 🟢": "MÜRETTEBATLI 🟢", "DECAYING ⚠️": "ALÇALIYOR ⚠️", "NOMINAL": "NORMAL",
     "🔴 CRITICAL": "🔴 KRİTİK", "🟠 HIGH": "🟠 YÜKSEK", "🟡 WATCH": "🟡 İZLEME", "⚪ SCREENED": "⚪ ELENDİ",
 }
 
@@ -472,7 +483,8 @@ def _flat(html):
 
 
 def _fmt_int(n):
-    return f"{n:,}".replace(",", ".")
+    s = f"{n:,}"
+    return s.replace(",", ".") if st.session_state.lang == "tr" else s
 
 
 def _sun_unit_three(jd_ut):
@@ -558,17 +570,18 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 
 /* Sabit navigasyon */
 .sg-nav { position:fixed; top:0; left:0; right:0; height:64px; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:0 clamp(16px,3vw,40px); background:rgba(4,8,23,.88);
+  padding:0 clamp(14px,3vw,40px); gap:clamp(10px,2vw,24px); box-sizing:border-box; background:rgba(4,8,23,.88);
   border-bottom:1px solid var(--sg-line); font-family:'Inter','Segoe UI',sans-serif; }
-.sg-logo { display:flex; align-items:center; gap:11px; color:#fff !important; text-decoration:none !important; font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; letter-spacing:.16em; font-size:15px; }
+.sg-logo { flex:0 0 auto; display:flex; align-items:center; gap:11px; color:#fff !important; text-decoration:none !important; font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; letter-spacing:.16em; font-size:15px; }
 .sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--sg-cyan); position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); }
 .sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--sg-red); top:-3px; right:1px; }
-.sg-links { display:flex; gap:clamp(14px,2.2vw,34px); }
+.sg-links { display:flex; flex:1 1 auto; min-width:0; justify-content:center; gap:clamp(12px,1.8vw,30px); white-space:nowrap; }
 .sg-links a { color:var(--sg-mute) !important; text-decoration:none !important; font-size:13.5px; font-weight:500; transition:color .2s; }
 .sg-links a:hover { color:#fff !important; }
-.sg-cta { color:#fff !important; text-decoration:none !important; font-size:13px; font-weight:600; padding:9px 18px; border-radius:999px; white-space:nowrap;
+.sg-cta { flex:0 0 auto; color:#fff !important; text-decoration:none !important; font-size:13px; font-weight:600; padding:9px 18px; border-radius:999px; white-space:nowrap;
   border:1px solid rgba(56,189,248,.55); background:rgba(56,189,248,.10); transition:all .2s; }
 .sg-cta:hover { background:rgba(56,189,248,.22); border-color:var(--sg-cyan); }
+.sg-cta .s { display:none; }
 .sg-veil { position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:linear-gradient(90deg,rgba(4,8,23,.88) 0%,rgba(4,8,23,.60) 34%,rgba(4,8,23,.08) 62%,rgba(4,8,23,0) 100%),linear-gradient(0deg,rgba(4,8,23,.55),transparent 28%); }
 
@@ -589,7 +602,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-ghost { display:flex; align-items:center; justify-content:center; height:54px; border-radius:999px; border:1px solid rgba(148,163,184,.35);
   color:#e2e8f0 !important; text-decoration:none !important; font-weight:600; font-size:14.5px; transition:all .2s; font-family:'Inter','Segoe UI',sans-serif; }
 .sg-ghost:hover { border-color:var(--sg-cyan); color:#fff !important; background:rgba(56,189,248,.08); }
-.sg-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; margin-top:34px; max-width:640px; border:1px solid var(--sg-line);
+.sg-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:34px; max-width:640px; border:1px solid var(--sg-line);
   border-radius:16px; overflow:hidden; background:var(--sg-line); font-family:'Inter','Segoe UI',sans-serif; }
 .sg-metric { background:rgba(6,12,30,.80); padding:14px 16px; }
 .sg-metric b { display:block; font-family:'Space Grotesk','Inter',sans-serif; font-size:21px; color:#fff; font-weight:700; }
@@ -637,7 +650,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-faq summary::after { content:"+"; color:var(--sg-cyan); font-size:22px; line-height:1; }
 .sg-faq details[open] summary::after { content:"–"; }
 .sg-faq details p { color:#a9b8cc; font-size:14.5px; line-height:1.75; padding:0 0 18px; margin:0; }
-.sg-about { display:grid; grid-template-columns:1.3fr 1fr; gap:36px; align-items:center; }
+.sg-about { display:grid; grid-template-columns:1.3fr 1fr; gap:36px; align-items:start; }
 .sg-final { text-align:center; }
 .sg-final .sg-h2, .sg-final .sg-p { margin-left:auto; margin-right:auto; }
 .sg-foot { margin-top:70px; padding-top:20px; border-top:1px solid var(--sg-line); color:#64748b; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; text-align:center; font-family:'Inter','Segoe UI',sans-serif; }
@@ -647,11 +660,62 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   box-shadow:0 4px 14px rgba(0,0,0,.45); transition:all .2s ease; }
 .sg-top:hover { border-color:var(--sg-cyan); background:rgba(56,189,248,.18); transform:translateY(-2px); }
 
+.sg-from { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--c,#38bdf8); font-weight:700; margin-bottom:6px; }
+.sg-amount { font-family:'Space Grotesk','Inter',sans-serif; font-size:34px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1; }
+.sg-amount small { font-family:'Inter','Segoe UI',sans-serif; font-size:13px; font-weight:500; color:var(--sg-mute); letter-spacing:0; margin-left:6px; }
+.sg-tier-cta { margin-top:auto; display:flex; align-items:center; justify-content:center; height:44px; border-radius:999px; border:1px solid var(--c,#38bdf8);
+  color:#fff !important; text-decoration:none !important; font-weight:600; font-size:14px; transition:background .2s; }
+.sg-tier-cta:hover { background:rgba(56,189,248,.16); }
+.sg-note { color:#64748b; font-size:12.5px; margin:16px 0 0; }
+.sg-mem { border:1px solid var(--sg-line); border-radius:16px; background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); padding:0 16px; transition:border-color .2s; }
+.sg-mem[open] { border-color:rgba(56,189,248,.4); }
+.sg-mem summary { cursor:pointer; list-style:none; display:flex; align-items:center; gap:14px; padding:14px 0; }
+.sg-mem summary::-webkit-details-marker { display:none; }
+.sg-mem summary::after { content:"+"; margin-left:auto; color:var(--sg-cyan); font-size:22px; line-height:1; }
+.sg-mem[open] summary::after { content:"–"; }
+.sg-mem-t b { display:block; color:#fff; font-size:15px; font-weight:600; }
+.sg-mem-b { display:flex; flex-direction:column; gap:6px; padding:0 0 16px 58px; }
+.sg-mem-b span { color:#94a3b8; font-size:13.5px; line-height:1.5; word-break:break-word; }
+.sg-mem-b .sg-mem-role { color:#e0f2fe; font-weight:600; }
+.sg-mem-b a { color:#7dd3fc !important; text-decoration:none !important; }
+.sg-mem-b a:hover { text-decoration:underline !important; }
+.sg-mgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:30px; }
+.sg-mission { display:flex; flex-direction:column; gap:12px; border-top:2px solid var(--c,#38bdf8); }
+.sg-mission .sg-ct { font-size:19px; font-family:'Space Grotesk','Inter',sans-serif; margin:2px 0 0; }
+.sg-mission .sg-cp { flex:1 1 auto; }
+.sg-mission .sg-tier-cta { margin-top:10px; letter-spacing:.08em; font-size:12.5px; }
+.sg-team { display:flex; flex-direction:column; gap:12px; }
+.sg-member { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; border:1px solid var(--sg-line);
+  background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); }
+.sg-avatar { flex:0 0 44px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; font-size:15px; color:#e0f2fe; background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.4); }
+.sg-member b { display:block; color:#fff; font-size:15px; font-weight:600; }
+.sg-member b a { color:#fff !important; text-decoration:none !important; border-bottom:1px solid rgba(56,189,248,.5); }
+.sg-member span { color:#94a3b8; font-size:13px; }
+.st-key-sg_contact { max-width:900px; margin:22px 0 0; padding:26px; border-radius:18px; border:1px solid var(--sg-line);
+  background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); }
+.st-key-sg_contact label p { color:#cbd5e1 !important; font-size:13px !important; font-weight:500 !important; }
+.st-key-sg_contact div[data-baseweb="input"], .st-key-sg_contact div[data-baseweb="textarea"], .st-key-sg_contact div[data-baseweb="select"] > div {
+  background:#0b1329 !important; border-color:rgba(56,189,248,.25) !important; }
+.st-key-sg_contact input, .st-key-sg_contact textarea { color:#e2e8f0 !important; -webkit-text-fill-color:#e2e8f0 !important; background:transparent !important; }
+.st-key-sg_contact [data-testid="stForm"] { border:0 !important; padding:0 !important; }
+.st-key-sg_contact [data-testid="stFormSubmitButton"] button { height:50px; border-radius:999px !important; border:1px solid rgba(252,61,33,.9) !important;
+  background:linear-gradient(135deg,#fc3d21,#c42a12) !important; }
+.st-key-sg_contact [data-testid="stFormSubmitButton"] button p { color:#fff !important; font-weight:700 !important; }
+.sg-consent { color:#64748b; font-size:12px; margin:4px 0 0; }
+@media (max-width:1060px) { .sg-links { display:none; } .sg-nav { justify-content:space-between; } }
+@media (max-width:520px) {
+  .sg-logo { letter-spacing:.08em; font-size:13px; gap:8px; }
+  .sg-cta { padding:8px 13px; font-size:12px; }
+  .sg-cta .l { display:none; } .sg-cta .s { display:inline; }
+}
+
 @keyframes sgUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
 @keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
 @media (max-width:900px) {
   .sg-links { display:none; }
-  .sg-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .sg-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .sg-metric { padding:12px 10px; }
   .sg-about { grid-template-columns:1fr; }
   .sg-veil { background:rgba(4,8,23,.62); }
 }
@@ -682,12 +746,7 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
     const BASE = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/';
     const PR = Math.min(window.devicePixelRatio || 1, 1.25);
 
-    let renderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
-    } catch (_e) {
-      renderer = new THREE.WebGLRenderer({ alpha: true });
-    }
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(PR);
     renderer.setClearColor(0x000000, 0);
     document.getElementById('c').appendChild(renderer.domElement);
@@ -877,7 +936,7 @@ setTimeout(function () { document.body.classList.add('ready'); }, 3000);
     setTimeout(resize, 400);
 
     if (N > 0) {
-      document.getElementById('cap').innerHTML = '<b>Gerçek TLE verisi</b> · SGP4 · ' + N + ' nesne · ' + RATE + '× zaman';
+      document.getElementById('cap').innerHTML = __CAP__.replace('{N}', N).replace('{R}', RATE);
     }
 
     let t = 0, last = performance.now();
@@ -1053,22 +1112,164 @@ def _debris_history_html():
     """
 
 
+def _pricing_grid_html(tr):
+    """3 kademeli fiyat kartları; başlangıç fiyatları PRICING sabitinden gelir."""
+    def amt(k):
+        return "&#36;" + _dh_num(PRICING[k], tr)
+    if tr:
+        L = dict(frm="Başlangıç fiyatı", aud="Hedef kitle", scope="Sigorta ve Risk Kapsamı", logic="Fiyatlandırma mantığı", cta="Demo talep et", pop="Popüler")
+        tiers = [
+            ("basic", "Temel", "#3b82f6", False, "/ ay",
+             "Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br>Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.",
+             "Standart Yörünge Risk Değerlendirme Karnesi<br>Sigorta süreçleri için temel çarpışma olasılığı ve enkaz analiz raporu",
+             "Uydu / takımyıldız başına aylık veya yıllık sabit abonelik"),
+            ("pro", "Profesyonel", "#06b6d4", True, "/ ay",
+             "Kesintisiz operasyon hedefleyen ticari uydu operatörleri<br>Yüksek yörünge trafiği yöneten filo operasyon merkezleri",
+             "Poliçe prim optimizasyonu sağlayan manevra ve yakıt verimliliği dokümantasyonu<br>Olası çarpışma ve hizmet kesintisi (BI) finansal etki projeksiyonu",
+             "İzlenen aktif uydu sayısı ve gerçek zamanlı API çağrısı"),
+            ("inst", "Kurumsal / InsurTech", "#a855f7", False, "/ ay · yıllık sözleşme",
+             "Ulusal uzay ajansları, kamu otoriteleri ve savunma sanayi kuruluşları<br>Uzay varlıklarını teminat altına alan sigorta ve reasürans şirketleri",
+             "Dinamik poliçe fiyatlandırma ve reasürans risk skorlaması<br>Kaza sonrası adli yörünge doğrulama ve kümülatif portföy simülasyonu",
+             "Özel yıllık sözleşme + kurulum + danışmanlık bedeli"),
+        ]
+        note = "Fiyatlar USD cinsindendir ve başlangıç seviyesini gösterir; nihai bedel kapsama ve uydu sayısına göre netleşir."
+    else:
+        L = dict(frm="Starting at", aud="Target audience", scope="Scope and modeled data", logic="Pricing logic", cta="Request a demo", pop="Popular")
+        tiers = [
+            ("basic", "Basic", "#3b82f6", False, "/ month",
+             "Early-stage and small constellation operators<br>R&amp;D centers and academic institutions",
+             "Standard orbital risk scorecard<br>Basic collision probability and debris analysis report",
+             "Flat-rate: monthly or annual subscription per satellite / constellation"),
+            ("pro", "Pro", "#06b6d4", True, "/ month",
+             "Commercial satellite operators aiming for uninterrupted operations<br>Fleet operations centers handling heavy orbital traffic",
+             "Maneuver and fuel-efficiency documentation for policy premium optimization<br>Collision and business-interruption (BI) financial impact projection",
+             "Number of active satellites monitored and real-time API calls"),
+            ("inst", "Institutional / InsurTech", "#a855f7", False, "/ month · annual contract",
+             "National space agencies, public authorities and defense organizations<br>Insurers and reinsurers covering space assets",
+             "Dynamic policy pricing and reinsurance risk scoring<br>Post-incident forensic orbit verification and cumulative portfolio simulation",
+             "Custom annual contract + setup + consulting fee"),
+        ]
+        note = "Prices are in USD and show the entry level; the final fee depends on scope and number of satellites."
+    star = '<span style="color:var(--c)">☆</span> '
+    tick = ' <span style="color:var(--c)">✓</span>'
+    cards = []
+    for key, name, color, pop, unit, aud, scope, logic in tiers:
+        aud = "<br>".join(star + x for x in aud.split("<br>"))
+        scope = "<br>".join(x + tick for x in scope.split("<br>"))
+        tag = f'<span class="sg-tag">{L["pop"]}</span>' if pop else ""
+        cards.append(
+            f'<div class="sg-card sg-tier{" pop" if pop else ""}" style="--c:{color}">{tag}'
+            f'<div class="sg-tier-name">{name}</div>'
+            f'<div><div class="sg-from">{L["frm"]}</div><div class="sg-amount">{amt(key)}<small>{unit}</small></div></div>'
+            f'<div><div class="sg-lbl">{L["aud"]}</div><div class="sg-val">{aud}</div></div>'
+            f'<div><div class="sg-lbl">{L["scope"]}</div><div class="sg-val">{scope}</div></div>'
+            f'<div><div class="sg-lbl">{L["logic"]}</div><div class="sg-val">{logic}</div></div>'
+            f'<a class="sg-tier-cta" href="#contact">{L["cta"]}</a></div>'
+        )
+    return f'<div class="sg-price">{"".join(cards)}</div><p class="sg-note">{note}</p>'
+
+
+def _team_html():
+    tr = st.session_state.lang == "tr"
+    rows = []
+    for m in TEAM:
+        parts = [p for p in m["name"].split() if p]
+        ini = html_escape(((parts[0][0] + parts[-1][0]) if len(parts) > 1 else parts[0][:1]).upper() or "?")
+        name = html_escape(m["name"])
+        role = html_escape(m["role_tr"] if tr else m["role_en"])
+        mail = html_escape(m["email"])
+        age_lbl = "Yaş" if tr else "Age"
+        link = ""
+        if m.get("link"):
+            link = f'<span><a href="{html_escape(m["link"])}" target="_blank" rel="noopener">LinkedIn</a></span>'
+        rows.append(
+            f'<details class="sg-mem"><summary><div class="sg-avatar">{ini}</div><div class="sg-mem-t"><b>{name}</b></div></summary>'
+            f'<div class="sg-mem-b"><span class="sg-mem-role">{role}</span>'
+            f'<span><a href="mailto:{mail}">{mail}</a></span>'
+            f'<span>{age_lbl}: {int(m["age"])}</span>{link}</div></details>'
+        )
+    lbl = "Ekip" if tr else "Team"
+    return f'<div><div class="sg-lbl" style="margin-bottom:12px">{lbl}</div><div class="sg-team">{"".join(rows)}</div></div>'
+
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
+
+
+def _csv_safe(v):
+    v = str(v).replace("\r", " ").replace("\n", " ").strip()
+    return "'" + v if v[:1] in ("=", "+", "-", "@") else v
+
+
+def _save_demo_request(row):
+    try:
+        new = not os.path.exists(DEMO_FILE)
+        with open(DEMO_FILE, "a", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f)
+            if new:
+                w.writerow(["timestamp_utc", "name", "email", "company", "role", "message", "lang"])
+            w.writerow([_csv_safe(x) for x in row])
+        return True
+    except Exception:
+        return False
+
+
+def _render_contact():
+    tr = st.session_state.lang == "tr"
+    if tr:
+        head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">İletişim</div>'
+                '<div class="sg-h2">Kurumunuz için canlı demo talep edin</div>'
+                '<p class="sg-p">Uydu filonuz veya sigorta portföyünüz için Space Grave\'i birlikte inceleyelim. '
+                'Formu doldurun; ekibimiz en kısa sürede sizinle iletişime geçsin.</p></div>')
+        roles = ["Uydu operatörü", "Sigorta / reasürans", "Uzay ajansı / savunma", "Akademi / Ar-Ge", "Diğer"]
+    else:
+        head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">Contact</div>'
+                '<div class="sg-h2">Request a live demo for your organization</div>'
+                '<p class="sg-p">Let us walk you through Space Grave for your satellite fleet or insurance portfolio. '
+                'Fill in the form and our team will get back to you shortly.</p></div>')
+        roles = ["Satellite operator", "Insurance / reinsurance", "Space agency / defense", "Academia / R&D", "Other"]
+    st.markdown(_flat(head), unsafe_allow_html=True)
+    with _keyed("sg_contact"):
+        with st.form("sg_demo_form", clear_on_submit=True, border=False) if "border" in inspect.signature(st.form).parameters else st.form("sg_demo_form", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            name = c1.text_input(T("Ad Soyad *", "Full name *"), max_chars=100)
+            email = c2.text_input(T("İş e-postası *", "Work email *"), max_chars=150)
+            c3, c4 = st.columns(2)
+            company = c3.text_input(T("Kurum *", "Company *"), max_chars=120)
+            role = c4.selectbox(T("Kurum türü", "Organization type"), roles)
+            msg = st.text_area(T("Notunuz (isteğe bağlı)", "Your note (optional)"), height=100, max_chars=1000)
+            sent = st.form_submit_button(T("Demo talep et  →", "Request a demo  →"), **stretch(st.form_submit_button))
+        st.markdown('<p class="sg-consent">' + T("Formu göndererek bilgilerinizin demo görüşmesi için kullanılmasını kabul edersiniz.",
+                                               "By submitting, you agree that your details may be used to arrange the demo.") + "</p>", unsafe_allow_html=True)
+        if sent:
+            if not name.strip() or not company.strip() or not _EMAIL_RE.match(email.strip()):
+                st.error(T("Lütfen ad soyad, kurum ve geçerli bir e-posta girin.", "Please enter your name, company and a valid email."))
+            elif _save_demo_request([utc_now().strftime("%Y-%m-%d %H:%M:%S"), name, email, company, role, msg, st.session_state.lang]):
+                st.success(T("Talebiniz alındı, teşekkürler. Ekibimiz sizinle iletişime geçecek.", "Request received, thank you. Our team will be in touch."))
+            else:
+                st.error(T("Talep kaydedilemedi. Lütfen daha sonra tekrar deneyin.", "Your request could not be saved. Please try again later."))
+
+
 def render_intro():
     n_active = len(CAT["groups"]["active"])
-    n_total = n_active + len(CAT["debris"])
-    feed_word = FEED_LABEL.split(" ")[0]
+    n_debris_c = len(CAT["debris"])
+    n_total = n_active + n_debris_c
+    feed_word = FEED_KEY
+    _feed_txt = {"LIVE": T("Canlı veri akışı", "Live data feed"), "CACHED": T("Önbellekteki veri", "Cached data"),
+                 "PARTIAL": T("Kısmi veri akışı", "Partial data feed")}.get(feed_word, T("Çevrimdışı · yedek veri", "Offline · fallback data"))
     keyed = _container_has_key()
 
     # Küre: tüm ekranı kaplayan sabit arka plan (container(key=...) desteklenmiyorsa atlanır)
     if keyed:
         with st.container(key="sg_bg"):
-            embed_html(INTRO_GLOBE_HTML.replace("__DATA__", json.dumps(splash_globe_payload())), height=800)
+            _cap = T("<b>Gerçek TLE verisi</b> · örneklem: {N} nesne · {R}× zaman",
+                     "<b>Real TLE data</b> · sample: {N} objects · {R}× speed")
+            embed_html(INTRO_GLOBE_HTML.replace("__DATA__", json.dumps(splash_globe_payload())).replace("__CAP__", json.dumps(_cap)), height=800)
 
     nav_html = """
     <div class="sg-nav">
       <a class="sg-logo" href="#top"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
-      <div class="sg-links"><a href="#features">Özellikler</a><a href="#pricing">B2B Fiyatlandırma</a><a href="#docs">Şartname / Dokümantasyon</a><a href="#about">Hakkımızda</a></div>
-      <a class="sg-cta" href="?launch=1&amp;lang=tr" target="_self">Canlı İzlemeyi Başlat</a>
+      <div class="sg-links"><a href="#features">Özellikler</a><a href="#pricing">Fiyatlandırma</a><a href="#docs">Dokümantasyon</a><a href="#about">Hakkımızda</a><a href="#contact">İletişim</a></div>
+      <a class="sg-cta" href="?launch=1&amp;lang=tr" target="_self"><span class="l">Canlı İzlemeyi Başlat</span><span class="s">Canlı İzle</span></a>
     </div>
     <div class="sg-veil"></div>
     <a class="sg-top" href="#top" aria-label="Ana ekrana dön">↑ Ana ekran</a>
@@ -1076,18 +1277,17 @@ def render_intro():
 
     hero_html = f"""
     <div id="top" class="sg-hero">
-      <div class="sg-badge"><span class="sg-dot{'' if feed_word == 'LIVE' else ' warn'}"></span>B2B Uzay Karar Destek Platformu</div>
+      <div class="sg-badge"><span class="sg-dot{'' if feed_word == 'LIVE' else ' warn'}" role="img" title="{_feed_txt}" aria-label="{_feed_txt}"></span>B2B Uzay Karar Destek Platformu</div>
       <div class="sg-h1">Space Grave ile Alçak Dünya Yörüngesi (LEO) için <em>akıllı çarpışma önleme</em> ve karar destek platformu</div>
-      <p class="sg-lead">Space Grave karar destek sistemimiz ile 50 km güvenlik küresi içindeki uydu filolarınızı uzay çöplerinden koruyun ve katastrofik yıkım risklerini gerçekleşmeden öngörün.</p>
+      <p class="sg-lead">Space Grave karar destek sistemimiz ile uydu filolarınızı uzay çöplerinden koruyun ve katastrofik yıkım risklerini gerçekleşmeden öngörün.</p>
     </div>
     """
 
     metrics_html = f"""
     <div class="sg-metrics">
-      <div class="sg-metric"><b>{_fmt_int(n_total)}</b><span>Takip edilen nesne</span></div>
-      <div class="sg-metric"><b>50 km</b><span>Güvenlik küresi</span></div>
-      <div class="sg-metric"><b>40 J/g</b><span>NASA parçalanma eşiği</span></div>
-      <div class="sg-metric"><b class="{'ok' if feed_word == 'LIVE' else 'warn'}">{feed_word}</b><span>CelesTrak veri akışı</span></div>
+      <div class="sg-metric"><b>{_fmt_int(n_total)}</b><span>Canlı katalogdaki nesne</span></div>
+      <div class="sg-metric"><b>{_fmt_int(n_active)}</b><span>Aktif uydu</span></div>
+      <div class="sg-metric"><b>{_fmt_int(n_debris_c)}</b><span>Enkaz parçası</span></div>
     </div>
     <div class="sg-src">Güvenilir veri kaynakları <i>CelesTrak</i><i>Space-Track</i><i>ESA DISCOS</i></div>
     """
@@ -1099,17 +1299,29 @@ def render_intro():
       <p class="sg-p">İlk uydu fırlatmalarıyla başlayan süreçte, görev ömrü biten araçlar ve üst roket kademeleri yörüngede bırakıldı; kataloglanan nesne sayısı 1990 itibarıyla 5.600 seviyesine ulaştı. 10 Şubat 2009 tarihinde ise bir dönüm noktası yaşandı. Iridium 33 &amp; Cosmos 2251 790 kilometre irtifada çarpıştı. Bu vaka, tarihteki ilk kasıtsız hiper hızlı uydu çarpışması olarak kayıtlara geçti. Tek bir olayda takip edilemeyen 200.000 civarında küçük parça ve 1.800'den fazla büyük parça yörüngeye saçıldı. Yörüngede başıboş dolaşan 6.000'den fazla işlevsiz uydu ve roket gövdeleri, aktif roldeki ticari filolar ve sigorta portföyleri için her yıl zincirleme çarpışma riskini artırıyor.</p>
     </div>
 
+    <div id="missions" class="sg-sec">
+      <div class="sg-kicker">Program Sütunları</div>
+      <div class="sg-h2">Dört sütun, tek hedef: güvenli yörünge</div>
+      <p class="sg-p">Space Grave; temizlemeyi, izlemeyi, önlemeyi ve öğrenmeyi tek bir bütünün parçaları olarak ele alır.</p>
+      <div class="sg-mgrid">
+        <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Orbital Debris Scavengers</div><div class="sg-ct">Operation Clean Orbit</div><p class="sg-cp">Hizmet ömrü dolan uyduları ve atıl roket kademelerini yarının çarpışmasına dönüşmeden yörüngeden çıkaran aktif temizleme ve azaltım görevleri. Yörünge temizliğini kavramdan ölçülebilir, göreve hazır bir yeteneğe dönüştürür.</p><a class="sg-tier-cta" href="#threat" target="_self">GÖREVLERİ KEŞFET</a></div>
+        <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Debris Radar &amp; Sentinel</div><div class="sg-ct">Sentinel Sky Watch</div><p class="sg-cp">Alçak Dünya Yörüngesi'ndeki kataloglanmış her nesneyi izleyen yüksek hassasiyetli takip ve tarama ağı. Birleştirilmiş radar ve TLE verisi, operatörlere varlıklarının çevresinde olup bitenin sürekli ve güvenilir bir resmini sunar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">CANLI VERİYİ GÖRÜNTÜLE</a></div>
+        <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Collision Avoidance &amp; AI Watch</div><div class="sg-ct">Guardian Protocol</div><p class="sg-cp">Her yakın geçişi tarayan ve Güvenlik Küresi ihlal edildiği anda otomatik alarm üreten gerçek zamanlı risk analizi. Yapay zekâ destekli kararlar tahmini yerine koyar; operatörler yalnızca gerçekten gerektiğinde manevra yapar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">UYARI MERKEZİNİ AÇ</a></div>
+        <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Onlarca yıllık uzamsal veri, yoğunluk haritası ve finansal etki modeli tek bir aranabilir arşivde. Kalabalığın nasıl arttığını ve bedelini görün; önümüzdeki on yılı kanıtlarla planlayın.</p><a class="sg-tier-cta" href="#features" target="_self">ARŞİVE GÖZ AT</a></div>
+      </div>
+    </div>
+
     <div id="features" class="sg-sec">
       <div class="sg-kicker">Özellikler</div>
       <div class="sg-h2">Uzay kirliliği artık yalnızca teknik değil, finansal bir risk</div>
-      <p class="sg-p">Uzay kirliliği, Alçak Dünya Yörüngesi'nde (LEO) çalışan uydu filoları için sadece teknik bir tehdit değil, aynı zamanda <b>&#36;42.3B</b> dolarlık "gizli bir finansal yüktür." Space Grave, karmaşık yörünge verilerini işleyerek uydu operatörleri ve uzay sigortacıları için anlık risk öngörüsü ve maliyet optimizasyonu sunar.</p>
+      <p class="sg-p">Uzay kirliliği, Alçak Dünya Yörüngesi'nde (LEO) çalışan uydu filoları için sadece teknik bir tehdit değil, aynı zamanda tahmini <b>&#36;25.8B – &#36;42.3B</b> (10 yıllık risk havuzu, WEF verisi) büyüklüğünde "gizli bir finansal yüktür." Space Grave, karmaşık yörünge verilerini işleyerek uydu operatörleri ve uzay sigortacıları için anlık risk öngörüsü ve maliyet optimizasyonu sunar.</p>
       <div class="sg-grid">
         <div class="sg-card"><div class="sg-stat">50 km</div><div class="sg-ct">Güvenlik Küresi</div><p class="sg-cp">Yüksek riskli yakınlaşmalarda otomatik Kırmızı Alarm tetikler.</p></div>
         <div class="sg-card"><div class="sg-stat">SGP4</div><div class="sg-ct">Astrodinamik Motor ve 3D Görselleştirici</div><p class="sg-cp">Canlı TLE verilerinden hesaplanan koordinatlar 3D canlı Dünya görselleştiricisinde izlenir; mesafe tarayıcı yakınlaşmaları tespit eder.</p></div>
         <div class="sg-card"><div class="sg-stat">40 J/g</div><div class="sg-ct">NASA Parçalanma Standardı</div><p class="sg-cp">Kinetik enerji hesaplamalarıyla yıkım potansiyelini öngörür.</p></div>
         <div class="sg-card"><div class="sg-stat">0–100</div><div class="sg-ct">Sigorta Risk Skoru</div><p class="sg-cp">Roket gövdeleri ve yüksek yoğunluklu çöpler için dinamik poliçe analizi sunar.</p></div>
       </div>
-      <p class="sg-p sg-muted" style="margin-top:28px">&#36;42.3B'lık uzay çöpü tehdidine karşı canlı TLE verilerini SGP4 motoru ve NASA parçalanma standartlarıyla işleyerek 50 km güvenlik küresi içindeki uzay çöplerini tarar; 0-100 arası dinamik sigorta risk skorunu ve kaçınma maliyetlerini anlık hesaplayarak manevra yakıt maliyetlerinizi optimize eder, hizmet kesintilerini ve zararlarınızı minimuma indiririz.</p>
+      <p class="sg-p sg-muted" style="margin-top:28px">Canlı yörünge verisini finansal etkiye çevirerek manevra yakıt maliyetinizi optimize eder, hizmet kesintilerini ve zararlarınızı en aza indiririz.</p>
     </div>
 
     <div id="docs" class="sg-sec">
@@ -1117,10 +1329,10 @@ def render_intro():
       <div class="sg-h2">Modüler ve ölçeklenebilir sistem mimarisi</div>
       <p class="sg-p">Platformumuz, canlı verinin çekilmesinden 3D arayüzde sunulmasına kadar 4 ana katmandan oluşan yüksek performanslı bir altyapıya sahiptir:</p>
       <div class="sg-grid">
-        <div class="sg-card"><div class="sg-step-n">01</div><div class="sg-ct">Veri Toplama Katmanı</div><p class="sg-cp"><b style="color:#cbd5e1">Data Ingestion</b> — CelesTrak, Space-Track ve ESA DISCOS API'lerinden canlı TLE yörünge verileri ve uzay çöplerinin kütle/boyut parametreleri anlık çekilir.</p></div>
-        <div class="sg-card"><div class="sg-step-n">02</div><div class="sg-ct">Önbellek ve Veri İşleme</div><p class="sg-cp"><b style="color:#cbd5e1">Data &amp; Cache</b> — API limitlerini aşmamak için veriler JSON/Redis önbelleğinde saklanır, veri birleştirici modülümüz ile temizlenerek hesaplama motoruna beslenir.</p></div>
-        <div class="sg-card"><div class="sg-step-n">03</div><div class="sg-ct">Astrodinamik ve Finansal Risk Motoru</div><p class="sg-cp"><b style="color:#cbd5e1">Calculations</b> — SGP4 motoru ile koordinatlar hesaplanır, mesafe tarayıcı 50 km yakınlaşmaları tespit eder ve Finansal Risk Motoru anlık risk skorunu üretir.</p></div>
-        <div class="sg-card"><div class="sg-step-n">04</div><div class="sg-ct">Sunum ve Alarm Paneli</div><p class="sg-cp"><b style="color:#cbd5e1">Presentation</b> — 3D Canlı Dünya Görselleştirici, Çarpışma Alarm Paneli ve B2B SaaS Fiyat Tabloları ile veriler karar vericilere sunulur.</p></div>
+        <div class="sg-card"><div class="sg-step-n">01</div><div class="sg-ct">Veri Toplama Katmanı</div><p class="sg-cp">CelesTrak, Space-Track ve ESA DISCOS API'lerinden canlı TLE yörünge verileri ve uzay çöplerinin kütle/boyut parametreleri anlık çekilir.</p></div>
+        <div class="sg-card"><div class="sg-step-n">02</div><div class="sg-ct">Önbellek ve Veri İşleme</div><p class="sg-cp">API limitlerini aşmamak için veriler JSON/Redis önbelleğinde saklanır, veri birleştirici modülümüz ile temizlenerek hesaplama motoruna beslenir.</p></div>
+        <div class="sg-card"><div class="sg-step-n">03</div><div class="sg-ct">Astrodinamik ve Finansal Risk Motoru</div><p class="sg-cp">SGP4 motoru ile koordinatlar hesaplanır, mesafe tarayıcı güvenlik küresi ihlallerini tespit eder ve Finansal Risk Motoru anlık risk skorunu üretir.</p></div>
+        <div class="sg-card"><div class="sg-step-n">04</div><div class="sg-ct">Sunum ve Alarm Paneli</div><p class="sg-cp">3D Canlı Dünya Görselleştirici, Çarpışma Alarm Paneli ve B2B SaaS Fiyat Tabloları ile veriler karar vericilere sunulur.</p></div>
       </div>
       <div class="sg-src" style="margin-top:22px">API kaynakları <i>CelesTrak</i><i>Space-Track</i><i>ESA DISCOS</i></div>
     </div>
@@ -1128,32 +1340,15 @@ def render_intro():
     <div id="pricing" class="sg-sec">
       <div class="sg-kicker">B2B Fiyatlandırma</div>
       <div class="sg-h2">İhtiyacınıza uygun B2B SaaS paketleri</div>
-      <p class="sg-p">Farklı paydaş gruplarının ihtiyaçlarına özel kurgulanmış <b>3 kademeli (Tiered)</b> B2B fiyatlandırma modeli:</p>
-      <div class="sg-price">
-        <div class="sg-card sg-tier" style="--c:#3b82f6">
-          <div class="sg-tier-name">BASIC/STANDART</div>
-          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br><span style="color:var(--c)">☆</span> Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.</div></div>
-          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Standart Yörünge Risk Değerlendirme Karnesi <span style="color:var(--c)">✓</span><br>Sigorta süreçleri için temel çarpışma olasılığı ve enkaz analiz raporu <span style="color:var(--c)">✓</span></div></div>
-        </div>
-        <div class="sg-card sg-tier pop" style="--c:#06b6d4">
-          <span class="sg-tag">Popüler</span>
-          <div class="sg-tier-name">PRO / ENTERPRISE</div>
-          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Kesintisiz operasyon hedefleyen ticari uydu operatörleri<br><span style="color:var(--c)">☆</span> Yüksek yörünge trafiği yöneten filo operasyon merkezleri</div></div>
-          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Poliçe prim optimizasyonu sağlayan manevra ve yakıt verimliliği dokümantasyonu <span style="color:var(--c)">✓</span><br>Olası çarpışma ve hizmet kesintisi (BI) finansal etki projeksiyonu <span style="color:var(--c)">✓</span></div></div>
-        </div>
-        <div class="sg-card sg-tier" style="--c:#a855f7">
-          <div class="sg-tier-name">INSTITUTIONAL / INSURTECH</div>
-          <div><div class="sg-lbl">Hedef Kitle</div><div class="sg-val"><span style="color:var(--c)">☆</span> Ulusal uzay ajansları, kamu otoriteleri ve savunma sanayi kuruluşları<br><span style="color:var(--c)">☆</span> Uzay varlıklarını teminat altına alan sigorta ve reasürans şirketleri</div></div>
-          <div><div class="sg-lbl">Sigorta ve Risk Kapsamı</div><div class="sg-val">Dinamik poliçe fiyatlandırma ve reasürans risk skorlaması <span style="color:var(--c)">✓</span><br>Kaza sonrası adli yörünge doğrulama ve kümülatif portföy simülasyonu <span style="color:var(--c)">✓</span></div></div>
-        </div>
-      </div>
+      <p class="sg-p">Farklı paydaş gruplarının ihtiyaçlarına özel kurgulanmış <b>3 kademeli</b> B2B fiyatlandırma modeli; başlangıç fiyatları aşağıdadır:</p>
+      __PRICE_GRID__
       <div class="sg-faq">
         <div class="sg-kicker" style="margin-bottom:16px">Sık sorulanlar</div>
         <details><summary>1. Space Grave yörünge verilerini ne kadar sıklıkla güncelliyor?</summary><p>Platformumuz CelesTrak, Space-Track ve ESA DISCOS API'leri üzerinden canlı TLE (Two-Line Element) verilerini düzenli olarak çeker. API sorgu limitlerini korumak ve maksimum performans sağlamak amacıyla veriler JSON/Redis önbelleğimizde saklanır ve otomatik senkronize edilir.</p></details>
-        <details><summary>2. 50 km Güvenlik Küresi (Safety Sphere) ne anlama geliyor?</summary><p>Uydunuzun etrafında sanal olarak tanımlanan 50 km yarıçapındaki koruma hacmidir. SGP4 astrodinamik motorumuz bir uzay çöpünün bu küreye yaklaşacağını öngördüğü anda sistem "Kırmızı Alarm" durumuna geçer ve anlık kaçınma analizi başlatır.</p></details>
-        <details><summary>3. Dinamik Sigorta Risk Skoru (0-100) nasıl hesaplanıyor?</summary><p>Risk skoru; uydunun bağıl hızı, çarpışma olasılığı ve kinetik enerjisi kullanılarak kurgulanır. NASA'nın 40 J/g parçalanma eşiği baz alınarak; roket gövdeleri veya yüksek yoğunluklu enkaz parçaları için kütle çarpanları uygulanır ve 0-100 arası finansal poliçe skoruna dönüştürülür.</p></details>
-        <details><summary>4. Kendi özel uydu filomuzun verilerini sisteme entegre edebilir miyiz?</summary><p>Evet. Basic/Standart paketimizde kataloglanmış genel yörünge takibi sunulurken; Pro/Enterprise ve Institutional/InsurTech paketlerimizde kendi aktif uydu filolarınızın özel Ephemeris ve TLE verilerini güvenli API çağrılarıyla sisteme aktarabilirsiniz.</p></details>
-        <details><summary>5. Platform yanlış alarmları (False Positive) ve gereksiz yakıt harcamasını nasıl önlüyor?</summary><p>Önbellek ve veri temizleme katmanımız (Data Pipeline), gürültülü verileri ve sapmaları filtreler. Yalnızca kütle, hız ve mesafe açısından NASA parçalanma standartlarını aşan gerçek tehlikeleri alarm olarak bildirdiği için operatörlerin gereksiz manevra yakıtı harcamasını engeller.</p></details>
+        <details><summary>2. 50 km Güvenlik Küresi ne anlama geliyor?</summary><p>Uydunuzun etrafında sanal olarak tanımlanan 50 km yarıçapındaki koruma hacmidir. astrodinamik motorumuz bir uzay çöpünün bu küreye yaklaşacağını öngördüğü anda sistem "Kırmızı Alarm" durumuna geçer ve anlık kaçınma analizi başlatır.</p></details>
+        <details><summary>3. Dinamik Sigorta Risk Skoru (0-100) nasıl hesaplanıyor?</summary><p>Risk skoru; uydunun bağıl hızı, çarpışma olasılığı ve kinetik enerjisi kullanılarak kurgulanır. NASA parçalanma eşiği baz alınarak; roket gövdeleri veya yüksek yoğunluklu enkaz parçaları için kütle çarpanları uygulanır ve 0-100 arası finansal poliçe skoruna dönüştürülür.</p></details>
+        <details><summary>4. Kendi özel uydu filomuzun verilerini sisteme entegre edebilir miyiz?</summary><p>Evet. Temel paketimizde kataloglanmış genel yörünge takibi sunulurken; Profesyonel ve Kurumsal paketlerimizde kendi aktif uydu filolarınızın özel efemeris ve TLE verilerini güvenli API çağrılarıyla sisteme aktarabilirsiniz.</p></details>
+        <details><summary>5. Platform yanlış alarmları ve gereksiz yakıt harcamasını nasıl önlüyor?</summary><p>Önbellek ve veri temizleme katmanımız (veri hattı), gürültülü verileri ve sapmaları filtreler. Yalnızca kütle, hız ve mesafe açısından NASA parçalanma standartlarını aşan gerçek tehlikeleri alarm olarak bildirdiği için operatörlerin gereksiz manevra yakıtı harcamasını engeller.</p></details>
       </div>
     </div>
 
@@ -1164,7 +1359,7 @@ def render_intro():
           <div class="sg-h2">Karmaşık yörünge verisini karar verilebilir riske dönüştürüyoruz</div>
           <p class="sg-p">Space Grave, NASA Space Apps Challenge kapsamında geliştirilen bir B2B karar destek platformudur. Amacımız; uydu operatörlerinin ve uzay sigortacılarının uzay çöpü kaynaklı riski gerçekleşmeden görmesini, gereksiz manevra maliyetinden kaçınmasını ve zararlarını minimuma indirmesini sağlamaktır.</p>
         </div>
-        <div class="sg-card"><div class="sg-stat sg-huge">&#36;42.3B</div><div class="sg-ct">Gizli finansal yük</div><p class="sg-cp">Uzay çöpünün LEO operatörlerine yüklediği tahmini ekonomik etki — WEF risk verisi.</p></div>
+        __TEAM__
       </div>
     </div>
 
@@ -1183,25 +1378,24 @@ def render_intro():
         nav_html = """
         <div class="sg-nav">
           <a class="sg-logo" href="#top"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
-          <div class="sg-links"><a href="#features">Features</a><a href="#pricing">B2B Pricing</a><a href="#docs">Specs / Documentation</a><a href="#about">About Us</a></div>
-          <a class="sg-cta" href="?launch=1&amp;lang=en" target="_self">Start Live Tracking</a>
+          <div class="sg-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#docs">Docs</a><a href="#about">About</a><a href="#contact">Contact</a></div>
+          <a class="sg-cta" href="?launch=1&amp;lang=en" target="_self"><span class="l">Start Live Tracking</span><span class="s">Live Map</span></a>
         </div>
         <div class="sg-veil"></div>
         <a class="sg-top" href="#top" aria-label="Back to top">↑ Top</a>
         """
         hero_html = f"""
         <div id="top" class="sg-hero">
-          <div class="sg-badge"><span class="sg-dot{'' if feed_word == 'LIVE' else ' warn'}"></span>B2B Space Decision Support Platform</div>
+          <div class="sg-badge"><span class="sg-dot{'' if feed_word == 'LIVE' else ' warn'}" role="img" title="{_feed_txt}" aria-label="{_feed_txt}"></span>B2B Space Decision Support Platform</div>
           <div class="sg-h1">Space Grave: <em>smart collision avoidance</em> and a decision support platform for Low Earth Orbit (LEO)</div>
-          <p class="sg-lead">With the Space Grave decision support system, protect your satellite fleets inside a 50 km safety sphere from space debris and foresee catastrophic risk before it happens.</p>
+          <p class="sg-lead">With the Space Grave decision support system, protect your satellite fleets from space debris and foresee catastrophic risk before it happens.</p>
         </div>
         """
         metrics_html = f"""
         <div class="sg-metrics">
-          <div class="sg-metric"><b>{_fmt_int(n_total)}</b><span>Tracked objects</span></div>
-          <div class="sg-metric"><b>50 km</b><span>Safety sphere</span></div>
-          <div class="sg-metric"><b>40 J/g</b><span>NASA fragmentation threshold</span></div>
-          <div class="sg-metric"><b class="{'ok' if feed_word == 'LIVE' else 'warn'}">{feed_word}</b><span>CelesTrak data feed</span></div>
+          <div class="sg-metric"><b>{_fmt_int(n_total)}</b><span>Objects in live catalog</span></div>
+          <div class="sg-metric"><b>{_fmt_int(n_active)}</b><span>Active satellites</span></div>
+          <div class="sg-metric"><b>{_fmt_int(n_debris_c)}</b><span>Debris fragments</span></div>
         </div>
         <div class="sg-src">Trusted data sources <i>CelesTrak</i><i>Space-Track</i><i>ESA DISCOS</i></div>
         """
@@ -1212,17 +1406,29 @@ def render_intro():
           <p class="sg-p">Since the first satellite launches, spacecraft at the end of their missions and spent upper rocket stages have been left in orbit; the number of cataloged objects reached 5,600 by 1990. On 10 February 2009 a turning point came: Iridium 33 and Cosmos 2251 collided at an altitude of 790 kilometers. The event went on record as the first accidental hypervelocity collision between two satellites. In that single event, about 200,000 small untrackable fragments and more than 1,800 large pieces were scattered into orbit. More than 6,000 defunct satellites and rocket bodies drifting in orbit raise the risk of a chain-reaction collision every year for active commercial fleets and insurance portfolios.</p>
         </div>
 
+        <div id="missions" class="sg-sec">
+          <div class="sg-kicker">Program Pillars</div>
+          <div class="sg-h2">Four pillars, one goal: safe orbits</div>
+          <p class="sg-p">Space Grave treats cleaning, tracking, avoiding and learning as parts of a single system.</p>
+          <div class="sg-mgrid">
+            <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Orbital Debris Scavengers</div><div class="sg-ct">Operation Clean Orbit</div><p class="sg-cp">Active removal and mitigation missions that retire defunct satellites and spent rocket stages before they become tomorrow's collisions. We turn orbital cleanup from a concept into a measurable, mission-ready capability.</p><a class="sg-tier-cta" href="#threat" target="_self">EXPLORE MISSIONS</a></div>
+            <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Debris Radar &amp; Sentinel</div><div class="sg-ct">Sentinel Sky Watch</div><p class="sg-cp">A high-precision tracking and scanning network that follows every cataloged object through Low Earth Orbit. Fused radar and TLE data give operators a continuous, trusted picture of what is moving around their assets.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=en" target="_self">VIEW LIVE DATA</a></div>
+            <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Collision Avoidance &amp; AI Watch</div><div class="sg-ct">Guardian Protocol</div><p class="sg-cp">Real-time risk analysis that screens every close approach and raises automated alerts the moment a Safety Sphere is breached. AI-assisted decisions replace guesswork, so operators maneuver only when it truly matters.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=en" target="_self">OPEN ALERT CENTER</a></div>
+            <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Decades of spatial data, density maps and financial impact models in one searchable archive. See how congestion evolved, and what it costs, to plan the next decade with evidence.</p><a class="sg-tier-cta" href="#features" target="_self">BROWSE THE ARCHIVE</a></div>
+          </div>
+        </div>
+
         <div id="features" class="sg-sec">
           <div class="sg-kicker">Features</div>
           <div class="sg-h2">Space debris is no longer just a technical risk, it is a financial one</div>
-          <p class="sg-p">Space debris is not only a technical threat for satellite fleets operating in Low Earth Orbit (LEO); it is also a "hidden financial burden" worth <b>&#36;42.3B</b>. Space Grave processes complex orbital data to give satellite operators and space insurers instant risk foresight and cost optimization.</p>
+          <p class="sg-p">Space debris is not only a technical threat for satellite fleets operating in Low Earth Orbit (LEO); it is also a "hidden financial burden" worth an estimated <b>&#36;25.8B – &#36;42.3B</b> (10-year risk pool, WEF data). Space Grave processes complex orbital data to give satellite operators and space insurers instant risk foresight and cost optimization.</p>
           <div class="sg-grid">
             <div class="sg-card"><div class="sg-stat">50 km</div><div class="sg-ct">Safety Sphere</div><p class="sg-cp">Automatically triggers a Red Alert on high-risk close approaches.</p></div>
             <div class="sg-card"><div class="sg-stat">SGP4</div><div class="sg-ct">Astrodynamics Engine and 3D Visualizer</div><p class="sg-cp">Coordinates computed from live TLE data are tracked on a live 3D Earth visualizer; the distance scanner detects close approaches.</p></div>
             <div class="sg-card"><div class="sg-stat">40 J/g</div><div class="sg-ct">NASA Fragmentation Standard</div><p class="sg-cp">Predicts destruction potential with kinetic energy calculations.</p></div>
             <div class="sg-card"><div class="sg-stat">0–100</div><div class="sg-ct">Insurance Risk Score</div><p class="sg-cp">Provides dynamic policy analysis for rocket bodies and high-density debris.</p></div>
           </div>
-          <p class="sg-p sg-muted" style="margin-top:28px">Against the &#36;42.3B space debris threat, we process live TLE data with the SGP4 engine and NASA fragmentation standards to scan for debris inside the 50 km safety sphere; by instantly calculating a dynamic 0-100 insurance risk score and avoidance costs, we help you optimize maneuver fuel costs and minimize service interruptions and losses.</p>
+          <p class="sg-p sg-muted" style="margin-top:28px">By turning live orbit data into financial impact, we help you optimize maneuver fuel costs and minimize service interruptions and losses.</p>
         </div>
 
         <div id="docs" class="sg-sec">
@@ -1232,7 +1438,7 @@ def render_intro():
           <div class="sg-grid">
             <div class="sg-card"><div class="sg-step-n">01</div><div class="sg-ct">Data Collection Layer</div><p class="sg-cp"><b style="color:#cbd5e1">Data Ingestion</b> — Live TLE orbit data and debris mass/size parameters are pulled instantly from the CelesTrak, Space-Track and ESA DISCOS APIs.</p></div>
             <div class="sg-card"><div class="sg-step-n">02</div><div class="sg-ct">Cache and Data Processing</div><p class="sg-cp"><b style="color:#cbd5e1">Data &amp; Cache</b> — To stay within API limits, data is stored in a JSON/Redis cache, cleaned by our data merger module and fed to the calculation engine.</p></div>
-            <div class="sg-card"><div class="sg-step-n">03</div><div class="sg-ct">Astrodynamics and Financial Risk Engine</div><p class="sg-cp"><b style="color:#cbd5e1">Calculations</b> — The SGP4 engine computes coordinates, the distance scanner detects 50 km close approaches and the Financial Risk Engine produces an instant risk score.</p></div>
+            <div class="sg-card"><div class="sg-step-n">03</div><div class="sg-ct">Astrodynamics and Financial Risk Engine</div><p class="sg-cp"><b style="color:#cbd5e1">Calculations</b> — The SGP4 engine computes coordinates, the distance scanner detects safety-sphere breaches and the Financial Risk Engine produces an instant risk score.</p></div>
             <div class="sg-card"><div class="sg-step-n">04</div><div class="sg-ct">Presentation and Alert Panel</div><p class="sg-cp"><b style="color:#cbd5e1">Presentation</b> — Data reaches decision makers through the 3D Live Earth Visualizer, the Collision Alert Panel and B2B SaaS pricing tables.</p></div>
           </div>
           <div class="sg-src" style="margin-top:22px">API sources <i>CelesTrak</i><i>Space-Track</i><i>ESA DISCOS</i></div>
@@ -1241,34 +1447,14 @@ def render_intro():
         <div id="pricing" class="sg-sec">
           <div class="sg-kicker">B2B Pricing</div>
           <div class="sg-h2">B2B SaaS plans that fit your needs</div>
-          <p class="sg-p">A <b>3-tier</b> B2B pricing model designed for the needs of different stakeholder groups:</p>
-          <div class="sg-price">
-            <div class="sg-card sg-tier" style="--c:#3b82f6">
-              <div class="sg-tier-name">Basic / Standard</div>
-              <div><div class="sg-lbl">Target audience</div><div class="sg-val">Small constellation operators<br>Universities / research</div></div>
-              <div><div class="sg-lbl">Scope and modeled data</div><div class="sg-val">Maneuver cost and fuel optimizer<br>Cataloged debris tracking</div></div>
-              <div><div class="sg-lbl">Pricing logic</div><div class="sg-val">Flat-rate: monthly or annual subscription per satellite / constellation</div></div>
-            </div>
-            <div class="sg-card sg-tier pop" style="--c:#06b6d4">
-              <span class="sg-tag">Popular</span>
-              <div class="sg-tier-name">Pro / Enterprise</div>
-              <div><div class="sg-lbl">Target audience</div><div class="sg-val">Commercial satellite operators<br>Fleet managers</div></div>
-              <div><div class="sg-lbl">Scope and modeled data</div><div class="sg-val">Anomaly detection and risk forecasting<br>Outage duration / cost analysis</div></div>
-              <div><div class="sg-lbl">Pricing logic</div><div class="sg-val">Number of active satellites monitored and real-time API calls</div></div>
-            </div>
-            <div class="sg-card sg-tier" style="--c:#a855f7">
-              <div class="sg-tier-name">Institutional / InsurTech</div>
-              <div><div class="sg-lbl">Target audience</div><div class="sg-val">Defense and space agencies<br>Insurance companies</div></div>
-              <div><div class="sg-lbl">Scope and modeled data</div><div class="sg-val">Cumulative financial risk and scenario model<br>Custom risk scoring and policy pricing</div></div>
-              <div><div class="sg-lbl">Pricing logic</div><div class="sg-val">Custom annual contract + setup + consulting fee</div></div>
-            </div>
-          </div>
+          <p class="sg-p">A <b>3-tier</b> B2B pricing model designed for different stakeholder groups; entry prices are shown below:</p>
+          __PRICE_GRID__
           <div class="sg-faq">
             <div class="sg-kicker" style="margin-bottom:16px">FAQ</div>
             <details><summary>1. How often does Space Grave update orbit data?</summary><p>Our platform regularly pulls live TLE (Two-Line Element) data through the CelesTrak, Space-Track and ESA DISCOS APIs. To respect API query limits and ensure maximum performance, data is stored in our JSON/Redis cache and synced automatically.</p></details>
-            <details><summary>2. What does the 50 km Safety Sphere mean?</summary><p>It is a protection volume with a 50 km radius virtually defined around your satellite. The moment our SGP4 astrodynamics engine predicts that a piece of debris will approach this sphere, the system switches to "Red Alert" and starts an instant avoidance analysis.</p></details>
-            <details><summary>3. How is the Dynamic Insurance Risk Score (0-100) calculated?</summary><p>The risk score is built from the satellite's relative velocity, collision probability and kinetic energy. Based on NASA's 40 J/g fragmentation threshold, mass multipliers are applied for rocket bodies and high-density debris, and the result is converted into a 0-100 financial policy score.</p></details>
-            <details><summary>4. Can we integrate our own private satellite fleet data into the system?</summary><p>Yes. The Basic/Standard plan offers cataloged general orbit tracking; with the Pro/Enterprise and Institutional/InsurTech plans you can send your own active fleets' private Ephemeris and TLE data to the system through secure API calls.</p></details>
+            <details><summary>2. What does the 50 km Safety Sphere mean?</summary><p>It is a protection volume with a 50 km radius virtually defined around your satellite. The moment our astrodynamics engine predicts that a piece of debris will approach this sphere, the system switches to "Red Alert" and starts an instant avoidance analysis.</p></details>
+            <details><summary>3. How is the Dynamic Insurance Risk Score (0-100) calculated?</summary><p>The risk score is built from the satellite's relative velocity, collision probability and kinetic energy. Based on the NASA fragmentation threshold, mass multipliers are applied for rocket bodies and high-density debris, and the result is converted into a 0-100 financial policy score.</p></details>
+            <details><summary>4. Can we integrate our own private satellite fleet data into the system?</summary><p>Yes. The Basic plan offers cataloged general orbit tracking; with the Pro and Institutional plans you can send your own active fleets' private Ephemeris and TLE data to the system through secure API calls.</p></details>
             <details><summary>5. How does the platform prevent false positives and unnecessary fuel use?</summary><p>Our cache and data cleaning layer (Data Pipeline) filters noisy data and deviations. Because only real hazards that exceed NASA fragmentation standards in mass, velocity and distance are raised as alerts, operators avoid spending maneuver fuel unnecessarily.</p></details>
           </div>
         </div>
@@ -1280,7 +1466,7 @@ def render_intro():
               <div class="sg-h2">We turn complex orbital data into actionable risk</div>
               <p class="sg-p">Space Grave is a B2B decision support platform developed for the NASA Space Apps Challenge. Our goal is to let satellite operators and space insurers see debris-related risk before it happens, avoid unnecessary maneuver costs and minimize their losses.</p>
             </div>
-            <div class="sg-card"><div class="sg-stat sg-huge">&#36;42.3B</div><div class="sg-ct">Hidden financial burden</div><p class="sg-cp">Estimated economic impact of space debris on LEO operators — WEF risk data.</p></div>
+            __TEAM__
           </div>
         </div>
 
@@ -1293,8 +1479,13 @@ def render_intro():
         <div class="sg-foot">NASA Space Apps Challenge · JPL Command Center · SP4C3 GR4V3 &nbsp;|&nbsp; Data: CelesTrak · Last update {CAT['fetched']}</div>
         """
 
+    tr_ = st.session_state.lang == "tr"
+    sections_html = sections_html.replace("__PRICE_GRID__", _pricing_grid_html(tr_))
     _cut = sections_html.index('<div id="about"')
     sections_html, tail_html = sections_html[:_cut], sections_html[_cut:]
+    tail_html = tail_html.replace("__TEAM__", _team_html())
+    _fi = tail_html.index('<div class="sg-sec sg-final">')
+    about_html, final_html = tail_html[:_fi], tail_html[_fi:]
 
     # ISS canlı yayını: tıklanınca yüklenen hafif oynatıcı (açılışta hiçbir YouTube kaynağı indirilmez)
     if st.session_state.lang == "en":
@@ -1326,13 +1517,15 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="#features">{T("Özellikleri keşfet", "Explore features")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="#contact">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
         st.markdown(_flat(live_html), unsafe_allow_html=True)
         _live_player_ui(live_play, live_cap)
-        st.markdown(_flat(tail_html), unsafe_allow_html=True)
+        st.markdown(_flat(about_html), unsafe_allow_html=True)
+        _render_contact()
+        st.markdown(_flat(final_html), unsafe_allow_html=True)
         c1, c2, c3 = st.columns([1, 1.1, 1])
         with c2:
             st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch_2", type="primary", on_click=_enter_app, **stretch(st.button))
@@ -1356,99 +1549,68 @@ if not st.session_state.intro_passed:
 if st.session_state.pop('sg_just_entered', False):
     st.markdown("<style>[data-stale='true']{display:none !important}</style>", unsafe_allow_html=True)
 
-# --- ANA KOMUTA MERKEZİ (Giriş sayfasıyla birebir aynı sade ve şık tasarım dili) ---
+# --- ANA KOMUTA MERKEZİ ---
 MAIN_CSS = r"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-:root { --sg-cyan:#38bdf8; --sg-red:#fc3d21; --sg-green:#10b981; --sg-mute:#94a3b8; --sg-line:rgba(56,189,248,.16); }
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none !important; }
 .stApp {
   font-family:'Inter','Segoe UI',-apple-system,sans-serif;
-  background:radial-gradient(ellipse at 78% -8%, #0c1c3a 0%, #050b1c 45%, #040817 100%) !important;
-  background-attachment:fixed !important;
+  background:
+    radial-gradient(1.2px 1.2px at 8% 14%, rgba(255,255,255,.55), transparent 100%),
+    radial-gradient(1px 1px at 23% 61%, rgba(186,230,253,.5), transparent 100%),
+    radial-gradient(1.4px 1.4px at 37% 27%, rgba(255,255,255,.45), transparent 100%),
+    radial-gradient(1px 1px at 52% 83%, rgba(255,255,255,.5), transparent 100%),
+    radial-gradient(1.2px 1.2px at 66% 9%, rgba(186,230,253,.55), transparent 100%),
+    radial-gradient(1px 1px at 79% 47%, rgba(255,255,255,.45), transparent 100%),
+    radial-gradient(1.3px 1.3px at 91% 72%, rgba(255,255,255,.5), transparent 100%),
+    radial-gradient(1px 1px at 14% 92%, rgba(186,230,253,.45), transparent 100%),
+    radial-gradient(ellipse at 78% -8%, #0f2347 0%, #060d22 42%, #02040d 100%) !important;
+  background-attachment: fixed !important;
 }
-.block-container, [data-testid="stMainBlockContainer"] { max-width:1240px !important; padding:5.2rem clamp(18px,3vw,40px) 48px !important; }
-.stApp h1, .stApp h2, .stApp h3, .stApp h4 { font-family:'Space Grotesk','Inter','Segoe UI',sans-serif !important; letter-spacing:-.015em; color:#fff; }
-.stApp h1 { font-weight:700 !important; font-size:clamp(26px,3vw,38px) !important; }
-.stApp h3 { font-weight:700 !important; font-size:clamp(22px,2.4vw,30px) !important; margin:14px 0 8px !important; }
-.stApp h4 { font-weight:700 !important; font-size:18px !important; color:#fff !important; margin:26px 0 12px !important; }
+.block-container, [data-testid="stMainBlockContainer"] { padding-top:5.6rem !important; }
+.stApp h1, .stApp h2, .stApp h3, .stApp h4 { font-family:'Space Grotesk','Inter','Segoe UI',sans-serif !important; letter-spacing:-.015em; }
+.stApp h1 { color:#fff; font-weight:700 !important; }
+.stApp h1, .stApp h3 { text-shadow:0 0 28px rgba(56,189,248,.18); }
 
-/* Üst gezinme çubuğu (giriş ekranındaki .sg-nav ile birebir aynı) */
+/* Üst gezinme çubuğu (giriş ekranıyla aynı dil) */
 .sg-mnav { position:fixed; top:0; left:0; right:0; height:64px; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:0 clamp(16px,3vw,40px) 0 calc(clamp(16px,3vw,40px) + 168px); background:rgba(4,8,23,.88);
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--sg-line); }
+  padding:0 clamp(16px,3vw,40px) 0 calc(clamp(16px,3vw,40px) + 168px); background:linear-gradient(180deg,rgba(4,8,23,.92),rgba(4,8,23,.62));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid rgba(56,189,248,.16); }
 .sg-mlogo { display:flex; align-items:center; gap:11px; color:#fff; font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; letter-spacing:.16em; font-size:15px; }
-.sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--sg-cyan); position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); display:inline-block; }
-.sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--sg-red); top:-3px; right:1px; }
-.sg-mlive { display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px; border:1px solid var(--sg-line);
+.sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid #38bdf8; position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); display:inline-block; }
+.sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:#fc3d21; top:-3px; right:1px; }
+.sg-mlive { display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px; border:1px solid rgba(56,189,248,.16);
   background:rgba(8,16,38,.65); color:#bae6fd; font-size:11.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
-.sg-dot { width:7px; height:7px; border-radius:50%; background:var(--sg-green); animation:sgPulse 2.2s infinite; }
+.sg-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:sgPulse 2.2s infinite; }
 .sg-dot.warn { background:#f59e0b; animation:none; }
 @keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
 @media (max-width:700px) { .sg-mlogo { display:none; } .sg-mnav { padding-left:calc(clamp(16px,3vw,40px) + 168px); } }
 
-/* Sol üstteki geri butonu (giriş ekranındaki .sg-cta ile aynı hap stil) */
-.st-key-sg_back { position:fixed; top:12px; left:clamp(16px,3vw,40px); z-index:60; width:auto !important; }
-.st-key-sg_back .stButton > button { height:40px; padding:0 18px; border-radius:999px; white-space:nowrap;
+/* Sol üstteki geri butonu */
+.st-key-sg_back { position:fixed; top:11px; left:clamp(16px,3vw,40px); z-index:60; width:auto !important; }
+.st-key-sg_back .stButton > button { height:42px; padding:0 20px; border-radius:999px; white-space:nowrap;
   border:1px solid rgba(56,189,248,.55); background:rgba(56,189,248,.10); box-shadow:none; transition:all .2s ease; }
 .st-key-sg_back .stButton > button p { color:#fff; font-size:13px; font-weight:600; margin:0; }
-.st-key-sg_back .stButton > button:hover { background:rgba(56,189,248,.22); border-color:var(--sg-cyan); transform:translateY(-1px); }
+.st-key-sg_back .stButton > button:hover { background:rgba(56,189,248,.24); border-color:#38bdf8; transform:translateY(-1px); }
 
-/* Sayfa başlığı ve rozetler (giriş sayfasındaki .sg-kicker, .sg-h2 ve .sg-badge ile aynı dil) */
-.ops-banner { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; padding:8px 0 20px; margin-bottom:10px; border-bottom:1px solid var(--sg-line); }
-.ops-eyebrow { color:var(--sg-cyan); font-size:12px; letter-spacing:.22em; font-weight:700; text-transform:uppercase; }
-.ops-title { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; font-size:clamp(28px,3.2vw,42px); letter-spacing:-.02em; color:#fff; margin:8px 0 4px; line-height:1.1; }
-.ops-title span { background:linear-gradient(90deg,#38bdf8,#e0f2fe); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:600; font-size:.72em; }
-.ops-sub { font-size:15px; color:#a9b8cc; line-height:1.6; }
-.ops-leds { display:flex; gap:8px; flex-wrap:wrap; }
-.ops-led { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--sg-line); border-radius:999px;
-  background:rgba(8,16,38,.65); font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:.12em; color:#cbd5e1; text-transform:uppercase; }
-.ops-led::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--c,#10b981); }
-.ops-led.g { --c:#10b981; } .ops-led.c { --c:#38bdf8; } .ops-led.a { --c:#f59e0b; } .ops-led.r { --c:#ef4444; }
+/* Modül butonları */
+[class*="st-key-sg_nav_"] .stButton > button { border-radius:999px; border:1px solid rgba(56,189,248,.28); background:rgba(8,16,38,.70);
+  min-height:46px; transition:all .2s ease; backdrop-filter:blur(10px); }
+[class*="st-key-sg_nav_"] .stButton > button p { color:#cbd5e1; font-weight:600; font-size:14px; }
+[class*="st-key-sg_nav_"] .stButton > button:hover { border-color:#38bdf8; background:rgba(56,189,248,.14); transform:translateY(-2px); }
 
-/* Bilgi şeridi (giriş sayfasındaki .sg-metrics / .sg-src estetiği) */
-.ops-strip { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 18px; align-items:center; }
-.ops-strip span { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border:1px solid var(--sg-line); border-radius:999px; background:rgba(8,14,32,.75); }
-.ops-strip i { font-style:normal; font-size:10.5px; letter-spacing:.12em; color:var(--sg-mute); text-transform:uppercase; font-weight:600; }
-.ops-strip b { font-size:12.5px; font-weight:600; color:#e2e8f0; }
-
-/* Modül sekmeleri (hap butonlar) */
-[class*="st-key-sg_nav_"] .stButton > button { border-radius:999px !important; border:1px solid var(--sg-line) !important;
-  background:linear-gradient(160deg,rgba(14,24,48,.78),rgba(6,11,26,.88)) !important; min-height:48px !important; transition:all .2s ease !important; }
-[class*="st-key-sg_nav_"] .stButton > button p { font-family:'Inter',sans-serif !important; color:#cbd5e1 !important; font-weight:600 !important; font-size:13.5px !important; letter-spacing:.01em !important; }
-[class*="st-key-sg_nav_"] .stButton > button:hover { border-color:rgba(56,189,248,.5) !important; background:rgba(56,189,248,.12) !important; transform:translateY(-1px) !important; }
-
-/* Kartlar, tablolar, grafikler (giriş sayfasındaki .sg-card ile birebir aynı) */
-[data-testid="stMetric"] { background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)) !important; border:1px solid var(--sg-line) !important;
-  border-radius:18px !important; padding:18px 20px !important; }
-[data-testid="stMetricLabel"] p { font-family:'Inter',sans-serif !important; font-size:11px !important; letter-spacing:.12em !important; text-transform:uppercase; color:var(--sg-mute) !important; font-weight:600 !important; }
-[data-testid="stMetricValue"], [data-testid="stMetricValue"] * { font-family:'Space Grotesk','Inter',sans-serif !important; font-weight:700 !important; color:#fff !important; }
-[data-testid="stPlotlyChart"], [data-testid="stDataFrame"] { border:1px solid var(--sg-line) !important; border-radius:18px !important;
-  background:linear-gradient(160deg,rgba(14,24,48,.76),rgba(6,11,26,.88)) !important; overflow:hidden; padding:6px; }
-[data-testid="stAlert"] { border-radius:16px !important; border:1px solid var(--sg-line) !important; background:rgba(8,14,32,.82) !important; }
-.stApp hr { border-color:var(--sg-line) !important; }
-.stApp [data-baseweb="select"] > div { border-radius:12px !important; background:rgba(8,14,32,.85) !important; border-color:var(--sg-line) !important; }
-.stApp iframe { border-radius:18px !important; border:1px solid var(--sg-line) !important; }
-
-/* Canlı takip tablosu (giriş sayfasındaki tarihçe tablosuyla aynı sade kart stili) */
-.ops-tbl-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 20px 10px;
-  border:1px solid var(--sg-line); border-bottom:0; border-radius:18px 18px 0 0; background:rgba(8,14,32,.85);
-  font-family:'Inter',sans-serif; font-size:11px; letter-spacing:.14em; color:var(--sg-mute); text-transform:uppercase; font-weight:600; }
-.ops-tbl-bar b { color:#fff; font-weight:700; }
-.ops-tbl-wrap { max-height:420px; overflow:auto; border:1px solid var(--sg-line); border-radius:0 0 18px 18px;
-  background:rgba(8,14,32,.80); padding:0 12px 10px; scrollbar-width:thin; scrollbar-color:#1e3a5f #040817; }
-.ops-tbl { width:100%; border-collapse:collapse; font-family:'Inter',sans-serif; font-size:13px; color:#cbd5e1; font-variant-numeric:tabular-nums; }
-.ops-tbl th { position:sticky; top:0; z-index:2; background:#081024; color:var(--sg-mute); font-weight:600; font-size:11px;
-  letter-spacing:.1em; text-transform:uppercase; text-align:left; padding:10px 12px; border-bottom:1px solid rgba(56,189,248,.22); white-space:nowrap; }
-.ops-tbl td { padding:8px 12px; border-bottom:1px solid rgba(56,189,248,.08); white-space:nowrap; }
-.ops-tbl tbody tr:hover { background:rgba(56,189,248,.06); }
-.ops-tbl .n, .ops-tbl th.n { text-align:right; }
-.ops-tbl td.nm { color:#fff; font-weight:600; }
-.ops-chip { display:inline-block; padding:3px 10px; border-radius:999px; font-size:10.5px; letter-spacing:.06em; border:1px solid; font-weight:600; }
-.ops-chip.ok { color:#10b981; border-color:rgba(16,185,129,.45); background:rgba(16,185,129,.10); }
-.ops-chip.warn { color:#f59e0b; border-color:rgba(245,158,11,.45); background:rgba(245,158,11,.10); }
-.ops-chip.nom { color:#38bdf8; border-color:rgba(56,189,248,.35); background:rgba(56,189,248,.08); }
-.ops-chip.crit { color:#ef4444; border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.10); }
+/* Kartlar, tablolar, grafikler */
+.nasa-glass-card:hover { transform:translateY(-3px); border-color:rgba(56,189,248,.5); }
+[data-testid="stMetric"] { background:linear-gradient(160deg,rgba(14,24,48,.80),rgba(6,11,26,.90)); border:1px solid rgba(56,189,248,.16);
+  border-radius:16px; padding:14px 18px; }
+[data-testid="stDataFrame"], [data-testid="stPlotlyChart"] { border:1px solid rgba(56,189,248,.14); border-radius:14px; overflow:hidden; }
+[data-testid="stAlert"] { border-radius:14px; }
+.stApp hr { border-color:rgba(56,189,248,.18) !important; }
+.stApp [data-baseweb="select"] > div { border-radius:12px; }
+.stApp .stButton > button[kind="primary"] { border-radius:999px; transition:transform .2s ease, box-shadow .2s ease; }
+.stApp .stButton > button[kind="primary"]:hover { transform:translateY(-2px); }
+.stApp iframe { border-radius:16px; }
 @media (prefers-reduced-motion:reduce) { .sg-dot { animation:none; } }
 </style>
 """
@@ -1460,15 +1622,112 @@ def _back_to_intro():
 
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
-# Tüm plotly grafiklerine giriş sayfasıyla uyumlu sade ve modern stil
+# --- OPS TEMASI: NASA/JPL/ESA komuta merkezi estetiği (MAIN_CSS'in üzerine biner) ---
+OPS_CSS = r"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+:root{--ops-bg:#050B14;--ops-cy:#22d3ee;--ops-cy2:#67e8f9;--ops-amb:#f59e0b;--ops-red:#ef4444;--ops-grn:#34d399;--ops-mute:#8195b0;--ops-line:rgba(34,211,238,.16);--ops-card:rgba(8,16,30,.72);--ops-mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
+
+/* Derin uzay zemini + ince koordinat ızgarası */
+.stApp{
+  background:
+    linear-gradient(rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
+    linear-gradient(90deg,rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
+    radial-gradient(ellipse at 78% -10%,#0a1a33 0%,#050B14 46%,#03070e 100%) !important;
+  background-attachment:fixed !important;
+}
+.block-container,[data-testid="stMainBlockContainer"]{padding-top:7.6rem !important}
+
+/* Üst gezinme çubuğu */
+.sg-mnav{background:linear-gradient(180deg,rgba(5,11,20,.97),rgba(5,11,20,.86)) !important;border-bottom:1px solid var(--ops-line) !important}
+.sg-mlive{border-radius:4px !important;font-family:var(--ops-mono);font-size:10.5px !important;border-color:var(--ops-line) !important;background:rgba(8,16,30,.8) !important}
+
+/* Kayan telemetri şeridi (iframe, sabit) */
+.st-key-sg_ticker{position:fixed !important;top:64px;left:0;right:0;z-index:49;width:100vw !important;margin:0 !important;padding:0 !important}
+.st-key-sg_ticker>div,.st-key-sg_ticker .element-container,.st-key-sg_ticker [data-testid="stElementContainer"],.st-key-sg_ticker [data-testid="stIFrame"],.st-key-sg_ticker iframe{width:100vw !important;height:34px !important;max-width:none !important;margin:0 !important;border:0 !important;border-radius:0 !important}
+
+/* Görev başlığı */
+.ops-banner{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:4px 0 14px;margin-bottom:4px;border-bottom:1px solid var(--ops-line);position:relative}
+.ops-banner::after{content:"";position:absolute;left:0;bottom:-1px;width:140px;height:2px;background:linear-gradient(90deg,var(--ops-cy),transparent)}
+.ops-eyebrow{font-family:var(--ops-mono);font-size:11px;letter-spacing:.22em;color:var(--ops-cy);text-transform:uppercase}
+.ops-title{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:clamp(24px,2.8vw,38px);letter-spacing:.02em;color:#f1f5f9;margin:6px 0 2px;line-height:1.1}
+.ops-title span{color:var(--ops-cy);text-shadow:0 0 22px rgba(34,211,238,.45)}
+.ops-sub{font-size:13px;color:var(--ops-mute);letter-spacing:.04em}
+.ops-leds{display:flex;gap:8px;flex-wrap:wrap}
+.ops-led{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border:1px solid var(--ops-line);border-radius:3px;background:var(--ops-card);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:#cbd5e1;text-transform:uppercase}
+.ops-led::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,#34d399);box-shadow:0 0 8px var(--c,#34d399);animation:opsPulse 2s infinite}
+.ops-led.g{--c:#34d399}.ops-led.c{--c:#22d3ee}.ops-led.a{--c:#f59e0b}.ops-led.r{--c:#ef4444}
+@keyframes opsPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Durum şeridi */
+.ops-strip{display:flex;flex-wrap:wrap;gap:0;margin:10px 0 6px;border:1px solid var(--ops-line);border-radius:4px;background:var(--ops-card);overflow:hidden;font-family:var(--ops-mono)}
+.ops-strip span{display:flex;flex-direction:column;gap:2px;padding:8px 16px;border-right:1px solid var(--ops-line)}
+.ops-strip span:last-child{border-right:0}
+.ops-strip i{font-style:normal;font-size:9.5px;letter-spacing:.2em;color:var(--ops-mute);text-transform:uppercase}
+.ops-strip b{font-size:12.5px;font-weight:500;color:var(--ops-cy2)}
+
+/* Modül sekmeleri */
+[class*="st-key-sg_nav_"] .stButton>button{border-radius:3px !important;border:1px solid var(--ops-line) !important;background:rgba(8,16,30,.78) !important;min-height:42px !important;transform:none !important}
+[class*="st-key-sg_nav_"] .stButton>button p{font-family:var(--ops-mono) !important;font-size:12px !important;letter-spacing:.06em;color:#9fb3cc !important;font-weight:500 !important}
+[class*="st-key-sg_nav_"] .stButton>button:hover{border-color:var(--ops-cy) !important;background:rgba(34,211,238,.08) !important}
+
+/* İstatistik kartları: kompakt, sol hizalı, köşe işaretli */
+.stApp .nasa-glass-card{text-align:left !important;padding:12px 14px 12px 16px !important;border-radius:4px !important;margin-bottom:8px !important;
+  background:linear-gradient(160deg,rgba(10,20,36,.88),rgba(5,11,20,.94)) !important;border:1px solid var(--ops-line) !important;
+  box-shadow:inset 0 0 24px rgba(34,211,238,.04),0 6px 20px rgba(0,0,0,.45) !important;backdrop-filter:blur(10px)}
+.stApp .nasa-glass-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ops-cy);box-shadow:0 0 10px var(--ops-cy)}
+.stApp .nasa-glass-card.fin-card{border-color:rgba(245,158,11,.3) !important}
+.stApp .nasa-glass-card.fin-card::before{background:var(--ops-amb);box-shadow:0 0 10px var(--ops-amb)}
+.stApp .nasa-glass-card:hover{transform:none !important;border-color:rgba(34,211,238,.5) !important}
+.stApp .metric-title{font-family:var(--ops-mono) !important;font-size:9.5px !important;letter-spacing:.2em !important;color:var(--ops-mute) !important;font-weight:500 !important}
+.stApp .metric-value,.stApp .metric-value-fin{font-family:var(--ops-mono) !important;font-size:22px !important;font-weight:700 !important;letter-spacing:-.01em;margin-top:4px !important;font-variant-numeric:tabular-nums}
+.stApp .metric-value{text-shadow:0 0 14px rgba(34,211,238,.45) !important}
+.stApp .metric-value-fin{text-shadow:0 0 14px rgba(245,158,11,.4) !important}
+[data-testid="stMetric"]{border-radius:4px !important;background:var(--ops-card) !important;border-color:var(--ops-line) !important}
+[data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-family:var(--ops-mono) !important}
+
+/* Bölüm başlıkları */
+.stApp h4{font-family:'Space Grotesk','Inter',sans-serif !important;font-size:14px !important;font-weight:600 !important;letter-spacing:.14em !important;text-transform:uppercase;color:#e2e8f0;
+  padding:2px 0 2px 12px;border-left:2px solid var(--ops-cy);margin:20px 0 10px !important}
+.stApp h3{font-family:'Space Grotesk','Inter',sans-serif !important}
+
+/* Grafik / tablo çerçeveleri */
+[data-testid="stPlotlyChart"],[data-testid="stDataFrame"]{border:1px solid var(--ops-line) !important;border-radius:4px !important;background:var(--ops-card);backdrop-filter:blur(8px)}
+.stApp iframe{border-radius:4px}
+[data-testid="stAlert"]{border-radius:4px !important}
+.stApp hr{border-color:var(--ops-line) !important}
+
+/* Operasyon tablosu */
+.ops-tbl-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--ops-line);border-bottom:0;border-radius:4px 4px 0 0;background:rgba(8,16,30,.9);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:var(--ops-mute);text-transform:uppercase}
+.ops-tbl-bar b{color:var(--ops-cy2);font-weight:500}
+.ops-tbl-wrap{max-height:400px;overflow:auto;border:1px solid var(--ops-line);border-radius:0 0 4px 4px;background:rgba(5,11,20,.82);scrollbar-width:thin;scrollbar-color:#17314f #050B14}
+.ops-tbl{width:100%;border-collapse:collapse;font-family:var(--ops-mono);font-size:11.5px;color:#cbd5e1}
+.ops-tbl th{position:sticky;top:0;z-index:2;background:#08111f;color:var(--ops-cy2);font-weight:500;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid rgba(34,211,238,.3);white-space:nowrap}
+.ops-tbl td{padding:5px 10px;border-bottom:1px solid rgba(34,211,238,.07);white-space:nowrap}
+.ops-tbl tbody tr:nth-child(even){background:rgba(34,211,238,.022)}
+.ops-tbl tbody tr:hover{background:rgba(34,211,238,.09)}
+.ops-tbl .n{text-align:right;font-variant-numeric:tabular-nums}
+.ops-tbl th.n{text-align:right}
+.ops-tbl td.nm{font-family:'Inter',sans-serif;font-weight:500;color:#f1f5f9}
+.ops-chip{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:.08em;border:1px solid;font-weight:500}
+.ops-chip.ok{color:#34d399;border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}
+.ops-chip.warn{color:#f59e0b;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08)}
+.ops-chip.nom{color:#22d3ee;border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.06)}
+.ops-chip.crit{color:#ef4444;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)}
+@media (max-width:700px){.ops-strip span{padding:6px 10px}}
+</style>
+"""
+st.markdown(OPS_CSS, unsafe_allow_html=True)
+
+# Tüm plotly grafiklerine (template="plotly_dark") ortak operasyon stili
 try:
     import plotly.io as pio
     pio.templates["plotly_dark"].layout.update(
-        font=dict(family="Inter, Segoe UI, sans-serif", color="#94a3b8", size=12),
-        colorway=["#38bdf8", "#f97316", "#10b981", "#f59e0b", "#a855f7", "#fc3d21"],
-        xaxis=dict(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(148,163,184,.15)"),
-        yaxis=dict(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(148,163,184,.15)"),
-        hoverlabel=dict(bgcolor="#081024", bordercolor="rgba(56,189,248,.45)", font=dict(family="Inter, Segoe UI, sans-serif", color="#f8fafc")),
+        font=dict(family="JetBrains Mono, Consolas, monospace", color="#8195b0", size=11),
+        colorway=["#22d3ee", "#f59e0b", "#ef4444", "#34d399", "#a78bfa", "#67e8f9"],
+        xaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
+        yaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
+        hoverlabel=dict(bgcolor="#0a1424", bordercolor="#22d3ee", font=dict(family="JetBrains Mono, Consolas, monospace", color="#e2e8f0")),
     )
 except Exception:
     pass
@@ -1495,26 +1754,26 @@ REGIONS = [["Point Nemo (SPOUA) · kontrollü okyanus", "Point Nemo (SPOUA) · c
            ["Güney Asya deltası (çok yoğun)", "South Asian delta (very dense)", 24.0, 88.0, 1000]]
 SIM_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-*{box-sizing:border-box}body{margin:0;background:#040817;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
-.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:10px;padding:10px;height:auto}
-.box{position:relative;border:1px solid rgba(56,189,248,.16);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))}canvas{width:100%;height:100%;display:block}
-.hud{position:absolute;top:26px;left:10px;background:rgba(4,8,23,.88);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:10px 14px;line-height:1.6;color:#38bdf8;z-index:3;backdrop-filter:blur(10px)}
-.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:30px;height:30px;margin-left:4px;border-radius:999px}
-.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:12px 14px;border-bottom:1px solid rgba(56,189,248,.16);background:rgba(8,14,32,.85)}
-.ctl label{display:flex;flex-direction:column;gap:3px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
-.zc{border-radius:16px;padding:12px 14px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.5}.zc span{color:#fff;font-weight:600}
-.zc.r{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.4)}.zc.a{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.4)}.zc.g{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.4)}
-select,input[type=range]{width:100%;background:rgba(6,12,30,.85);color:#e2e8f0;border:1px solid rgba(56,189,248,.22);border-radius:10px;padding:4px 6px}
-button{background:linear-gradient(135deg,#fc3d21,#c42a12);color:#fff;border:1px solid rgba(252,61,33,.9);border-radius:999px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
-button.s{background:rgba(8,16,38,.8);border:1px solid rgba(56,189,248,.25)}
-.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:14px}
-.rk{padding:10px;border-radius:12px;font-weight:700;margin-bottom:10px;text-align:center}.red{background:rgba(127,29,29,.65);border:1px solid rgba(239,68,68,.45);color:#fecaca}.amber{background:rgba(120,53,15,.65);border:1px solid rgba(245,158,11,.45);color:#fde68a}.green{background:rgba(6,78,59,.65);border:1px solid rgba(16,185,129,.45);color:#a7f3d0}
-.kv{display:flex;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,.10);padding:6px 0}.kv span{color:#94a3b8}
-.note{margin:8px 0;padding:8px 10px;background:rgba(14,36,58,.75);border-left:3px solid #38bdf8;border-radius:10px}
-table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:5px 4px;border-bottom:1px solid rgba(56,189,248,.08);font-size:11.5px}
-.bar{display:flex;align-items:center;gap:10px;padding:8px 14px}#scrub{flex:1}
+*{box-sizing:border-box}body{margin:0;background:#020617;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
+.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:8px;padding:8px;height:auto}
+.box{position:relative;border:1px solid #0b3a6b;border-radius:12px;overflow:hidden;background:#050b1a}canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;top:26px;left:10px;background:rgba(3,7,18,.88);border:1px solid #003366;border-radius:10px;padding:8px 12px;line-height:1.6;color:#38bdf8;z-index:3}
+.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:28px;height:28px;margin-left:4px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:8px 10px;border-bottom:1px solid #0b3a6b;background:#050b1a}
+.ctl label{display:flex;flex-direction:column;gap:2px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
+.zc{border-radius:10px;padding:8px 10px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.45}.zc span{color:#fff;font-weight:600}
+.zc.r{background:rgba(239,68,68,.12);border-color:#ef4444}.zc.a{background:rgba(245,158,11,.12);border-color:#f59e0b}.zc.g{background:rgba(16,185,129,.12);border-color:#10b981}
+select,input[type=range]{width:100%;background:#0b1329;color:#e2e8f0;border:1px solid #1e3a5f;border-radius:6px;padding:3px}
+button{background:#fc3d21;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:bold;cursor:pointer;font-family:'Inter',sans-serif}
+button.s{background:#0f1b33;border:1px solid #1e3a5f}
+.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:10px}
+.rk{padding:8px;border-radius:8px;font-weight:bold;margin-bottom:8px;text-align:center}.red{background:#7f1d1d;color:#fecaca}.amber{background:#78350f;color:#fde68a}.green{background:#064e3b;color:#a7f3d0}
+.kv{display:flex;justify-content:space-between;border-bottom:1px solid #12315a;padding:4px 0}.kv span{color:#94a3b8}
+.note{margin:6px 0;padding:6px 8px;background:#0e2433;border-left:3px solid #38bdf8;border-radius:6px}
+table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:3px 4px;border-bottom:1px solid #12315a;font-size:11px}
+.bar{display:flex;align-items:center;gap:8px;padding:6px 10px}#scrub{flex:1}
 @media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px 300px 170px auto;height:auto}.side{grid-row:auto;grid-column:1}}
-#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 10px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
+#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 8px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
 <div class="ctl">
 <label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><input id="m" type="range" min="50" max="5000" step="10"></label>
 <label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><input id="ar" type="range" min="0.1" max="30" step="0.1"></label>
@@ -1551,8 +1810,8 @@ const PARTS=[['Propellant tank (Ti)','Yakıt tankı (Ti)',.09,4.2,.55,1],['React
 const STARS=Array.from({length:90},(_,i)=>{const r=rng(i+5);return[r(),r(),.3+.6*r()]});
 let P={},S={},T=0,play=true,tb=0,last=performance.now(),flash=-1,zoom=1;
 function sim(){
- const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat,v0=D.v0||7800;
- const main=integ({h:120e3,v:v0,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
+ const A=P.area,M=P.mass,r=rng(Math.round(M*7+A*131+P.angle*977)),E0=P.mat;
+ const main=integ({h:120e3,v:7800,g:P.angle*DEG,psi:0,t:0},M,A,2.2,.5,E0,2,.05,430*Math.sqrt(E0/.97)*(1+.12*Math.log(M/1200)));
  let frags=[],xb=0,tbr=null;
  if(main.fate==='demise'){tbr=main.end;const e=main.end;
   const st={h:e[1]*1e3,v:e[2]*1e3,g:e[3]*DEG,psi:e[8]*1e3/RE,t:e[0]};tb=e[0];xb=e[8];
@@ -1667,7 +1926,7 @@ init();
 
 
 def _mat_name(m):
-    return _MAT_TR.get(m, m) if st.session_state.get("lang", "tr") == "tr" else m
+    return _MAT_TR.get(m, m) if st.session_state.lang == "tr" else m
 
 
 def _sim_open():
@@ -1683,9 +1942,9 @@ def _sim_close():
 
 def _sim_orbit(name):
     """Hedef uydunun TLE'sinden şu anki irtifa/eğim/alt-nokta ve yer izi yönü (SGP4)."""
-    out = {"alt": 420, "inc": 51.6, "lat": 0.0, "lon": 0.0, "az": math.asin(math.cos(math.radians(51.6))), "v0": 7800}
+    out = {"alt": 420, "inc": 51.6, "lat": 0.0, "lon": 0.0, "az": math.asin(math.cos(math.radians(51.6)))}
     try:
-        for n, a, b in CAT["groups"]["visual"] + CAT["groups"]["active"] + CAT.get("debris", []):
+        for n, a, b in CAT["groups"]["visual"] + CAT["groups"]["active"]:
             if n != name:
                 continue
             s = Satrec.twoline2rv(a, b)
@@ -1694,7 +1953,6 @@ def _sim_orbit(name):
             if e != 0:
                 break
             rn = math.sqrt(sum(c * c for c in r))
-            vn = math.sqrt(sum(c * c for c in v))
             gmst = math.radians((280.46061837 + 360.98564736629 * (jd + fr - 2451545.0)) % 360)
             lat = math.asin(r[2] / rn)
             inc = s.inclo
@@ -1702,8 +1960,7 @@ def _sim_orbit(name):
             if v[2] < 0:
                 az = math.pi - az
             out.update(alt=round(rn - RE), inc=round(math.degrees(inc), 2), lat=math.degrees(lat),
-                       lon=(math.degrees(math.atan2(r[1], r[0]) - gmst) + 540) % 360 - 180, az=az,
-                       v0=max(6800, min(8100, round(vn * 1000))))
+                       lon=(math.degrees(math.atan2(r[1], r[0]) - gmst) + 540) % 360 - 180, az=az)
             break
     except Exception:
         pass
@@ -1718,15 +1975,10 @@ def _sim_risk(name):
         if df is not None:
             res["n"] = int(len(df))
             if not df.empty and name != "Custom object":
-                if "_a" in df.columns and "_b" in df.columns:
-                    m = df[(df["_a"] == name) | (df["_b"] == name)]
-                    is_a = lambda r: r["_a"] == name
-                else:
-                    m = df[(df["Object A"] == name) | (df["Object B"] == name)]
-                    is_a = lambda r: r["Object A"] == name
+                m = df[(df["Object A"] == name) | (df["Object B"] == name)]
                 if not m.empty:
                     row = m.sort_values("Miss Distance (km)").iloc[0]
-                    res["hit"] = {"other": str(row["Object B"] if is_a(row) else row["Object A"]),
+                    res["hit"] = {"other": str(row["Object B"] if row["Object A"] == name else row["Object A"]),
                                   "miss": round(float(row["Miss Distance (km)"]), 2), "risk": str(row.get("Risk", ""))}
         elif meta:
             res["n"] = int(meta.get("count", 0))
@@ -1754,7 +2006,7 @@ if st.session_state.get("sg_sim_mode"):
     st.stop()
 
 
-_feed_word = FEED_LABEL.split(" ")[0]
+_feed_word = FEED_KEY
 st.markdown(_flat(f"""
     <div class="sg-mnav">
       <span class="sg-mlogo"><span class="sg-logo-mark"></span>SPACE GRAVE</span>
@@ -1764,7 +2016,7 @@ st.markdown(_flat(f"""
 with _keyed("sg_back"):
     st.button(T("← Giriş Sayfası", "← Home Page"), key="sg_back_btn", on_click=_back_to_intro)
 
-_fw = FEED_LABEL.split(" ")[0]
+_fw = FEED_KEY
 _feed_chip = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
               "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(_fw, ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
 st.markdown(_flat(f"""
@@ -1802,6 +2054,60 @@ def go_to(page):
     st.session_state.active_page = page
 
 
+def _ops_ticker():
+    n_a, n_d = len(CAT["groups"]["active"]), len(CAT["debris"])
+    cj = st.session_state.conj_meta
+    iss = None
+    try:
+        _m = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")]
+        iss = _m.iloc[0] if not _m.empty else None
+        n_dec = int((df_api["Status"].str.startswith("DECAYING")).sum()) if not df_api.empty else 0
+    except Exception:
+        n_dec = 0
+    it = [(T("KATALOG SENKRON", "CATALOG SYNC"), CAT["fetched"], ""),
+          (T("TAKİPTEKİ NESNE", "OBJECTS TRACKED"), f"{n_a + n_d:,}", ""),
+          (T("AKTİF UYDU", "ACTIVE SATS"), f"{n_a:,}", ""),
+          (T("ENKAZ", "DEBRIS"), f"{n_d:,}", "r")]
+    if iss is not None:
+        it += [("ISS " + T("İRTİFA", "ALT"), f"{iss['Altitude (km)']} km", ""), ("ISS " + T("HIZ", "VEL"), f"{iss['Speed (km/s)']} km/s", ""),
+               ("ISS " + T("EĞİM", "INC"), f"{iss['Inclination (°)']}°", "")]
+    it += [(T("ALÇALAN (<300 km)", "DECAYING (<300 km)"), str(n_dec), "a" if n_dec else ""),
+           (T("YAKIN GEÇİŞ", "CONJUNCTIONS"), f"{cj['count']}" if cj else "—", "a" if cj else ""),
+           (T("SAVUNMA MATRİSİ", "DEFENSE MATRIX"), _defense_txt(), "g" if st.session_state.defense_active else ""),
+           (T("YÖRÜNGE MOTORU", "PROPAGATOR"), T("SGP4 · NORMAL", "SGP4 · NOMINAL"), "g")]
+    items = "".join(f'<span class="it"><i>{html_escape(a)}</i><b class="{c}">{html_escape(str(b))}</b></span><span class="sep">//</span>' for a, b, c in it)
+    onl = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
+           "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(FEED_KEY, ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
+    html = """<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"><style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
+.t{display:flex;align-items:center;height:34px;background:rgba(5,11,20,.95);border-bottom:1px solid rgba(34,211,238,.18);border-top:1px solid rgba(34,211,238,.08);color:#9fb3cc;font-size:11px}
+.lbl{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-right:1px solid rgba(34,211,238,.16);letter-spacing:.14em;font-weight:700;font-size:10.5px;white-space:nowrap}
+.lbl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);animation:p 2s infinite}
+.g{--c:#34d399;color:#34d399}.c{--c:#22d3ee;color:#22d3ee}.a{--c:#f59e0b;color:#f59e0b}.r{--c:#ef4444;color:#ef4444}
+@keyframes p{50%{opacity:.3}}
+.track{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.run{display:inline-flex;align-items:center;white-space:nowrap;animation:m 80s linear infinite;will-change:transform}
+.run:hover{animation-play-state:paused}
+@keyframes m{to{transform:translateX(-50%)}}
+.it{display:inline-flex;gap:8px;align-items:baseline;padding:0 4px}
+.it i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
+.it b{font-weight:500;color:#67e8f9}.it b.r{color:#ef4444}.it b.a{color:#f59e0b}.it b.g{color:#34d399}
+.sep{color:#1f3b57;padding:0 14px}
+.clk{flex:0 0 auto;padding:0 14px;height:100%;display:flex;align-items:center;gap:8px;border-left:1px solid rgba(34,211,238,.16);color:#e2e8f0;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clk i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
+@media(max-width:760px){.lbl.hide{display:none}}
+</style></head><body><div class="t">
+<div class="lbl g">SYSTEM ONLINE</div><div class="lbl hide __OC__">__OT__</div>
+<div class="track"><div class="run">__IT____IT__</div></div>
+<div class="clk"><i>UTC</i><span id="u">--:--:--</span></div></div>
+<script>function t(){var d=new Date();document.getElementById('u').textContent=d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,19);}t();setInterval(t,1000);</script>
+</body></html>""".replace("__OC__", onl[0]).replace("__OT__", html_escape(onl[1])).replace("__IT__", items)
+    with _keyed("sg_ticker"):
+        embed_html(html, height=34)
+
+
+_ops_ticker()
+
 # on_click ile sayfa tek çalıştırmada değişir (st.rerun ile script iki kez çalışıyordu)
 for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
     with col:
@@ -1809,8 +2115,8 @@ for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
 
 _act_i = PAGES.index(st.session_state.active_page) if st.session_state.active_page in PAGES else 0
 st.markdown(f"""<style>
-.st-key-sg_nav_{_act_i} .stButton > button {{ background:linear-gradient(160deg,rgba(56,189,248,.22),rgba(14,24,48,.92)) !important; border-color:#38bdf8 !important; box-shadow:0 8px 24px rgba(56,189,248,.16) !important; }}
-.st-key-sg_nav_{_act_i} .stButton > button p {{ color:#fff !important; font-weight:700 !important; }}
+.st-key-sg_nav_{_act_i} .stButton > button {{ background:rgba(34,211,238,.13) !important; border-color:#22d3ee !important; box-shadow:inset 0 -2px 0 #22d3ee, 0 0 20px rgba(34,211,238,.16) !important; }}
+.st-key-sg_nav_{_act_i} .stButton > button p {{ color:#fff !important; }}
 </style>""", unsafe_allow_html=True)
 
 _lbl_mod, _lbl_feed, _lbl_upd = T("Aktif Modül", "Active Module"), T("Veri", "Feed"), T("Güncelleme", "Updated")
@@ -1860,35 +2166,40 @@ if st.session_state.active_page == PAGES[0]:
         shells = shells.rename(columns={"Inclination (°)": _xl, "Altitude (km)": _yl, "Class": _cl})
         shells[_cl] = shells[_cl].map(_lab)
         fig = go.Figure()
-        _cmap = {_lab["Active"]: "56,189,248", _lab["Debris"]: "249,115,22"}
+        _cmap = {_lab["Active"]: "34,211,238", _lab["Debris"]: "239,68,68"}
         _hv = f"<b>%{{fullData.name}}</b><br>{_xl}: %{{x:.2f}}<br>{_yl}: %{{y:.0f}}<extra></extra>"
         for _nm, _g in shells.groupby(_cl):
             _rgb = _cmap.get(_nm, "148,163,184")
             # parlama (glow): iki yarı saydam halka + parlak çekirdek
-            for _sz, _al in ((14, 0.03), (8, 0.08)):
+            for _sz, _al in ((16, 0.035), (9, 0.09)):
                 fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", hoverinfo="skip", showlegend=False,
                                            marker=dict(size=_sz, color=f"rgba({_rgb},{_al})")))
             fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", name=f"{_nm} · {len(_g):,}", hovertemplate=_hv,
-                                       marker=dict(size=3.4, color=f"rgba({_rgb},0.90)")))
+                                       marker=dict(size=3.4, color=f"rgba({_rgb},0.92)")))
         try:
             _iss = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")].iloc[0]
             fig.add_trace(go.Scatter(x=[_iss["Inclination (°)"]], y=[_iss["Altitude (km)"]], mode="markers+text", text=["ISS"],
-                                     textposition="top right", textfont=dict(color="#10b981", size=11), name="ISS",
-                                     marker=dict(symbol="diamond", size=11, color="#10b981", line=dict(color="#fff", width=1)), hovertemplate=_hv))
+                                     textposition="top right", textfont=dict(color="#f59e0b", size=11), name="ISS",
+                                     marker=dict(symbol="diamond", size=11, color="#f59e0b", line=dict(color="#fff", width=1)), hovertemplate=_hv))
         except Exception:
             pass
-        fig.add_vrect(x0=96.5, x1=99.5, fillcolor="rgba(56,189,248,0.05)", line_width=0,
+        fig.add_vrect(x0=96.5, x1=99.5, fillcolor="rgba(245,158,11,0.06)", line_width=0,
                       annotation_text=T("GÜNEŞ-SENKRON", "SUN-SYNC"), annotation_position="top left",
-                      annotation_font=dict(color="#38bdf8", size=10))
-        fig.add_hline(y=550, line=dict(color="rgba(148,163,184,.28)", width=1, dash="dot"),
-                      annotation_text="550 km", annotation_position="bottom right", annotation_font=dict(color="#94a3b8", size=10))
-        fig.update_layout(template="plotly_dark", height=460, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                          margin=dict(l=12, r=16, t=42, b=12), hovermode="closest",
-                          legend=dict(orientation="h", y=1.08, x=0, bgcolor="rgba(0,0,0,0)", font=dict(size=12, color="#cbd5e1")))
-        _ax = dict(gridcolor="rgba(148,163,184,.12)", zeroline=False, linecolor="rgba(56,189,248,.22)", ticks="outside",
-                   tickcolor="rgba(56,189,248,.22)")
+                      annotation_font=dict(color="#f59e0b", size=10))
+        fig.add_hline(y=550, line=dict(color="rgba(148,163,184,.35)", width=1, dash="dot"),
+                      annotation_text="550 km", annotation_position="bottom right", annotation_font=dict(color="#8195b0", size=10))
+        fig.update_layout(template="plotly_dark", height=470, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(5,11,20,.55)",
+                          margin=dict(l=10, r=14, t=40, b=10), hovermode="closest",
+                          legend=dict(orientation="h", y=1.09, x=0, bgcolor="rgba(0,0,0,0)", font=dict(size=11)))
+        _ax = dict(gridcolor="rgba(34,211,238,.10)", zeroline=False, linecolor="rgba(34,211,238,.35)", ticks="outside",
+                   tickcolor="rgba(34,211,238,.35)", showspikes=True, spikecolor="#22d3ee", spikethickness=1, spikedash="dot", spikemode="across")
         fig.update_xaxes(title=_xl, **_ax)
         fig.update_yaxes(title=_yl, **_ax)
+        try:
+            fig.update_xaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
+            fig.update_yaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
+        except Exception:
+            pass
         st.plotly_chart(fig, **stretch(st.plotly_chart))
     else:
         st.info(T("Şu an gösterilecek yörünge verisi yok (yedek TLE'ler çok eski olabilir).",
@@ -1907,9 +2218,7 @@ if st.session_state.active_page == PAGES[0]:
                 sv = html_escape(str(v))
                 u = str(v).upper()
                 if df.columns[j] in ("Status", "Durum"):
-                    k = ("ok" if ("CREWED" in u or "MÜRETTEBATLI" in u)
-                         else "warn" if any(w in u for w in ("DECAY", "ALÇAL", "DEB", "ENKAZ", "ROCKET", "ROKET"))
-                         else "nom")
+                    k = "ok" if ("CREWED" in u or "MÜRETTEBATLI" in u) else ("warn" if ("DECAY" in u or "ALÇAL" in u) else "nom")
                     tds.append(f'<td><span class="ops-chip {k}">{sv}</span></td>')
                 elif j == 0:
                     tds.append(f'<td class="nm">{sv}</td>')
@@ -1926,7 +2235,7 @@ if st.session_state.active_page == PAGES[0]:
     # Yukarıdaki hiçbir bölüme dokunmaz; yalnızca CAT (CelesTrak) verisini OKUR.
     # Değişken / widget adları kc_ / KC_ / sg_kc_ önekiyle ayrılmıştır.
     # =====================================================================
-    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.16); margin: 36px 0 18px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(252,61,33,0.30); margin: 28px 0 14px 0;'>", unsafe_allow_html=True)
     st.markdown(T("#### 🧨 Kessler Sendromu: Zincirleme Kaza Riski ve Temizlik Önceliği",
                   "#### 🧨 Kessler Syndrome: Cascade Collision Risk & Cleanup Priority"))
     st.caption(T("Canlı CelesTrak verisi (aktif uydular + enkaz bulutları) ile yörünge kabuklarının çarpışma-zincirleme riski hesaplanır; "
@@ -2340,7 +2649,7 @@ elif st.session_state.active_page == PAGES[1]:
                 return parse_tles(f.read()), "cache"
         try:
             r = requests.get("https://celestrak.org/NORAD/elements/gp.php",
-                             params={**params, "FORMAT": "tle"}, timeout=(4, 15), headers=HEADERS)
+                             params={**params, "FORMAT": "tle"}, timeout=(5, 60), headers=HEADERS)
             r.raise_for_status()
             tles = parse_tles(r.text)
             if not tles:
@@ -2352,7 +2661,7 @@ elif st.session_state.active_page == PAGES[1]:
         except Exception:
             if has_cache:
                 with open(path, encoding="utf-8") as f:
-                    return parse_tles(f.read()), "cache"
+                    return parse_tles(f.read()), "stale"
             return [], "fail"
 
     def _load_satcat():
@@ -2361,7 +2670,7 @@ elif st.session_state.active_page == PAGES[1]:
         fresh = os.path.exists(path) and time.time() - os.path.getmtime(path) < 12 * 3600
         if not fresh:
             try:
-                r = requests.get(SATCAT_URL, timeout=(4, 20), headers=HEADERS)
+                r = requests.get(SATCAT_URL, timeout=(5, 90), headers=HEADERS)
                 r.raise_for_status()
                 os.makedirs(CACHE_DIR, exist_ok=True)
                 with open(path, "wb") as f:
@@ -2589,8 +2898,7 @@ input[type=range]{width:240px;accent-color:#38bdf8;cursor:pointer;margin:0}
 @media (max-width:900px){
  #app{flex-direction:column}
  #panel{width:100%;flex:0 0 40%;padding:16px;border-right:0;border-bottom:1px solid var(--line)}
- h1{font-size:28px}.big b{font-size:38px}
- #hud{top:52px;right:10px;width:190px;padding:10px 12px}#hud h4{font-size:9.5px;margin-bottom:4px}#hud p{margin:3px 0;font-size:11px}#hud p span{font-size:11px;max-width:110px}
+ h1{font-size:28px}.big b{font-size:38px}#hud{display:none}
  input[type=range]{width:140px}
 }
 </style>
@@ -2684,17 +2992,8 @@ function refresh(i, t) {
 
 /* ---------- Sahne ---------- */
 const stage = $('stage'), cv = $('cv');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
 const PR = Math.min(window.devicePixelRatio || 1, 2);
-let renderer;
-try {
-  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'high-performance' });
-} catch (_e1) {
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas: cv });
-  } catch (_e2) {
-    renderer = { setPixelRatio(){}, setClearColor(){}, setSize(){}, render(){} };
-  }
-}
 renderer.setPixelRatio(PR); renderer.setClearColor(0x040817, 1);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 400);
@@ -2995,10 +3294,10 @@ elif st.session_state.active_page == PAGES[2]:
             return [lst[i] for i in rng.choice(len(lst), min(n, len(lst)), replace=False)]
 
         if choice.startswith("Active ("):
-            return tuple(pick(act, 1200))
+            return tuple(pick(act, SCREEN_N_SINGLE))
         if choice.startswith("Debris"):
-            return tuple(pick(deb, 1200))
-        return tuple(pick(act, 600) + pick(deb, 600))
+            return tuple(pick(deb, SCREEN_N_SINGLE))
+        return tuple(pick(act, SCREEN_N_ACTIVE) + pick(deb, SCREEN_N_DEBRIS))
 
     @st.cache_data(ttl=1800, show_spinner=False)
     def screen_conjunctions(tles, hours, thr, step_s=30):
@@ -3011,7 +3310,7 @@ elif st.session_state.active_page == PAGES[2]:
         t0 = utc_now()
         n = int(hours * 3600 / step_s)
         best = {}
-        # 1) Kaba tarama: her adımda (ve adım ortasında) KD-Tree + doğrusal kesit üzerinde analitik en yakın mesafe
+        # 1) Kaba tarama: her adımda KD-Tree ile eşik altındaki çiftler
         for c0 in range(0, n, 240):
             times = [t0 + timedelta(seconds=step_s * k) for k in range(c0, min(n, c0 + 240))]
             e, r, v = arr.sgp4(*to_jd_arrays(times))
@@ -3020,22 +3319,14 @@ elif st.session_state.active_page == PAGES[2]:
                 if len(ok) < 2:
                     continue
                 p = r[ok, j, :]
-                pv = v[ok, j, :]
-                pairs = cKDTree(p).query_pairs(thr) | cKDTree(p + (0.5 * step_s) * pv).query_pairs(max(thr, 90.0))
-                for a, b in pairs:
+                for a, b in cKDTree(p).query_pairs(thr):
                     i1, i2 = int(ok[a]), int(ok[b])
-                    dr = p[a] - p[b]
-                    dv = pv[a] - pv[b]
-                    dv2 = float(np.dot(dv, dv))
                     # Aynı yörüngede birlikte uçan nesneleri (ör. kenetli modüller) atla
-                    if dv2 < 0.25:
+                    if np.linalg.norm(v[i1, j] - v[i2, j]) < 0.5:
                         continue
-                    tau = max(0.0, min(float(step_s), -float(np.dot(dr, dv)) / dv2))
-                    d = float(np.linalg.norm(dr + dv * tau))
-                    if d <= thr:
-                        t_est = t + timedelta(seconds=tau)
-                        if (i1, i2) not in best or d < best[(i1, i2)][0]:
-                            best[(i1, i2)] = (d, t_est)
+                    d = float(np.linalg.norm(p[a] - p[b]))
+                    if (i1, i2) not in best or d < best[(i1, i2)][0]:
+                        best[(i1, i2)] = (d, t)
         # 2) İnce tarama: en yakın 40 çift için ±35 s pencerede 0.25 s adımla TCA
         top = sorted(best.items(), key=lambda kv: kv[1][0])[:40]
         offs = np.arange(-35, 35.01, 0.25)
@@ -3064,10 +3355,12 @@ elif st.session_state.active_page == PAGES[2]:
         return df.sort_values("Miss Distance (km)").reset_index(drop=True) if not df.empty else df
 
     c1, c2, c3 = st.columns(3)
-    _CH = ["Active (random 1200)", "Debris fields (random 1200)", "Active × Debris (600 + 600)"]
-    _CH_TR = {_CH[0]: "Aktif (rastgele 1200)", _CH[1]: "Enkaz alanları (rastgele 1200)", _CH[2]: "Aktif × Enkaz (600 + 600)"}
+    _CH = [f"Active (random {SCREEN_N_SINGLE})", f"Debris fields (random {SCREEN_N_SINGLE})",
+           f"Active × Debris ({SCREEN_N_ACTIVE} + {SCREEN_N_DEBRIS})"]
+    _CH_TR = {_CH[0]: f"Aktif (rastgele {SCREEN_N_SINGLE})", _CH[1]: f"Enkaz alanları (rastgele {SCREEN_N_SINGLE})",
+              _CH[2]: f"Aktif × Enkaz ({SCREEN_N_ACTIVE} + {SCREEN_N_DEBRIS})"}
     choice = c1.selectbox(T("Taranacak katalog", "Catalog to screen"), _CH, index=2, key="sg_choice",
-                          format_func=lambda x: _CH_TR.get(x, x) if st.session_state.get("lang", "tr") == "tr" else x)
+                          format_func=lambda x: _CH_TR[x] if st.session_state.lang == "tr" else x)
     hours = c2.slider(T("İleri bakış (saat)", "Look-ahead (hours)"), 1, 24, 12, key="sg_hours")
     thr = c3.slider(T("Kaba tarama eşiği (km)", "Coarse screening threshold (km)"), 20, 120, 60, key="sg_thr")
 
@@ -3098,19 +3391,18 @@ elif st.session_state.active_page == PAGES[2]:
         st.dataframe(_disp(view), hide_index=True, **stretch(st.dataframe))
 
     # --- OrbitRisk (orbitrisk.py) ---
-    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.16); margin: 32px 0 24px;'>", unsafe_allow_html=True)
-    # Giriş sayfasıyla birebir uyumlu kart stili
+    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.25); margin: 25px 0;'>", unsafe_allow_html=True)
+    # Koyu Tema Özel CSS Styling
     st.markdown("""
         <style>
+        div[data-testid="stMetricValue"] { color: #06b6d4 !important; font-family: monospace; }
         .card {
-            background: linear-gradient(160deg, rgba(14, 24, 48, 0.84), rgba(6, 11, 26, 0.92));
-            border: 1px solid rgba(56, 189, 248, 0.16);
-            padding: 20px 22px;
-            border-radius: 18px;
-            margin-bottom: 12px;
-            transition: border-color 0.25s ease;
+            background-color: #111827;
+            border: 1px solid #1f2937;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
         }
-        .card:hover { border-color: rgba(56, 189, 248, 0.45); }
         </style>
     """, unsafe_allow_html=True)
 
@@ -3146,25 +3438,25 @@ elif st.session_state.active_page == PAGES[2]:
         with m1:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("10 YILLIK FİNANSAL RİSK HAVUZU", "10-YR FINANCIAL RISK POOL")}</span>
-                    <h3 style="color:white; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">{T("25,8 – 42,3 Milyar &#36;", "&#36;25.8B – &#36;42.3B")}</h3>
-                    <span style="color:#fc3d21; font-size:12px;">{T("📈 Gizli operatör maliyet maruziyeti", "📈 Hidden operator cost exposure")}</span>
+                    <span style="color:#9ca3af; font-size:11px;">{T("10 YILLIK FİNANSAL RİSK HAVUZU", "10-YR FINANCIAL RISK POOL")}</span>
+                    <h3 style="color:white; margin:5px 0;">{T("25,8 – 42,3 Milyar &#36;", "&#36;25.8B – &#36;42.3B")}</h3>
+                    <span style="color:#ef4444; font-size:11px;">{T("📈 Gizli operatör maliyet maruziyeti", "📈 Hidden operator cost exposure")}</span>
                 </div>
             """, unsafe_allow_html=True)
         with m2:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("OPTİMİZE SENARYO KAYBI", "OPTIMIZED SCENARIO LOSS")}</span>
-                    <h3 style="color:#38bdf8; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">{T("14,2 Milyar &#36;", "&#36;14.2 Billion")}</h3>
-                    <span style="color:#10b981; font-size:12px;">{T("🛡️ Erken uyarı ile 16,5 Milyar &#36; tasarruf", "🛡️ &#36;16.5B saved via early warning")}</span>
+                    <span style="color:#9ca3af; font-size:11px;">{T("OPTİMİZE SENARYO KAYBI", "OPTIMIZED SCENARIO LOSS")}</span>
+                    <h3 style="color:#06b6d4; margin:5px 0;">{T("14,2 Milyar &#36;", "&#36;14.2 Billion")}</h3>
+                    <span style="color:#10b981; font-size:11px;">{T("🛡️ Erken uyarı ile 16,5 Milyar &#36; tasarruf", "🛡️ &#36;16.5B saved via early warning")}</span>
                 </div>
             """, unsafe_allow_html=True)
         with m3:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("GÜVENLİK KÜRESİ EŞİĞİ", "SAFETY SPHERE THRESHOLD")}</span>
-                    <h3 style="color:#f59e0b; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">&lt; 50.0 km</h3>
-                    <span style="color:#f59e0b; font-size:12px;">{T("🔔 Aktif 3D Yakınlaşma Matrisi", "🔔 Active 3D Conjunction Matrix")}</span>
+                    <span style="color:#9ca3af; font-size:11px;">{T("GÜVENLİK KÜRESİ EŞİĞİ", "SAFETY SPHERE THRESHOLD")}</span>
+                    <h3 style="color:#f59e0b; margin:5px 0;">&lt; 50.0 km</h3>
+                    <span style="color:#f59e0b; font-size:11px;">{T("🔔 Aktif 3D Yakınlaşma Matrisi", "🔔 Active 3D Conjunction Matrix")}</span>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -3181,28 +3473,25 @@ elif st.session_state.active_page == PAGES[2]:
         optimized_data = [14.2, 9.1, 3.4, 0.18]
 
         fig = go.Figure(data=[
-            go.Bar(name=T('Temel Maruziyet (Milyar $)', 'Baseline Exposure ($B)'), x=categories, y=baseline_data, marker_color='#fc3d21'),
-            go.Bar(name=T('Optimize SaaS Senaryosu (Milyar $)', 'Optimized SaaS Scenario ($B)'), x=categories, y=optimized_data, marker_color='#38bdf8')
+            go.Bar(name=T('Temel Maruziyet (Milyar $)', 'Baseline Exposure ($B)'), x=categories, y=baseline_data, marker_color='#ef4444'),
+            go.Bar(name=T('Optimize SaaS Senaryosu (Milyar $)', 'Optimized SaaS Scenario ($B)'), x=categories, y=optimized_data, marker_color='#06b6d4')
         ])
         fig.update_layout(
             barmode='group',
-            template='plotly_dark',
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(family='Inter, Segoe UI, sans-serif', color='#94a3b8'),
-            margin=dict(l=20, r=20, t=24, b=20),
+            paper_bgcolor='#111827',
+            plot_bgcolor='#111827',
+            font=dict(color='#9ca3af'),
+            margin=dict(l=20, r=20, t=20, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig, **stretch(st.plotly_chart))
 
         # Canlı Yakınlaşma / Conjunction Tablosu
-        _has_live_conj = df is not None and not df.empty
-        _live_breach = bool(_has_live_conj and (df["Miss Distance (km)"] < 50.0).any())
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
             st.subheader(T("🌐 Aktif Yakınlaşmalar ve Güvenlik Küresi Durumu", "🌐 Active Conjunctions & Safety Sphere Status"))
         with col_t2:
-            if st.session_state.red_alert or _live_breach:
+            if st.session_state.red_alert:
                 st.error(T("KIRMIZI ALARM: Güvenlik Küresi İhlal Edildi (<50 km)!", "RED ALARM: Safety Sphere Breached (<50km)!"))
             else:
                 st.success(T("Tüm Sistemler Normal", "All Systems Nominal"))
@@ -3212,32 +3501,12 @@ elif st.session_state.active_page == PAGES[2]:
             T("Hedef Uydu", "Target Satellite"), T("Enkaz / Nesne Kimliği", "Debris / Object ID"),
             T("En Yakın Geçiş", "Closest Approach"), T("Kinetik Potansiyel", "Kinetic Potential"),
             T("Dinamik Risk Skoru", "Dynamic Risk Score"), T("Durum", "Status"))
-        if _has_live_conj:
-            table_data = []
-            for _, _r in df.head(6).iterrows():
-                _md = float(_r["Miss Distance (km)"])
-                _rv = float(_r["Rel. Velocity (km/s)"])
-                _jg = round(0.25 * (_rv ** 2), 1)
-                _cat = T("Yıkıcı", "Catastrophic") if _jg >= 40.0 else T("Yıkıcı Değil", "Non-Catastrophic")
-                _sc = min(99, max(12, round(100 - _md * 1.15 + (_jg / 4.0))))
-                _st_lbl = (T("KIRMIZI ALARM", "RED ALARM") if _md < 15.0
-                           else T("Uyarı", "Warning") if _md < 50.0
-                           else T("Temiz", "Clear"))
-                table_data.append({
-                    k_sat: str(_r["Object A"]),
-                    k_deb: str(_r["Object B"]),
-                    k_app: f"{_md:.2f} km" + (T(" (KRİTİK)", " (CRITICAL)") if _md < 15.0 else ""),
-                    k_kin: f"{_jg} J/g ({_cat})",
-                    k_score: f"{_sc} / 100",
-                    k_stat: _st_lbl,
-                })
-        else:
-            table_data = [
-                {k_sat: "Sat-Alpha (LEO 650km)", k_deb: "COSMOS 2251 Frg", k_app: T("18,4 km", "18.4 km"),
-                 k_kin: T("34,2 J/g (Yıkıcı Değil)", "34.2 J/g (Non-Catastrophic)"), k_score: "64 / 100", k_stat: T("Uyarı", "Warning")},
-                {k_sat: "IRIDIUM-97 Fleet", k_deb: T("Roket Gövdesi (SL-8 R/B)", "Rocket Body (SL-8 R/B)"), k_app: T("72,1 km", "72.1 km"),
-                 k_kin: T("12,1 J/g", "12.1 J/g"), k_score: "22 / 100", k_stat: T("Temiz", "Clear")}
-            ]
+        table_data = [
+            {k_sat: "Sat-Alpha (LEO 650km)", k_deb: "COSMOS 2251 Frg", k_app: T("18,4 km", "18.4 km"),
+             k_kin: T("34,2 J/g (Yıkıcı Değil)", "34.2 J/g (Non-Catastrophic)"), k_score: "64 / 100", k_stat: T("Uyarı", "Warning")},
+            {k_sat: "IRIDIUM-97 Fleet", k_deb: T("Roket Gövdesi (SL-8 R/B)", "Rocket Body (SL-8 R/B)"), k_app: T("72,1 km", "72.1 km"),
+             k_kin: T("12,1 J/g", "12.1 J/g"), k_score: "22 / 100", k_stat: T("Temiz", "Clear")}
+        ]
 
         # Red Alert tetiklendiyse yeni satır ekle
         if st.session_state.red_alert:
@@ -3292,14 +3561,14 @@ elif st.session_state.active_page == PAGES[2]:
         estimated_cost = (sats * 18500 * rocket_factor * density_factor) / 1000000
 
         st.markdown(f"""
-            <div class="card" style="margin-top: 10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span style="color:#94a3b8; font-size:12.5px; font-weight:500;">{T("Dinamik Risk Skoru:", "Dynamic Risk Score:")}</span>
-                    <span style="color:#f59e0b; font-weight:700; font-family:'Space Grotesk','Inter',sans-serif; font-size:16px;">{base_score} / 100</span>
+            <div style="background-color: #1f2937; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="color:#9ca3af; font-size:12px;">{T("Dinamik Risk Skoru:", "Dynamic Risk Score:")}</span>
+                    <span style="color:#f59e0b; font-weight:bold; font-family:monospace;">{base_score} / 100</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#94a3b8; font-size:12.5px; font-weight:500;">{T("Tah. Yıllık Poliçe Riski:", "Est. Annual Policy Risk:")}</span>
-                    <span style="color:#38bdf8; font-weight:700; font-family:'Space Grotesk','Inter',sans-serif; font-size:20px;">${estimated_cost:.2f}M</span>
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#9ca3af; font-size:12px;">{T("Tah. Yıllık Poliçe Riski:", "Est. Annual Policy Risk:")}</span>
+                    <span style="color:#06b6d4; font-weight:bold; font-family:monospace; font-size:18px;">${estimated_cost:.2f}M</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -3310,18 +3579,18 @@ elif st.session_state.active_page == PAGES[2]:
         st.subheader(T("📦 B2B SaaS Paketleri", "📦 B2B SaaS Tiers"))
 
         st.markdown(f"""
-            <div class="card" style="border-top: 2px solid #3b82f6;">
-                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">BASIC / STANDART</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
-                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Küçük Takımyıldız Operatörleri ve Üniversite Araştırmacıları. Manevra ve yakıt optimize edici.", "Target: Small Constellation Operators & University Researchers. Maneuver & fuel optimizer.")}</p>
+            <div class="card" style="border-left: 3px solid #3b82f6;">
+                <strong style="color:white; font-size:12px;">BASIC / STANDART</strong> — <span style="color:#06b6d4; font-size:11px;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
+                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Küçük Takımyıldız Operatörleri ve Üniversite Araştırmacıları. Manevra ve yakıt optimize edici.", "Target: Small Constellation Operators & University Researchers. Maneuver & fuel optimizer.")}</p>
             </div>
-            <div class="card" style="border-top: 2px solid #06b6d4; background: linear-gradient(160deg, rgba(10,36,58,0.78), rgba(6,11,26,0.94));">
-                <span style="background-color:#06b6d4; color:#04121f; font-size:9.5px; font-weight:800; letter-spacing:0.08em; padding:3px 9px; border-radius:999px; float:right;">{T("POPÜLER", "POPULAR")}</span>
-                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">PRO / ENTERPRISE</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
-                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Ticari Uydu Filo Yöneticileri. Gerçek zamanlı anomali tespiti ve kesinti maliyeti analizi.", "Target: Commercial Satellite Fleet Managers. Real-time anomaly detection & outage cost analysis.")}</p>
+            <div class="card" style="border-left: 3px solid #06b6d4; background-color: #0e2433;">
+                <span style="background-color:#06b6d4; color:#0a0f1d; font-size:9px; font-weight:bold; padding:2px 6px; border-radius:10px; float:right;">{T("POPÜLER", "POPULAR")}</span>
+                <strong style="color:white; font-size:12px;">PRO / ENTERPRISE</strong> — <span style="color:#06b6d4; font-size:11px;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
+                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Ticari Uydu Filo Yöneticileri. Gerçek zamanlı anomali tespiti ve kesinti maliyeti analizi.", "Target: Commercial Satellite Fleet Managers. Real-time anomaly detection & outage cost analysis.")}</p>
             </div>
-            <div class="card" style="border-top: 2px solid #a855f7;">
-                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">INSTITUTIONAL / INSURTECH</strong> — <span style="color:#a855f7; font-size:11.5px; font-weight:600;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
-                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Uzay Savunma Ajansları ve Sigortacılar. Kümülatif risk modelleme ve özel poliçe fiyatlandırma matrisi.", "Target: Space Defense Agencies & Insurers. Cumulative risk modeling & custom policy pricing matrix.")}</p>
+            <div class="card" style="border-left: 3px solid #a855f7;">
+                <strong style="color:white; font-size:12px;">INSTITUTIONAL / INSURTECH</strong> — <span style="color:#a855f7; font-size:11px;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
+                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Uzay Savunma Ajansları ve Sigortacılar. Kümülatif risk modelleme ve özel poliçe fiyatlandırma matrisi.", "Target: Space Defense Agencies & Insurers. Cumulative risk modeling & custom policy pricing matrix.")}</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -3340,29 +3609,7 @@ elif st.session_state.active_page == PAGES[3]:
     st.markdown("---")
 
     sat_names = df_api["Satellite Name"].tolist() if not df_api.empty else []
-    _cdf = st.session_state.get("conj_df")
-    if _cdf is not None and not _cdf.empty and "_a" in _cdf.columns and "_b" in _cdf.columns:
-        for _cn in list(_cdf["_a"]) + list(_cdf["_b"]):
-            if _cn and _cn not in sat_names:
-                sat_names.insert(0, _cn)
-
-    def _on_target_change():
-        _t = str(st.session_state.get("sg_target", "Custom object")).upper()
-        if _t == "CUSTOM OBJECT":
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1200, 4.0, "Aluminum 7075"
-        elif any(k in _t for k in ("ISS", "CSS", "TIANGONG", "TIANHE", "MIR", "SALYUT")):
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000, 30.0, "Titanium Ti-6Al-4V"
-        elif any(k in _t for k in ("HST", "HUBBLE", "ENVISAT", "OAO", "KH-")):
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 4200, 18.0, "Aluminum 7075"
-        elif any(k in _t for k in ("R/B", "CENTAUR", "AGENA", "SL-", "BREEZE", "FREGAT", "CZ-")):
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 2400, 11.5, "Stainless Steel 316"
-        elif "DEB" in _t:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 120, 0.8, "Aluminum 7075"
-        else:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1450, 5.5, "Aluminum 7075"
-
     st.selectbox(T("Hedef Enkaz / Uydu:", "Target Debris / Satellite:"), ["Custom object"] + sat_names, key="sg_target",
-                 on_change=_on_target_change,
                  format_func=lambda x: T("Özel nesne", "Custom object") if x == "Custom object" else x)
     s1, s2, s3 = st.columns(3)
     s1.slider(T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50, 5000, 1200, key="sg_mass")
@@ -3409,8 +3656,8 @@ BOT_QA_TR = {
         "Iridium 33, Fengyun-1C, Cosmos 1408 enkaz grupları. Veri 2 saat önbellekte tutulur. "
         f"Son güncelleme: <b>{c['fetched']}</b>. Bağlantı yoksa ISS, Hubble ve Tiangong yedek verisi kullanılır.")),
     "feed": ("Veri durumu ne demek?", lambda c: (
-        "<b>LIVE 🟢</b> canlı veri, <b>CACHED 🟡</b> önbellek, <b>PARTIAL 🟡</b> bazı gruplar alınamadı, "
-        f"<b>OFFLINE 🟠</b> yedek veri demek. Şu an: <b>{c['feed']}</b>.")),
+        "<b>CANLI 🟢</b> canlı veri, <b>ÖNBELLEK 🟡</b> önbellekteki veri, <b>KISMİ 🟡</b> bazı gruplar alınamadı, "
+        f"<b>ÇEVRİMDIŞI 🟠</b> yedek veri demek. Şu an: <b>{c['feed']}</b>.")),
     "sgp4": ("SGP4 nedir?", lambda c: (
         "<b>SGP4</b>, TLE satırlarından bir nesnenin belirli bir andaki konum ve hızını hesaplayan "
         "standart yörünge modelidir. Radar, çarpışma taraması ve tablo değerleri bununla üretiliyor.")),
@@ -3428,26 +3675,27 @@ BOT_QA_TR = {
         "Aynı yerde kümelenen noktalar aynı yörünge kabuğunu paylaşır. Okunabilirlik için rastgele "
         "örneklem ve 2200 km altı gösterilir.")),
     "table": ("Canlı tabloyu açıkla", lambda c: (
-        "Tablo 'visual' grubundaki parlak nesneleri listeler; irtifa, eğim, periyot ve hız SGP4 ile anlık "
-        "hesaplanır. ISS ve Tiangong <b>MÜRETTEBATLI</b>, üst kademeler <b>ROKET GÖVDESİ 🚀</b>, parçalar <b>ENKAZ ⚠️</b> olarak işaretlenir.")),
+        "Tablo 'visual' grubundaki uyduları listeler; irtifa, eğim, periyot ve hız SGP4 ile anlık "
+        "hesaplanır. ISS, CSS ve Tiangong <b>MÜRETTEBATLI</b> olarak işaretlenir.")),
     "decaying": ("ALÇALIYOR ne demek?", lambda c: (
         "<b>ALÇALIYOR ⚠️</b>, irtifası 300 km'nin altına inen nesneler için kullanılan etikettir. "
         "Bu yükseklikte atmosfer sürtünmesi yörüngeyi hızla düşürür.")),
     # --- 3D Radar ---
     "radar_use": ("Radarı nasıl kullanırım?", lambda c: (
-        "Küreyi sürükleyerek döndür, tekerlekle yakınlaştır. Bir nesnenin üstüne gelince veya tıklayınca yörünge "
-        "çizgisi belirir ve sağ üstteki HUD panelinde isim, NORAD ID, sınıf, irtifa ve hız görünür. Alttaki "
-        "kontrol çubuğu zaman hızını (1×–3000×) değiştirir veya simülasyonu duraklatır.")),
+        "Küreyi sürükleyerek döndür, tekerlekle yakınlaştır. Bir nesnenin üstüne gelince yörünge "
+        "çizgisi belirir ve sağdaki panelde isim, NORAD ID, irtifa ve hız görünür. Sol üstteki "
+        "seçici zaman hızını (60×–900×) değiştirir.")),
     "radar_colors": ("Renkler ne demek?", lambda c: (
-        "<b>Mavi</b> noktalar çalışan uydular, <b>turuncu</b> ölü uydular, <b>sarı</b> roket gövdeleri ve "
-        "<b>pembe/kırmızı</b> olanlar enkaz parçalarıdır. Çarpışma taramasında 25 km altında yaklaşma "
-        "yapan nesneler daha büyük çizilir ve HUD panelinde <b>İŞARETLİ (&lt;25 km)</b> yazar.")),
+        "Açık gri gövdeli küçük uydular aktif uydulardır, <b>yeşil</b> olan ISS, <b>kırmızı</b> parçalar "
+        "enkazdır. Etrafında kırmızı halka olan nesne, çarpışma taramasında 25 km altında yaklaşma "
+        "yapmıştır (panelde İŞARETLİ yazar).")),
     "radar_calc": ("Konumlar nasıl hesaplanıyor?", lambda c: (
-        "Her nesnenin TLE verisinden yörünge elemanları çıkarılır; tarayıcıda J2 basıklık pertürbasyonlu "
-        "Kepler çözücüsü ile tüm katalog gerçek zamanlı ve kesintisiz ilerletilir.")),
-    "radar_limit": ("Filtreler nasıl çalışıyor?", lambda c: (
-        "Sol panelden <b>Çalışan uydular</b>, <b>Ölü uydular</b>, <b>Roket gövdeleri</b> ve <b>Parça (enkaz)</b> "
-        "sınıflarını tek tıkla açıp kapatabilir, ayrıca fırlatma yaşına (son 30 gün, 1 yıl, 5 yıl vb.) göre filtreleyebilirsin.")),
+        "Her nesne için gerçek TLE'den SGP4 ile 100 adımlık (60 sn aralıklı) bir yörünge hesaplanır; "
+        "tarayıcıda akıcı hareket için ara değerler üretilir. Hareket yaklaşık 99 dakikada bir başa sarar.")),
+    "radar_limit": ("Radarda kaç nesne var?", lambda c: (
+        "Radar, CelesTrak'ten alınan katalogdaki nesneleri çizer; toplam sayı sol paneldeki büyük rakamda yazar. "
+        f"Çarpışma taraması ise hız için her seferinde rastgele seçilmiş {SCREEN_N_ACTIVE} aktif uydu + "
+        f"{SCREEN_N_DEBRIS} enkaz parçasını inceler.")),
     # --- Collision ---
     "col_scan": ("Tarama nasıl çalışıyor?", lambda c: (
         "İki aşamalı: önce 30 sn adımlarla KD-Tree ile eşik mesafenin altındaki çiftler bulunur; sonra "
@@ -3480,18 +3728,18 @@ BOT_QA_TR = {
         "kurumları ve sigortacılar).")),
     # --- Re-entry ---
     "re_how": ("Simülasyon nasıl çalışıyor?", lambda c: (
-        "Nesne 120 km'de yörünge hızıyla başlar. Üstel atmosfer, balistik sürükleme ve Sutton-Graves ısı "
-        "akısı modeliyle ana gövde ve parçalanma sonrası oluşan alt parçalar (yakıt tankı, güneş paneli vb.) "
-        "hesaplanır; yer izi haritası ve Kırmızı/Sarı/Yeşil tehlike bölgeleri çizilir.")),
+        "Nesne 120 km'de 7,8 km/s ile başlar. Üstel atmosfer, balistik sürükleme ve Sutton-Graves ısı "
+        "akısı modeliyle irtifa, hız, sıcaklık ve yavaşlama 0,05 sn adımlarla hesaplanır. "
+        "▶ TEKRAR OYNAT animasyonu yeniden oynatır.")),
     "re_demise": ("Parçalanma neye bağlı?", lambda c: (
-        "Biriken ısı (MJ/kg) veya dinamik basınç malzemenin eşiğine ulaşınca nesne parçalanır: alüminyum 0,97, "
+        "Biriken ısı (MJ/kg) malzemenin eşiğine ulaşınca nesne parçalanır (<b>PARÇALANMA</b>): alüminyum 0,97, "
         "çelik 1,0, titanyum 1,15, karbon kompozit 3,0 MJ/kg.")),
     "re_params": ("Hangi ayarlar sonucu değiştirir?", lambda c: (
-        "Dört ana parametre: <b>kütle</b>, <b>kesit alanı</b>, 120 km'deki <b>uçuş yolu açısı</b> ve <b>malzeme</b>. "
-        "Odak modunda ayrıca düşüş bölgesi ve nüfus yoğunluğu değiştirilebilir.")),
+        "Dört şey: <b>kütle</b>, <b>kesit alanı</b>, 120 km'deki <b>uçuş yolu açısı</b> ve <b>malzeme</b>. "
+        "Dik açı daha kısa ve sert, sığ açı daha uzun bir giriş demektir.")),
     "re_phase": ("Animasyon aşamaları?", lambda c: (
-        "<b>ALÇALMA</b> atmosferik giriş, <b>🔥 PLAZMA ISINMASI</b> yüksek ısı akısı bölgesi, "
-        "<b>💥 PARÇALANMA</b> çoklu parçalara ayrılma ve <b>YERE ÇARPMA / TAMAMEN YANDI</b> son durumdur.")),
+        "<b>ALÇALMA</b> alçalma, <b>🔥 PLAZMA ISINMASI</b> ısı akısı zirvenin %10'unu aşınca, "
+        "<b>💥 PARÇALANMA</b> parçalanma anıdır.")),
     "re_carbon": ("Karbon kompozit neden farklı?", lambda c: (
         "Parçalanması için gereken ısı 3,0 MJ/kg ile alüminyumun yaklaşık 3 katıdır; yani daha zor "
         "yanar ve yere ulaşan parça olasılığı artabilir.")),
@@ -3532,26 +3780,27 @@ BOT_QA_EN = {
         "Dots clustering in the same place share the same orbital shell. For readability, a random "
         "sample below 2200 km is shown.")),
     "table": ("Explain the live table", lambda c: (
-        "The table lists bright objects from the 'visual' group; altitude, inclination, period and speed are "
-        "computed live with SGP4. ISS and Tiangong are marked <b>CREWED</b>, upper stages <b>ROCKET BODY 🚀</b>, and fragments <b>DEBRIS ⚠️</b>.")),
+        "The table lists satellites from the 'visual' group; altitude, inclination, period and speed are "
+        "computed live with SGP4. ISS, CSS and Tiangong are marked <b>CREWED</b>.")),
     "decaying": ("What does DECAYING mean?", lambda c: (
         "<b>DECAYING ⚠️</b> is the label for objects whose altitude drops below 300 km. "
         "At that height atmospheric drag lowers the orbit quickly.")),
     # --- 3D Radar ---
     "radar_use": ("How do I use the radar?", lambda c: (
-        "Drag the globe to rotate it and use the wheel to zoom. Hover over or click an object to see its orbit "
-        "line and its name, NORAD ID, class, altitude and velocity in the HUD on the top right. The bottom "
-        "control bar changes the time warp (1×–3000×) or pauses the simulation.")),
+        "Drag the globe to rotate it and use the wheel to zoom. Hover over an object to see its orbit "
+        "line and its name, NORAD ID, altitude and velocity in the HUD on the right. The selector at the "
+        "top left changes the time warp (60×–900×).")),
     "radar_colors": ("What do the colors mean?", lambda c: (
-        "<b>Blue</b> dots are active satellites, <b>orange</b> dead satellites, <b>yellow</b> rocket bodies and "
-        "<b>pink/red</b> debris fragments. Objects that came within 25 km in the collision screening are "
-        "rendered larger and show <b>FLAGGED (&lt;25 km)</b> in the HUD.")),
+        "Small satellites with light grey bodies are active satellites, the <b>green</b> one is the ISS and the "
+        "<b>red</b> pieces are debris. An object with a red ring around it came within 25 km of another "
+        "in the collision screening (the HUD shows FLAGGED).")),
     "radar_calc": ("How are positions computed?", lambda c: (
-        "Orbital elements are extracted from each object's real TLE; the browser propagates the full catalog "
-        "in real time with a J2-perturbed Keplerian solver for smooth, continuous motion.")),
-    "radar_limit": ("How do the filters work?", lambda c: (
-        "Use the left panel to toggle <b>Active satellites</b>, <b>Dead satellites</b>, <b>Rocket bodies</b> and "
-        "<b>Debris fragments</b>, or filter objects by launch age (last 30 days, 1 yr, 5 yrs, etc.).")),
+        "For each object a 100-step orbit (60 s apart) is computed from the real TLE with SGP4; "
+        "the browser interpolates between steps for smooth motion. The motion loops back about every 99 minutes.")),
+    "radar_limit": ("How many objects does the radar show?", lambda c: (
+        "The radar draws the objects in the catalogue pulled from CelesTrak; the total is the big number in the left panel. "
+        f"The collision screening, for speed, examines a random sample of {SCREEN_N_ACTIVE} active satellites + "
+        f"{SCREEN_N_DEBRIS} debris fragments each time.")),
     # --- Collision ---
     "col_scan": ("How does the screening work?", lambda c: (
         "Two stages: first, pairs below the threshold distance are found with a KD-Tree at 30 s steps; then, "
@@ -3584,18 +3833,18 @@ BOT_QA_EN = {
         "agencies and insurers).")),
     # --- Re-entry ---
     "re_how": ("How does the simulation work?", lambda c: (
-        "The object starts at 120 km at orbital speed. Using an exponential atmosphere, ballistic drag and "
-        "Sutton-Graves heating, the main body and post-breakup sub-fragments (propellant tank, solar arrays, etc.) "
-        "are integrated, plotting the ground-track footprint and Red/Amber/Green hazard zones.")),
+        "The object starts at 120 km at 7.8 km/s. Altitude, velocity, temperature and deceleration are computed "
+        "in 0.05 s steps with an exponential atmosphere, ballistic drag and a Sutton-Graves heat flux model. "
+        "The ▶ REPLAY button plays the animation again.")),
     "re_demise": ("What does disintegration depend on?", lambda c: (
-        "When accumulated heat (MJ/kg) or dynamic pressure reaches the material's threshold, the object breaks up: "
-        "aluminum 0.97, steel 1.0, titanium 1.15, carbon composite 3.0 MJ/kg.")),
+        "When accumulated heat (MJ/kg) reaches the material's threshold, the object breaks up (<b>DEMISE</b>): aluminum 0.97, "
+        "steel 1.0, titanium 1.15, carbon composite 3.0 MJ/kg.")),
     "re_params": ("Which settings change the result?", lambda c: (
-        "Four main settings: <b>mass</b>, <b>cross-section area</b>, the <b>flight-path angle</b> at 120 km and the <b>material</b>. "
-        "Inside Focus Mode you can also change the target impact region and population density.")),
+        "Four things: <b>mass</b>, <b>cross-section area</b>, the <b>flight-path angle</b> at 120 km and the <b>material</b>. "
+        "A steep angle means a shorter, harsher entry, a shallow angle a longer one.")),
     "re_phase": ("What are the animation phases?", lambda c: (
-        "<b>DESCENT</b> is atmospheric entry, <b>🔥 PLASMA HEATING</b> is the peak heating regime, "
-        "<b>💥 BREAK-UP</b> is multi-fragment disintegration, and <b>GROUND IMPACT / COMPLETE DEMISE</b> is the final state.")),
+        "<b>DESCENT</b> is the fall, <b>🔥 PLASMA HEATING</b> starts when heat flux exceeds 10% of its peak, "
+        "and <b>💥 DEMISE</b> is the moment of break-up.")),
     "re_carbon": ("Why is carbon composite different?", lambda c: (
         "The heat needed to break it up is 3.0 MJ/kg, about 3 times that of aluminum; so it burns up "
         "less easily and the chance of fragments reaching the ground can increase.")),
@@ -3678,41 +3927,36 @@ else:
 
 st.markdown("""
     <style>
-    .st-key-sg_bot_fab { position: fixed; bottom: 22px; right: 22px; width: 56px; z-index: 999999; }
+    .st-key-sg_bot_fab { position: fixed; bottom: 22px; right: 22px; width: 60px; z-index: 999999; }
     .st-key-sg_bot_fab button {
-        width: 56px; height: 56px; border-radius: 50%; padding: 0; font-size: 24px;
-        background: rgba(6, 12, 30, 0.88);
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
-        transition: all 0.2s ease;
+        width: 60px; height: 60px; border-radius: 50%; padding: 0; font-size: 26px;
+        background: linear-gradient(135deg, #0b4b94 0%, #0a2a5c 100%);
+        border: 1px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.6);
     }
-    .st-key-sg_bot_fab button:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.18); transform: translateY(-2px); }
     .st-key-sg_bot_win {
         position: fixed; bottom: 22px; right: 22px; width: min(340px, 92vw); max-height: 88vh;
-        overflow-y: auto; z-index: 999999; gap: 0.45rem !important; padding: 14px; border-radius: 18px;
-        background: linear-gradient(160deg, rgba(14, 24, 48, 0.96), rgba(6, 11, 26, 0.98));
-        border: 1px solid rgba(56, 189, 248, 0.32);
-        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+        overflow-y: auto; z-index: 999999; gap: 0.45rem !important; padding: 12px; border-radius: 16px;
+        background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(7,11,25,0.99) 100%);
+        border: 1px solid rgba(0,102,204,0.8);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 25px rgba(0,102,204,0.35);
     }
     .st-key-sg_bot_win [data-testid="stHorizontalBlock"] { gap: 0.4rem !important; }
     .st-key-sg_bot_win button {
-        background: rgba(8, 16, 38, 0.78); border: 1px solid rgba(56, 189, 248, 0.18); border-radius: 999px;
-        padding: 4px 10px; min-height: 34px; line-height: 1.2; transition: all 0.2s ease;
+        background: #0f1b33; border: 1px solid #1e3a5f; border-radius: 10px;
+        padding: 4px 8px; min-height: 34px; line-height: 1.2;
     }
-    .st-key-sg_bot_win button p { font-size: 11.5px; color: #cbd5e1; margin: 0; font-weight: 500; }
-    .st-key-sg_bot_win button:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
-    .st-key-sg_bot_win [data-baseweb="select"] > div { background: rgba(8, 14, 32, 0.85); border-color: rgba(56, 189, 248, 0.18); border-radius: 12px; }
+    .st-key-sg_bot_win button p { font-size: 11.5px; color: #cbd5e1; margin: 0; }
+    .st-key-sg_bot_win button:hover { border-color: #38bdf8; }
+    .st-key-sg_bot_win [data-baseweb="select"] > div { background: #0b1329; border-color: #1e3a5f; }
     .st-key-sg_bot_win [data-baseweb="select"] * { color: #e2e8f0 !important; font-size: 12px; }
-    .sg-title { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #38bdf8; font-weight: 700; font-size: 13px; letter-spacing: 0.12em; padding-top: 6px; }
+    .sg-title { color: #38bdf8; font-weight: 800; font-size: 13px; letter-spacing: 1px; padding-top: 6px; }
     .sg-log {
         display: flex; flex-direction: column-reverse; gap: 6px; height: 210px; overflow-y: auto;
-        padding: 8px; background: rgba(4, 8, 23, 0.75); border: 1px solid rgba(56, 189, 248, 0.16); border-radius: 14px;
+        padding: 6px; background: rgba(2,6,23,0.6); border: 1px solid #12315a; border-radius: 10px;
     }
-    .sg-msg { font-size: 12px; line-height: 1.5; padding: 8px 11px; border-radius: 12px; max-width: 90%; color: #e2e8f0; }
-    .sg-bot { align-self: flex-start; background: rgba(14, 36, 58, 0.85); border: 1px solid rgba(56, 189, 248, 0.28); }
-    .sg-user { align-self: flex-end; background: rgba(56, 189, 248, 0.22); border: 1px solid rgba(56, 189, 248, 0.45); color: #fff; }
+    .sg-msg { font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 10px; max-width: 90%; color: #e2e8f0; }
+    .sg-bot { align-self: flex-start; background: #0e2433; border-left: 3px solid #38bdf8; }
+    .sg-user { align-self: flex-end; background: #1e3a8a; }
     </style>
 """, unsafe_allow_html=True)
 
