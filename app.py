@@ -153,31 +153,35 @@ def render_lang_switch(right, bottom):
 st.markdown("""
     <style>
     .stApp {
-        background: radial-gradient(circle at 50% 10%, #0b1329 0%, #040817 50%, #000000 100%);
+        background: #040817;
         color: #f3f4f6;
-        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     [data-testid="stSidebar"] { display: none; }
     .nasa-glass-card {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(7, 11, 25, 0.99) 100%);
-        backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-        border: 1px solid rgba(0, 51, 102, 0.8);
-        padding: 22px; border-radius: 20px;
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(11, 75, 148, 0.15);
-        text-align: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: linear-gradient(160deg, rgba(14, 24, 48, 0.84), rgba(6, 11, 26, 0.92));
+        border: 1px solid rgba(56, 189, 248, 0.16);
+        padding: 20px 22px; border-radius: 18px;
+        text-align: left; transition: border-color 0.25s ease, transform 0.2s ease;
         position: relative; overflow: hidden; margin-bottom: 10px;
     }
+    .nasa-glass-card:hover { border-color: rgba(56, 189, 248, 0.45); transform: translateY(-2px); }
     .fin-card {
-        border: 1px solid rgba(16, 185, 129, 0.5) !important;
-        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(16, 185, 129, 0.1) !important;
+        border: 1px solid rgba(56, 189, 248, 0.22) !important;
     }
-    .metric-title { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
-    .metric-value { color: #38bdf8; font-size: 26px; font-weight: 900; margin-top: 6px; text-shadow: 0 0 20px rgba(56,189,248,0.7); }
-    .metric-value-fin { color: #10b981; font-size: 26px; font-weight: 900; margin-top: 6px; text-shadow: 0 0 20px rgba(16,185,129,0.7); }
+    .metric-title { color: #94a3b8; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; }
+    .metric-value { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #38bdf8; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; }
+    .metric-value-fin { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #10b981; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; }
     .stButton>button[kind="primary"] {
-        background: linear-gradient(135deg, #fc3d21 0%, #990000 100%);
-        color: white; border: 1px solid rgba(252,61,33,0.8); border-radius: 12px; font-weight: 900; padding: 0.85rem 1.8rem;
-        box-shadow: 0 0 30px rgba(252, 61, 33, 0.7);
+        height: 50px;
+        background: linear-gradient(135deg, #fc3d21 0%, #c42a12 100%);
+        color: #fff; border: 1px solid rgba(252, 61, 33, 0.9); border-radius: 999px; font-weight: 700; padding: 0 26px;
+        box-shadow: 0 10px 34px rgba(252, 61, 33, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stButton>button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 44px rgba(252, 61, 33, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.22);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -1352,68 +1356,99 @@ if not st.session_state.intro_passed:
 if st.session_state.pop('sg_just_entered', False):
     st.markdown("<style>[data-stale='true']{display:none !important}</style>", unsafe_allow_html=True)
 
-# --- ANA KOMUTA MERKEZİ ---
+# --- ANA KOMUTA MERKEZİ (Giriş sayfasıyla birebir aynı sade ve şık tasarım dili) ---
 MAIN_CSS = r"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root { --sg-cyan:#38bdf8; --sg-red:#fc3d21; --sg-green:#10b981; --sg-mute:#94a3b8; --sg-line:rgba(56,189,248,.16); }
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none !important; }
 .stApp {
   font-family:'Inter','Segoe UI',-apple-system,sans-serif;
-  background:
-    radial-gradient(1.2px 1.2px at 8% 14%, rgba(255,255,255,.55), transparent 100%),
-    radial-gradient(1px 1px at 23% 61%, rgba(186,230,253,.5), transparent 100%),
-    radial-gradient(1.4px 1.4px at 37% 27%, rgba(255,255,255,.45), transparent 100%),
-    radial-gradient(1px 1px at 52% 83%, rgba(255,255,255,.5), transparent 100%),
-    radial-gradient(1.2px 1.2px at 66% 9%, rgba(186,230,253,.55), transparent 100%),
-    radial-gradient(1px 1px at 79% 47%, rgba(255,255,255,.45), transparent 100%),
-    radial-gradient(1.3px 1.3px at 91% 72%, rgba(255,255,255,.5), transparent 100%),
-    radial-gradient(1px 1px at 14% 92%, rgba(186,230,253,.45), transparent 100%),
-    radial-gradient(ellipse at 78% -8%, #0f2347 0%, #060d22 42%, #02040d 100%) !important;
-  background-attachment: fixed !important;
+  background:radial-gradient(ellipse at 78% -8%, #0c1c3a 0%, #050b1c 45%, #040817 100%) !important;
+  background-attachment:fixed !important;
 }
-.block-container, [data-testid="stMainBlockContainer"] { padding-top:5.6rem !important; }
-.stApp h1, .stApp h2, .stApp h3, .stApp h4 { font-family:'Space Grotesk','Inter','Segoe UI',sans-serif !important; letter-spacing:-.015em; }
-.stApp h1 { color:#fff; font-weight:700 !important; }
-.stApp h1, .stApp h3 { text-shadow:0 0 28px rgba(56,189,248,.18); }
+.block-container, [data-testid="stMainBlockContainer"] { max-width:1240px !important; padding:5.2rem clamp(18px,3vw,40px) 48px !important; }
+.stApp h1, .stApp h2, .stApp h3, .stApp h4 { font-family:'Space Grotesk','Inter','Segoe UI',sans-serif !important; letter-spacing:-.015em; color:#fff; }
+.stApp h1 { font-weight:700 !important; font-size:clamp(26px,3vw,38px) !important; }
+.stApp h3 { font-weight:700 !important; font-size:clamp(22px,2.4vw,30px) !important; margin:14px 0 8px !important; }
+.stApp h4 { font-weight:700 !important; font-size:18px !important; color:#fff !important; margin:26px 0 12px !important; }
 
-/* Üst gezinme çubuğu (giriş ekranıyla aynı dil) */
+/* Üst gezinme çubuğu (giriş ekranındaki .sg-nav ile birebir aynı) */
 .sg-mnav { position:fixed; top:0; left:0; right:0; height:64px; z-index:50; display:flex; align-items:center; justify-content:space-between;
-  padding:0 clamp(16px,3vw,40px) 0 calc(clamp(16px,3vw,40px) + 168px); background:linear-gradient(180deg,rgba(4,8,23,.92),rgba(4,8,23,.62));
-  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid rgba(56,189,248,.16); }
+  padding:0 clamp(16px,3vw,40px) 0 calc(clamp(16px,3vw,40px) + 168px); background:rgba(4,8,23,.88);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--sg-line); }
 .sg-mlogo { display:flex; align-items:center; gap:11px; color:#fff; font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; letter-spacing:.16em; font-size:15px; }
-.sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid #38bdf8; position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); display:inline-block; }
-.sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:#fc3d21; top:-3px; right:1px; }
-.sg-mlive { display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px; border:1px solid rgba(56,189,248,.16);
+.sg-logo-mark { width:22px; height:22px; border-radius:50%; border:1.5px solid var(--sg-cyan); position:relative; box-shadow:0 0 12px rgba(56,189,248,.4); display:inline-block; }
+.sg-logo-mark::after { content:""; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--sg-red); top:-3px; right:1px; }
+.sg-mlive { display:inline-flex; align-items:center; gap:9px; padding:7px 14px; border-radius:999px; border:1px solid var(--sg-line);
   background:rgba(8,16,38,.65); color:#bae6fd; font-size:11.5px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
-.sg-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:sgPulse 2.2s infinite; }
+.sg-dot { width:7px; height:7px; border-radius:50%; background:var(--sg-green); animation:sgPulse 2.2s infinite; }
 .sg-dot.warn { background:#f59e0b; animation:none; }
 @keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
 @media (max-width:700px) { .sg-mlogo { display:none; } .sg-mnav { padding-left:calc(clamp(16px,3vw,40px) + 168px); } }
 
-/* Sol üstteki geri butonu */
-.st-key-sg_back { position:fixed; top:11px; left:clamp(16px,3vw,40px); z-index:60; width:auto !important; }
-.st-key-sg_back .stButton > button { height:42px; padding:0 20px; border-radius:999px; white-space:nowrap;
+/* Sol üstteki geri butonu (giriş ekranındaki .sg-cta ile aynı hap stil) */
+.st-key-sg_back { position:fixed; top:12px; left:clamp(16px,3vw,40px); z-index:60; width:auto !important; }
+.st-key-sg_back .stButton > button { height:40px; padding:0 18px; border-radius:999px; white-space:nowrap;
   border:1px solid rgba(56,189,248,.55); background:rgba(56,189,248,.10); box-shadow:none; transition:all .2s ease; }
 .st-key-sg_back .stButton > button p { color:#fff; font-size:13px; font-weight:600; margin:0; }
-.st-key-sg_back .stButton > button:hover { background:rgba(56,189,248,.24); border-color:#38bdf8; transform:translateY(-1px); }
+.st-key-sg_back .stButton > button:hover { background:rgba(56,189,248,.22); border-color:var(--sg-cyan); transform:translateY(-1px); }
 
-/* Modül butonları */
-[class*="st-key-sg_nav_"] .stButton > button { border-radius:999px; border:1px solid rgba(56,189,248,.28); background:rgba(8,16,38,.70);
-  min-height:46px; transition:all .2s ease; backdrop-filter:blur(10px); }
-[class*="st-key-sg_nav_"] .stButton > button p { color:#cbd5e1; font-weight:600; font-size:14px; }
-[class*="st-key-sg_nav_"] .stButton > button:hover { border-color:#38bdf8; background:rgba(56,189,248,.14); transform:translateY(-2px); }
+/* Sayfa başlığı ve rozetler (giriş sayfasındaki .sg-kicker, .sg-h2 ve .sg-badge ile aynı dil) */
+.ops-banner { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; padding:8px 0 20px; margin-bottom:10px; border-bottom:1px solid var(--sg-line); }
+.ops-eyebrow { color:var(--sg-cyan); font-size:12px; letter-spacing:.22em; font-weight:700; text-transform:uppercase; }
+.ops-title { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; font-size:clamp(28px,3.2vw,42px); letter-spacing:-.02em; color:#fff; margin:8px 0 4px; line-height:1.1; }
+.ops-title span { background:linear-gradient(90deg,#38bdf8,#e0f2fe); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:600; font-size:.72em; }
+.ops-sub { font-size:15px; color:#a9b8cc; line-height:1.6; }
+.ops-leds { display:flex; gap:8px; flex-wrap:wrap; }
+.ops-led { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--sg-line); border-radius:999px;
+  background:rgba(8,16,38,.65); font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:.12em; color:#cbd5e1; text-transform:uppercase; }
+.ops-led::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--c,#10b981); }
+.ops-led.g { --c:#10b981; } .ops-led.c { --c:#38bdf8; } .ops-led.a { --c:#f59e0b; } .ops-led.r { --c:#ef4444; }
 
-/* Kartlar, tablolar, grafikler */
-.nasa-glass-card:hover { transform:translateY(-3px); border-color:rgba(56,189,248,.5); }
-[data-testid="stMetric"] { background:linear-gradient(160deg,rgba(14,24,48,.80),rgba(6,11,26,.90)); border:1px solid rgba(56,189,248,.16);
-  border-radius:16px; padding:14px 18px; }
-[data-testid="stDataFrame"], [data-testid="stPlotlyChart"] { border:1px solid rgba(56,189,248,.14); border-radius:14px; overflow:hidden; }
-[data-testid="stAlert"] { border-radius:14px; }
-.stApp hr { border-color:rgba(56,189,248,.18) !important; }
-.stApp [data-baseweb="select"] > div { border-radius:12px; }
-.stApp .stButton > button[kind="primary"] { border-radius:999px; transition:transform .2s ease, box-shadow .2s ease; }
-.stApp .stButton > button[kind="primary"]:hover { transform:translateY(-2px); }
-.stApp iframe { border-radius:16px; }
+/* Bilgi şeridi (giriş sayfasındaki .sg-metrics / .sg-src estetiği) */
+.ops-strip { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 18px; align-items:center; }
+.ops-strip span { display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border:1px solid var(--sg-line); border-radius:999px; background:rgba(8,14,32,.75); }
+.ops-strip i { font-style:normal; font-size:10.5px; letter-spacing:.12em; color:var(--sg-mute); text-transform:uppercase; font-weight:600; }
+.ops-strip b { font-size:12.5px; font-weight:600; color:#e2e8f0; }
+
+/* Modül sekmeleri (hap butonlar) */
+[class*="st-key-sg_nav_"] .stButton > button { border-radius:999px !important; border:1px solid var(--sg-line) !important;
+  background:linear-gradient(160deg,rgba(14,24,48,.78),rgba(6,11,26,.88)) !important; min-height:48px !important; transition:all .2s ease !important; }
+[class*="st-key-sg_nav_"] .stButton > button p { font-family:'Inter',sans-serif !important; color:#cbd5e1 !important; font-weight:600 !important; font-size:13.5px !important; letter-spacing:.01em !important; }
+[class*="st-key-sg_nav_"] .stButton > button:hover { border-color:rgba(56,189,248,.5) !important; background:rgba(56,189,248,.12) !important; transform:translateY(-1px) !important; }
+
+/* Kartlar, tablolar, grafikler (giriş sayfasındaki .sg-card ile birebir aynı) */
+[data-testid="stMetric"] { background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)) !important; border:1px solid var(--sg-line) !important;
+  border-radius:18px !important; padding:18px 20px !important; }
+[data-testid="stMetricLabel"] p { font-family:'Inter',sans-serif !important; font-size:11px !important; letter-spacing:.12em !important; text-transform:uppercase; color:var(--sg-mute) !important; font-weight:600 !important; }
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] * { font-family:'Space Grotesk','Inter',sans-serif !important; font-weight:700 !important; color:#fff !important; }
+[data-testid="stPlotlyChart"], [data-testid="stDataFrame"] { border:1px solid var(--sg-line) !important; border-radius:18px !important;
+  background:linear-gradient(160deg,rgba(14,24,48,.76),rgba(6,11,26,.88)) !important; overflow:hidden; padding:6px; }
+[data-testid="stAlert"] { border-radius:16px !important; border:1px solid var(--sg-line) !important; background:rgba(8,14,32,.82) !important; }
+.stApp hr { border-color:var(--sg-line) !important; }
+.stApp [data-baseweb="select"] > div { border-radius:12px !important; background:rgba(8,14,32,.85) !important; border-color:var(--sg-line) !important; }
+.stApp iframe { border-radius:18px !important; border:1px solid var(--sg-line) !important; }
+
+/* Canlı takip tablosu (giriş sayfasındaki tarihçe tablosuyla aynı sade kart stili) */
+.ops-tbl-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 20px 10px;
+  border:1px solid var(--sg-line); border-bottom:0; border-radius:18px 18px 0 0; background:rgba(8,14,32,.85);
+  font-family:'Inter',sans-serif; font-size:11px; letter-spacing:.14em; color:var(--sg-mute); text-transform:uppercase; font-weight:600; }
+.ops-tbl-bar b { color:#fff; font-weight:700; }
+.ops-tbl-wrap { max-height:420px; overflow:auto; border:1px solid var(--sg-line); border-radius:0 0 18px 18px;
+  background:rgba(8,14,32,.80); padding:0 12px 10px; scrollbar-width:thin; scrollbar-color:#1e3a5f #040817; }
+.ops-tbl { width:100%; border-collapse:collapse; font-family:'Inter',sans-serif; font-size:13px; color:#cbd5e1; font-variant-numeric:tabular-nums; }
+.ops-tbl th { position:sticky; top:0; z-index:2; background:#081024; color:var(--sg-mute); font-weight:600; font-size:11px;
+  letter-spacing:.1em; text-transform:uppercase; text-align:left; padding:10px 12px; border-bottom:1px solid rgba(56,189,248,.22); white-space:nowrap; }
+.ops-tbl td { padding:8px 12px; border-bottom:1px solid rgba(56,189,248,.08); white-space:nowrap; }
+.ops-tbl tbody tr:hover { background:rgba(56,189,248,.06); }
+.ops-tbl .n, .ops-tbl th.n { text-align:right; }
+.ops-tbl td.nm { color:#fff; font-weight:600; }
+.ops-chip { display:inline-block; padding:3px 10px; border-radius:999px; font-size:10.5px; letter-spacing:.06em; border:1px solid; font-weight:600; }
+.ops-chip.ok { color:#10b981; border-color:rgba(16,185,129,.45); background:rgba(16,185,129,.10); }
+.ops-chip.warn { color:#f59e0b; border-color:rgba(245,158,11,.45); background:rgba(245,158,11,.10); }
+.ops-chip.nom { color:#38bdf8; border-color:rgba(56,189,248,.35); background:rgba(56,189,248,.08); }
+.ops-chip.crit { color:#ef4444; border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.10); }
 @media (prefers-reduced-motion:reduce) { .sg-dot { animation:none; } }
 </style>
 """
@@ -1425,112 +1460,15 @@ def _back_to_intro():
 
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
-# --- OPS TEMASI: NASA/JPL/ESA komuta merkezi estetiği (MAIN_CSS'in üzerine biner) ---
-OPS_CSS = r"""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
-:root{--ops-bg:#050B14;--ops-cy:#22d3ee;--ops-cy2:#67e8f9;--ops-amb:#f59e0b;--ops-red:#ef4444;--ops-grn:#34d399;--ops-mute:#8195b0;--ops-line:rgba(34,211,238,.16);--ops-card:rgba(8,16,30,.72);--ops-mono:'JetBrains Mono',ui-monospace,Consolas,monospace}
-
-/* Derin uzay zemini + ince koordinat ızgarası */
-.stApp{
-  background:
-    linear-gradient(rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
-    linear-gradient(90deg,rgba(34,211,238,.028) 1px,transparent 1px) 0 0/48px 48px,
-    radial-gradient(ellipse at 78% -10%,#0a1a33 0%,#050B14 46%,#03070e 100%) !important;
-  background-attachment:fixed !important;
-}
-.block-container,[data-testid="stMainBlockContainer"]{padding-top:7.6rem !important}
-
-/* Üst gezinme çubuğu */
-.sg-mnav{background:linear-gradient(180deg,rgba(5,11,20,.97),rgba(5,11,20,.86)) !important;border-bottom:1px solid var(--ops-line) !important}
-.sg-mlive{border-radius:4px !important;font-family:var(--ops-mono);font-size:10.5px !important;border-color:var(--ops-line) !important;background:rgba(8,16,30,.8) !important}
-
-/* Kayan telemetri şeridi (iframe, sabit) */
-.st-key-sg_ticker{position:fixed !important;top:64px;left:0;right:0;z-index:49;width:100vw !important;margin:0 !important;padding:0 !important}
-.st-key-sg_ticker>div,.st-key-sg_ticker .element-container,.st-key-sg_ticker [data-testid="stElementContainer"],.st-key-sg_ticker [data-testid="stIFrame"],.st-key-sg_ticker iframe{width:100vw !important;height:34px !important;max-width:none !important;margin:0 !important;border:0 !important;border-radius:0 !important}
-
-/* Görev başlığı */
-.ops-banner{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:4px 0 14px;margin-bottom:4px;border-bottom:1px solid var(--ops-line);position:relative}
-.ops-banner::after{content:"";position:absolute;left:0;bottom:-1px;width:140px;height:2px;background:linear-gradient(90deg,var(--ops-cy),transparent)}
-.ops-eyebrow{font-family:var(--ops-mono);font-size:11px;letter-spacing:.22em;color:var(--ops-cy);text-transform:uppercase}
-.ops-title{font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:clamp(24px,2.8vw,38px);letter-spacing:.02em;color:#f1f5f9;margin:6px 0 2px;line-height:1.1}
-.ops-title span{color:var(--ops-cy);text-shadow:0 0 22px rgba(34,211,238,.45)}
-.ops-sub{font-size:13px;color:var(--ops-mute);letter-spacing:.04em}
-.ops-leds{display:flex;gap:8px;flex-wrap:wrap}
-.ops-led{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border:1px solid var(--ops-line);border-radius:3px;background:var(--ops-card);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:#cbd5e1;text-transform:uppercase}
-.ops-led::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,#34d399);box-shadow:0 0 8px var(--c,#34d399);animation:opsPulse 2s infinite}
-.ops-led.g{--c:#34d399}.ops-led.c{--c:#22d3ee}.ops-led.a{--c:#f59e0b}.ops-led.r{--c:#ef4444}
-@keyframes opsPulse{0%,100%{opacity:1}50%{opacity:.35}}
-
-/* Durum şeridi */
-.ops-strip{display:flex;flex-wrap:wrap;gap:0;margin:10px 0 6px;border:1px solid var(--ops-line);border-radius:4px;background:var(--ops-card);overflow:hidden;font-family:var(--ops-mono)}
-.ops-strip span{display:flex;flex-direction:column;gap:2px;padding:8px 16px;border-right:1px solid var(--ops-line)}
-.ops-strip span:last-child{border-right:0}
-.ops-strip i{font-style:normal;font-size:9.5px;letter-spacing:.2em;color:var(--ops-mute);text-transform:uppercase}
-.ops-strip b{font-size:12.5px;font-weight:500;color:var(--ops-cy2)}
-
-/* Modül sekmeleri */
-[class*="st-key-sg_nav_"] .stButton>button{border-radius:3px !important;border:1px solid var(--ops-line) !important;background:rgba(8,16,30,.78) !important;min-height:42px !important;transform:none !important}
-[class*="st-key-sg_nav_"] .stButton>button p{font-family:var(--ops-mono) !important;font-size:12px !important;letter-spacing:.06em;color:#9fb3cc !important;font-weight:500 !important}
-[class*="st-key-sg_nav_"] .stButton>button:hover{border-color:var(--ops-cy) !important;background:rgba(34,211,238,.08) !important}
-
-/* İstatistik kartları: kompakt, sol hizalı, köşe işaretli */
-.stApp .nasa-glass-card{text-align:left !important;padding:12px 14px 12px 16px !important;border-radius:4px !important;margin-bottom:8px !important;
-  background:linear-gradient(160deg,rgba(10,20,36,.88),rgba(5,11,20,.94)) !important;border:1px solid var(--ops-line) !important;
-  box-shadow:inset 0 0 24px rgba(34,211,238,.04),0 6px 20px rgba(0,0,0,.45) !important;backdrop-filter:blur(10px)}
-.stApp .nasa-glass-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ops-cy);box-shadow:0 0 10px var(--ops-cy)}
-.stApp .nasa-glass-card.fin-card{border-color:rgba(245,158,11,.3) !important}
-.stApp .nasa-glass-card.fin-card::before{background:var(--ops-amb);box-shadow:0 0 10px var(--ops-amb)}
-.stApp .nasa-glass-card:hover{transform:none !important;border-color:rgba(34,211,238,.5) !important}
-.stApp .metric-title{font-family:var(--ops-mono) !important;font-size:9.5px !important;letter-spacing:.2em !important;color:var(--ops-mute) !important;font-weight:500 !important}
-.stApp .metric-value,.stApp .metric-value-fin{font-family:var(--ops-mono) !important;font-size:22px !important;font-weight:700 !important;letter-spacing:-.01em;margin-top:4px !important;font-variant-numeric:tabular-nums}
-.stApp .metric-value{text-shadow:0 0 14px rgba(34,211,238,.45) !important}
-.stApp .metric-value-fin{text-shadow:0 0 14px rgba(245,158,11,.4) !important}
-[data-testid="stMetric"]{border-radius:4px !important;background:var(--ops-card) !important;border-color:var(--ops-line) !important}
-[data-testid="stMetricValue"],[data-testid="stMetricValue"] *{font-family:var(--ops-mono) !important}
-
-/* Bölüm başlıkları */
-.stApp h4{font-family:'Space Grotesk','Inter',sans-serif !important;font-size:14px !important;font-weight:600 !important;letter-spacing:.14em !important;text-transform:uppercase;color:#e2e8f0;
-  padding:2px 0 2px 12px;border-left:2px solid var(--ops-cy);margin:20px 0 10px !important}
-.stApp h3{font-family:'Space Grotesk','Inter',sans-serif !important}
-
-/* Grafik / tablo çerçeveleri */
-[data-testid="stPlotlyChart"],[data-testid="stDataFrame"]{border:1px solid var(--ops-line) !important;border-radius:4px !important;background:var(--ops-card);backdrop-filter:blur(8px)}
-.stApp iframe{border-radius:4px}
-[data-testid="stAlert"]{border-radius:4px !important}
-.stApp hr{border-color:var(--ops-line) !important}
-
-/* Operasyon tablosu */
-.ops-tbl-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--ops-line);border-bottom:0;border-radius:4px 4px 0 0;background:rgba(8,16,30,.9);font-family:var(--ops-mono);font-size:10.5px;letter-spacing:.14em;color:var(--ops-mute);text-transform:uppercase}
-.ops-tbl-bar b{color:var(--ops-cy2);font-weight:500}
-.ops-tbl-wrap{max-height:400px;overflow:auto;border:1px solid var(--ops-line);border-radius:0 0 4px 4px;background:rgba(5,11,20,.82);scrollbar-width:thin;scrollbar-color:#17314f #050B14}
-.ops-tbl{width:100%;border-collapse:collapse;font-family:var(--ops-mono);font-size:11.5px;color:#cbd5e1}
-.ops-tbl th{position:sticky;top:0;z-index:2;background:#08111f;color:var(--ops-cy2);font-weight:500;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid rgba(34,211,238,.3);white-space:nowrap}
-.ops-tbl td{padding:5px 10px;border-bottom:1px solid rgba(34,211,238,.07);white-space:nowrap}
-.ops-tbl tbody tr:nth-child(even){background:rgba(34,211,238,.022)}
-.ops-tbl tbody tr:hover{background:rgba(34,211,238,.09)}
-.ops-tbl .n{text-align:right;font-variant-numeric:tabular-nums}
-.ops-tbl th.n{text-align:right}
-.ops-tbl td.nm{font-family:'Inter',sans-serif;font-weight:500;color:#f1f5f9}
-.ops-chip{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:.08em;border:1px solid;font-weight:500}
-.ops-chip.ok{color:#34d399;border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}
-.ops-chip.warn{color:#f59e0b;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08)}
-.ops-chip.nom{color:#22d3ee;border-color:rgba(34,211,238,.4);background:rgba(34,211,238,.06)}
-.ops-chip.crit{color:#ef4444;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.08)}
-@media (max-width:700px){.ops-strip span{padding:6px 10px}}
-</style>
-"""
-st.markdown(OPS_CSS, unsafe_allow_html=True)
-
-# Tüm plotly grafiklerine (template="plotly_dark") ortak operasyon stili
+# Tüm plotly grafiklerine giriş sayfasıyla uyumlu sade ve modern stil
 try:
     import plotly.io as pio
     pio.templates["plotly_dark"].layout.update(
-        font=dict(family="JetBrains Mono, Consolas, monospace", color="#8195b0", size=11),
-        colorway=["#22d3ee", "#f59e0b", "#ef4444", "#34d399", "#a78bfa", "#67e8f9"],
-        xaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
-        yaxis=dict(gridcolor="rgba(34,211,238,.10)", linecolor="rgba(34,211,238,.35)", zerolinecolor="rgba(34,211,238,.18)"),
-        hoverlabel=dict(bgcolor="#0a1424", bordercolor="#22d3ee", font=dict(family="JetBrains Mono, Consolas, monospace", color="#e2e8f0")),
+        font=dict(family="Inter, Segoe UI, sans-serif", color="#94a3b8", size=12),
+        colorway=["#38bdf8", "#f97316", "#10b981", "#f59e0b", "#a855f7", "#fc3d21"],
+        xaxis=dict(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(148,163,184,.15)"),
+        yaxis=dict(gridcolor="rgba(148,163,184,.12)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(148,163,184,.15)"),
+        hoverlabel=dict(bgcolor="#081024", bordercolor="rgba(56,189,248,.45)", font=dict(family="Inter, Segoe UI, sans-serif", color="#f8fafc")),
     )
 except Exception:
     pass
@@ -1557,26 +1495,26 @@ REGIONS = [["Point Nemo (SPOUA) · kontrollü okyanus", "Point Nemo (SPOUA) · c
            ["Güney Asya deltası (çok yoğun)", "South Asian delta (very dense)", 24.0, 88.0, 1000]]
 SIM_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-*{box-sizing:border-box}body{margin:0;background:#020617;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
-.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:8px;padding:8px;height:auto}
-.box{position:relative;border:1px solid #0b3a6b;border-radius:12px;overflow:hidden;background:#050b1a}canvas{width:100%;height:100%;display:block}
-.hud{position:absolute;top:26px;left:10px;background:rgba(3,7,18,.88);border:1px solid #003366;border-radius:10px;padding:8px 12px;line-height:1.6;color:#38bdf8;z-index:3}
-.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:28px;height:28px;margin-left:4px}
-.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:8px 10px;border-bottom:1px solid #0b3a6b;background:#050b1a}
-.ctl label{display:flex;flex-direction:column;gap:2px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
-.zc{border-radius:10px;padding:8px 10px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.45}.zc span{color:#fff;font-weight:600}
-.zc.r{background:rgba(239,68,68,.12);border-color:#ef4444}.zc.a{background:rgba(245,158,11,.12);border-color:#f59e0b}.zc.g{background:rgba(16,185,129,.12);border-color:#10b981}
-select,input[type=range]{width:100%;background:#0b1329;color:#e2e8f0;border:1px solid #1e3a5f;border-radius:6px;padding:3px}
-button{background:#fc3d21;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:bold;cursor:pointer;font-family:'Inter',sans-serif}
-button.s{background:#0f1b33;border:1px solid #1e3a5f}
-.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:10px}
-.rk{padding:8px;border-radius:8px;font-weight:bold;margin-bottom:8px;text-align:center}.red{background:#7f1d1d;color:#fecaca}.amber{background:#78350f;color:#fde68a}.green{background:#064e3b;color:#a7f3d0}
-.kv{display:flex;justify-content:space-between;border-bottom:1px solid #12315a;padding:4px 0}.kv span{color:#94a3b8}
-.note{margin:6px 0;padding:6px 8px;background:#0e2433;border-left:3px solid #38bdf8;border-radius:6px}
-table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:3px 4px;border-bottom:1px solid #12315a;font-size:11px}
-.bar{display:flex;align-items:center;gap:8px;padding:6px 10px}#scrub{flex:1}
+*{box-sizing:border-box}body{margin:0;background:#040817;color:#e2e8f0;font-family:'Inter','Segoe UI',sans-serif;font-size:12.5px}
+.g{display:grid;grid-template-columns:1.5fr 1fr;grid-template-rows:470px 190px;gap:10px;padding:10px;height:auto}
+.box{position:relative;border:1px solid rgba(56,189,248,.16);border-radius:16px;overflow:hidden;background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))}canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;top:26px;left:10px;background:rgba(4,8,23,.88);border:1px solid rgba(56,189,248,.22);border-radius:14px;padding:10px 14px;line-height:1.6;color:#38bdf8;z-index:3;backdrop-filter:blur(10px)}
+.zb{position:absolute;right:8px;top:8px;z-index:3}.zb button{width:30px;height:30px;margin-left:4px;border-radius:999px}
+.ctl{display:flex;flex-wrap:wrap;gap:10px 16px;padding:12px 14px;border-bottom:1px solid rgba(56,189,248,.16);background:rgba(8,14,32,.85)}
+.ctl label{display:flex;flex-direction:column;gap:3px;color:#94a3b8;min-width:150px}.ctl b{color:#38bdf8;font-family:'Space Grotesk',sans-serif}.hud b,#st,#tt,.rk,.zc b{font-family:'Space Grotesk',sans-serif}
+.zc{border-radius:16px;padding:12px 14px;margin-bottom:8px;border:1px solid}.zc p{margin:4px 0;color:#cbd5e1;line-height:1.5}.zc span{color:#fff;font-weight:600}
+.zc.r{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.4)}.zc.a{background:rgba(245,158,11,.10);border-color:rgba(245,158,11,.4)}.zc.g{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.4)}
+select,input[type=range]{width:100%;background:rgba(6,12,30,.85);color:#e2e8f0;border:1px solid rgba(56,189,248,.22);border-radius:10px;padding:4px 6px}
+button{background:linear-gradient(135deg,#fc3d21,#c42a12);color:#fff;border:1px solid rgba(252,61,33,.9);border-radius:999px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif}
+button.s{background:rgba(8,16,38,.8);border:1px solid rgba(56,189,248,.25)}
+.side{grid-row:1/3;grid-column:2;overflow-y:auto;padding:14px}
+.rk{padding:10px;border-radius:12px;font-weight:700;margin-bottom:10px;text-align:center}.red{background:rgba(127,29,29,.65);border:1px solid rgba(239,68,68,.45);color:#fecaca}.amber{background:rgba(120,53,15,.65);border:1px solid rgba(245,158,11,.45);color:#fde68a}.green{background:rgba(6,78,59,.65);border:1px solid rgba(16,185,129,.45);color:#a7f3d0}
+.kv{display:flex;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,.10);padding:6px 0}.kv span{color:#94a3b8}
+.note{margin:8px 0;padding:8px 10px;background:rgba(14,36,58,.75);border-left:3px solid #38bdf8;border-radius:10px}
+table{width:100%;margin-top:8px;border-collapse:collapse}td{padding:5px 4px;border-bottom:1px solid rgba(56,189,248,.08);font-size:11.5px}
+.bar{display:flex;align-items:center;gap:10px;padding:8px 14px}#scrub{flex:1}
 @media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px 300px 170px auto;height:auto}.side{grid-row:auto;grid-column:1}}
-#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 8px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
+#zones{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 10px 14px}#zones .zc{margin:0;font-size:13px}#zones .zc p{font-size:12.5px}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
 <div class="ctl">
 <label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><input id="m" type="range" min="50" max="5000" step="10"></label>
 <label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><input id="ar" type="range" min="0.1" max="30" step="0.1"></label>
@@ -1864,60 +1802,6 @@ def go_to(page):
     st.session_state.active_page = page
 
 
-def _ops_ticker():
-    n_a, n_d = len(CAT["groups"]["active"]), len(CAT["debris"])
-    cj = st.session_state.conj_meta
-    iss = None
-    try:
-        _m = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")]
-        iss = _m.iloc[0] if not _m.empty else None
-        n_dec = int((df_api["Status"].str.startswith("DECAYING")).sum()) if not df_api.empty else 0
-    except Exception:
-        n_dec = 0
-    it = [(T("KATALOG SENKRON", "CATALOG SYNC"), CAT["fetched"], ""),
-          (T("TAKİPTEKİ NESNE", "OBJECTS TRACKED"), f"{n_a + n_d:,}", ""),
-          (T("AKTİF UYDU", "ACTIVE SATS"), f"{n_a:,}", ""),
-          (T("ENKAZ", "DEBRIS"), f"{n_d:,}", "r")]
-    if iss is not None:
-        it += [("ISS " + T("İRTİFA", "ALT"), f"{iss['Altitude (km)']} km", ""), ("ISS " + T("HIZ", "VEL"), f"{iss['Speed (km/s)']} km/s", ""),
-               ("ISS " + T("EĞİM", "INC"), f"{iss['Inclination (°)']}°", "")]
-    it += [(T("ALÇALAN (<300 km)", "DECAYING (<300 km)"), str(n_dec), "a" if n_dec else ""),
-           (T("YAKIN GEÇİŞ", "CONJUNCTIONS"), f"{cj['count']}" if cj else "—", "a" if cj else ""),
-           (T("SAVUNMA MATRİSİ", "DEFENSE MATRIX"), _defense_txt(), "g" if st.session_state.defense_active else ""),
-           (T("YÖRÜNGE MOTORU", "PROPAGATOR"), "SGP4 NOMINAL", "g")]
-    items = "".join(f'<span class="it"><i>{html_escape(a)}</i><b class="{c}">{html_escape(str(b))}</b></span><span class="sep">//</span>' for a, b, c in it)
-    onl = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
-           "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(FEED_LABEL.split(" ")[0], ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
-    html = """<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"><style>
-html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
-.t{display:flex;align-items:center;height:34px;background:rgba(5,11,20,.95);border-bottom:1px solid rgba(34,211,238,.18);border-top:1px solid rgba(34,211,238,.08);color:#9fb3cc;font-size:11px}
-.lbl{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 14px;height:100%;border-right:1px solid rgba(34,211,238,.16);letter-spacing:.14em;font-weight:700;font-size:10.5px;white-space:nowrap}
-.lbl::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);animation:p 2s infinite}
-.g{--c:#34d399;color:#34d399}.c{--c:#22d3ee;color:#22d3ee}.a{--c:#f59e0b;color:#f59e0b}.r{--c:#ef4444;color:#ef4444}
-@keyframes p{50%{opacity:.3}}
-.track{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
-.run{display:inline-flex;align-items:center;white-space:nowrap;animation:m 80s linear infinite;will-change:transform}
-.run:hover{animation-play-state:paused}
-@keyframes m{to{transform:translateX(-50%)}}
-.it{display:inline-flex;gap:8px;align-items:baseline;padding:0 4px}
-.it i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
-.it b{font-weight:500;color:#67e8f9}.it b.r{color:#ef4444}.it b.a{color:#f59e0b}.it b.g{color:#34d399}
-.sep{color:#1f3b57;padding:0 14px}
-.clk{flex:0 0 auto;padding:0 14px;height:100%;display:flex;align-items:center;gap:8px;border-left:1px solid rgba(34,211,238,.16);color:#e2e8f0;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
-.clk i{font-style:normal;font-size:9.5px;letter-spacing:.16em;color:#6b7f9c}
-@media(max-width:760px){.lbl.hide{display:none}}
-</style></head><body><div class="t">
-<div class="lbl g">SYSTEM ONLINE</div><div class="lbl hide __OC__">__OT__</div>
-<div class="track"><div class="run">__IT____IT__</div></div>
-<div class="clk"><i>UTC</i><span id="u">--:--:--</span></div></div>
-<script>function t(){var d=new Date();document.getElementById('u').textContent=d.toISOString().slice(0,10)+' '+d.toISOString().slice(11,19);}t();setInterval(t,1000);</script>
-</body></html>""".replace("__OC__", onl[0]).replace("__OT__", html_escape(onl[1])).replace("__IT__", items)
-    with _keyed("sg_ticker"):
-        embed_html(html, height=34)
-
-
-_ops_ticker()
-
 # on_click ile sayfa tek çalıştırmada değişir (st.rerun ile script iki kez çalışıyordu)
 for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
     with col:
@@ -1925,8 +1809,8 @@ for _i, (col, page) in enumerate(zip(st.columns(len(PAGES)), PAGES)):
 
 _act_i = PAGES.index(st.session_state.active_page) if st.session_state.active_page in PAGES else 0
 st.markdown(f"""<style>
-.st-key-sg_nav_{_act_i} .stButton > button {{ background:rgba(34,211,238,.13) !important; border-color:#22d3ee !important; box-shadow:inset 0 -2px 0 #22d3ee, 0 0 20px rgba(34,211,238,.16) !important; }}
-.st-key-sg_nav_{_act_i} .stButton > button p {{ color:#fff !important; }}
+.st-key-sg_nav_{_act_i} .stButton > button {{ background:linear-gradient(160deg,rgba(56,189,248,.22),rgba(14,24,48,.92)) !important; border-color:#38bdf8 !important; box-shadow:0 8px 24px rgba(56,189,248,.16) !important; }}
+.st-key-sg_nav_{_act_i} .stButton > button p {{ color:#fff !important; font-weight:700 !important; }}
 </style>""", unsafe_allow_html=True)
 
 _lbl_mod, _lbl_feed, _lbl_upd = T("Aktif Modül", "Active Module"), T("Veri", "Feed"), T("Güncelleme", "Updated")
@@ -1976,40 +1860,35 @@ if st.session_state.active_page == PAGES[0]:
         shells = shells.rename(columns={"Inclination (°)": _xl, "Altitude (km)": _yl, "Class": _cl})
         shells[_cl] = shells[_cl].map(_lab)
         fig = go.Figure()
-        _cmap = {_lab["Active"]: "34,211,238", _lab["Debris"]: "239,68,68"}
+        _cmap = {_lab["Active"]: "56,189,248", _lab["Debris"]: "249,115,22"}
         _hv = f"<b>%{{fullData.name}}</b><br>{_xl}: %{{x:.2f}}<br>{_yl}: %{{y:.0f}}<extra></extra>"
         for _nm, _g in shells.groupby(_cl):
             _rgb = _cmap.get(_nm, "148,163,184")
             # parlama (glow): iki yarı saydam halka + parlak çekirdek
-            for _sz, _al in ((16, 0.035), (9, 0.09)):
+            for _sz, _al in ((14, 0.03), (8, 0.08)):
                 fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", hoverinfo="skip", showlegend=False,
                                            marker=dict(size=_sz, color=f"rgba({_rgb},{_al})")))
             fig.add_trace(go.Scattergl(x=_g[_xl], y=_g[_yl], mode="markers", name=f"{_nm} · {len(_g):,}", hovertemplate=_hv,
-                                       marker=dict(size=3.4, color=f"rgba({_rgb},0.92)")))
+                                       marker=dict(size=3.4, color=f"rgba({_rgb},0.90)")))
         try:
             _iss = df_api[df_api["Satellite Name"].str.upper().str.startswith("ISS")].iloc[0]
             fig.add_trace(go.Scatter(x=[_iss["Inclination (°)"]], y=[_iss["Altitude (km)"]], mode="markers+text", text=["ISS"],
-                                     textposition="top right", textfont=dict(color="#f59e0b", size=11), name="ISS",
-                                     marker=dict(symbol="diamond", size=11, color="#f59e0b", line=dict(color="#fff", width=1)), hovertemplate=_hv))
+                                     textposition="top right", textfont=dict(color="#10b981", size=11), name="ISS",
+                                     marker=dict(symbol="diamond", size=11, color="#10b981", line=dict(color="#fff", width=1)), hovertemplate=_hv))
         except Exception:
             pass
-        fig.add_vrect(x0=96.5, x1=99.5, fillcolor="rgba(245,158,11,0.06)", line_width=0,
+        fig.add_vrect(x0=96.5, x1=99.5, fillcolor="rgba(56,189,248,0.05)", line_width=0,
                       annotation_text=T("GÜNEŞ-SENKRON", "SUN-SYNC"), annotation_position="top left",
-                      annotation_font=dict(color="#f59e0b", size=10))
-        fig.add_hline(y=550, line=dict(color="rgba(148,163,184,.35)", width=1, dash="dot"),
-                      annotation_text="550 km", annotation_position="bottom right", annotation_font=dict(color="#8195b0", size=10))
-        fig.update_layout(template="plotly_dark", height=470, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(5,11,20,.55)",
-                          margin=dict(l=10, r=14, t=40, b=10), hovermode="closest",
-                          legend=dict(orientation="h", y=1.09, x=0, bgcolor="rgba(0,0,0,0)", font=dict(size=11)))
-        _ax = dict(gridcolor="rgba(34,211,238,.10)", zeroline=False, linecolor="rgba(34,211,238,.35)", ticks="outside",
-                   tickcolor="rgba(34,211,238,.35)", showspikes=True, spikecolor="#22d3ee", spikethickness=1, spikedash="dot", spikemode="across")
+                      annotation_font=dict(color="#38bdf8", size=10))
+        fig.add_hline(y=550, line=dict(color="rgba(148,163,184,.28)", width=1, dash="dot"),
+                      annotation_text="550 km", annotation_position="bottom right", annotation_font=dict(color="#94a3b8", size=10))
+        fig.update_layout(template="plotly_dark", height=460, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                          margin=dict(l=12, r=16, t=42, b=12), hovermode="closest",
+                          legend=dict(orientation="h", y=1.08, x=0, bgcolor="rgba(0,0,0,0)", font=dict(size=12, color="#cbd5e1")))
+        _ax = dict(gridcolor="rgba(148,163,184,.12)", zeroline=False, linecolor="rgba(56,189,248,.22)", ticks="outside",
+                   tickcolor="rgba(56,189,248,.22)")
         fig.update_xaxes(title=_xl, **_ax)
         fig.update_yaxes(title=_yl, **_ax)
-        try:
-            fig.update_xaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
-            fig.update_yaxes(minor=dict(showgrid=True, gridcolor="rgba(34,211,238,.04)"))
-        except Exception:
-            pass
         st.plotly_chart(fig, **stretch(st.plotly_chart))
     else:
         st.info(T("Şu an gösterilecek yörünge verisi yok (yedek TLE'ler çok eski olabilir).",
@@ -2047,7 +1926,7 @@ if st.session_state.active_page == PAGES[0]:
     # Yukarıdaki hiçbir bölüme dokunmaz; yalnızca CAT (CelesTrak) verisini OKUR.
     # Değişken / widget adları kc_ / KC_ / sg_kc_ önekiyle ayrılmıştır.
     # =====================================================================
-    st.markdown("<hr style='border: 1px solid rgba(252,61,33,0.30); margin: 28px 0 14px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.16); margin: 36px 0 18px 0;'>", unsafe_allow_html=True)
     st.markdown(T("#### 🧨 Kessler Sendromu: Zincirleme Kaza Riski ve Temizlik Önceliği",
                   "#### 🧨 Kessler Syndrome: Cascade Collision Risk & Cleanup Priority"))
     st.caption(T("Canlı CelesTrak verisi (aktif uydular + enkaz bulutları) ile yörünge kabuklarının çarpışma-zincirleme riski hesaplanır; "
@@ -3219,18 +3098,19 @@ elif st.session_state.active_page == PAGES[2]:
         st.dataframe(_disp(view), hide_index=True, **stretch(st.dataframe))
 
     # --- OrbitRisk (orbitrisk.py) ---
-    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.25); margin: 25px 0;'>", unsafe_allow_html=True)
-    # Koyu Tema Özel CSS Styling
+    st.markdown("<hr style='border: 1px solid rgba(56,189,248,0.16); margin: 32px 0 24px;'>", unsafe_allow_html=True)
+    # Giriş sayfasıyla birebir uyumlu kart stili
     st.markdown("""
         <style>
-        div[data-testid="stMetricValue"] { color: #06b6d4 !important; font-family: monospace; }
         .card {
-            background-color: #111827;
-            border: 1px solid #1f2937;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
+            background: linear-gradient(160deg, rgba(14, 24, 48, 0.84), rgba(6, 11, 26, 0.92));
+            border: 1px solid rgba(56, 189, 248, 0.16);
+            padding: 20px 22px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            transition: border-color 0.25s ease;
         }
+        .card:hover { border-color: rgba(56, 189, 248, 0.45); }
         </style>
     """, unsafe_allow_html=True)
 
@@ -3266,25 +3146,25 @@ elif st.session_state.active_page == PAGES[2]:
         with m1:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#9ca3af; font-size:11px;">{T("10 YILLIK FİNANSAL RİSK HAVUZU", "10-YR FINANCIAL RISK POOL")}</span>
-                    <h3 style="color:white; margin:5px 0;">{T("25,8 – 42,3 Milyar &#36;", "&#36;25.8B – &#36;42.3B")}</h3>
-                    <span style="color:#ef4444; font-size:11px;">{T("📈 Gizli operatör maliyet maruziyeti", "📈 Hidden operator cost exposure")}</span>
+                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("10 YILLIK FİNANSAL RİSK HAVUZU", "10-YR FINANCIAL RISK POOL")}</span>
+                    <h3 style="color:white; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">{T("25,8 – 42,3 Milyar &#36;", "&#36;25.8B – &#36;42.3B")}</h3>
+                    <span style="color:#fc3d21; font-size:12px;">{T("📈 Gizli operatör maliyet maruziyeti", "📈 Hidden operator cost exposure")}</span>
                 </div>
             """, unsafe_allow_html=True)
         with m2:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#9ca3af; font-size:11px;">{T("OPTİMİZE SENARYO KAYBI", "OPTIMIZED SCENARIO LOSS")}</span>
-                    <h3 style="color:#06b6d4; margin:5px 0;">{T("14,2 Milyar &#36;", "&#36;14.2 Billion")}</h3>
-                    <span style="color:#10b981; font-size:11px;">{T("🛡️ Erken uyarı ile 16,5 Milyar &#36; tasarruf", "🛡️ &#36;16.5B saved via early warning")}</span>
+                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("OPTİMİZE SENARYO KAYBI", "OPTIMIZED SCENARIO LOSS")}</span>
+                    <h3 style="color:#38bdf8; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">{T("14,2 Milyar &#36;", "&#36;14.2 Billion")}</h3>
+                    <span style="color:#10b981; font-size:12px;">{T("🛡️ Erken uyarı ile 16,5 Milyar &#36; tasarruf", "🛡️ &#36;16.5B saved via early warning")}</span>
                 </div>
             """, unsafe_allow_html=True)
         with m3:
             st.markdown(f"""
                 <div class="card">
-                    <span style="color:#9ca3af; font-size:11px;">{T("GÜVENLİK KÜRESİ EŞİĞİ", "SAFETY SPHERE THRESHOLD")}</span>
-                    <h3 style="color:#f59e0b; margin:5px 0;">&lt; 50.0 km</h3>
-                    <span style="color:#f59e0b; font-size:11px;">{T("🔔 Aktif 3D Yakınlaşma Matrisi", "🔔 Active 3D Conjunction Matrix")}</span>
+                    <span style="color:#94a3b8; font-size:10.5px; letter-spacing:0.14em; font-weight:600; text-transform:uppercase;">{T("GÜVENLİK KÜRESİ EŞİĞİ", "SAFETY SPHERE THRESHOLD")}</span>
+                    <h3 style="color:#f59e0b; margin:6px 0; font-family:'Space Grotesk','Inter',sans-serif; font-size:24px;">&lt; 50.0 km</h3>
+                    <span style="color:#f59e0b; font-size:12px;">{T("🔔 Aktif 3D Yakınlaşma Matrisi", "🔔 Active 3D Conjunction Matrix")}</span>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -3301,15 +3181,16 @@ elif st.session_state.active_page == PAGES[2]:
         optimized_data = [14.2, 9.1, 3.4, 0.18]
 
         fig = go.Figure(data=[
-            go.Bar(name=T('Temel Maruziyet (Milyar $)', 'Baseline Exposure ($B)'), x=categories, y=baseline_data, marker_color='#ef4444'),
-            go.Bar(name=T('Optimize SaaS Senaryosu (Milyar $)', 'Optimized SaaS Scenario ($B)'), x=categories, y=optimized_data, marker_color='#06b6d4')
+            go.Bar(name=T('Temel Maruziyet (Milyar $)', 'Baseline Exposure ($B)'), x=categories, y=baseline_data, marker_color='#fc3d21'),
+            go.Bar(name=T('Optimize SaaS Senaryosu (Milyar $)', 'Optimized SaaS Scenario ($B)'), x=categories, y=optimized_data, marker_color='#38bdf8')
         ])
         fig.update_layout(
             barmode='group',
-            paper_bgcolor='#111827',
-            plot_bgcolor='#111827',
-            font=dict(color='#9ca3af'),
-            margin=dict(l=20, r=20, t=20, b=20),
+            template='plotly_dark',
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(family='Inter, Segoe UI, sans-serif', color='#94a3b8'),
+            margin=dict(l=20, r=20, t=24, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         st.plotly_chart(fig, **stretch(st.plotly_chart))
@@ -3411,14 +3292,14 @@ elif st.session_state.active_page == PAGES[2]:
         estimated_cost = (sats * 18500 * rocket_factor * density_factor) / 1000000
 
         st.markdown(f"""
-            <div style="background-color: #1f2937; padding: 12px; border-radius: 8px; margin-top: 10px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="color:#9ca3af; font-size:12px;">{T("Dinamik Risk Skoru:", "Dynamic Risk Score:")}</span>
-                    <span style="color:#f59e0b; font-weight:bold; font-family:monospace;">{base_score} / 100</span>
+            <div class="card" style="margin-top: 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="color:#94a3b8; font-size:12.5px; font-weight:500;">{T("Dinamik Risk Skoru:", "Dynamic Risk Score:")}</span>
+                    <span style="color:#f59e0b; font-weight:700; font-family:'Space Grotesk','Inter',sans-serif; font-size:16px;">{base_score} / 100</span>
                 </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="color:#9ca3af; font-size:12px;">{T("Tah. Yıllık Poliçe Riski:", "Est. Annual Policy Risk:")}</span>
-                    <span style="color:#06b6d4; font-weight:bold; font-family:monospace; font-size:18px;">${estimated_cost:.2f}M</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#94a3b8; font-size:12.5px; font-weight:500;">{T("Tah. Yıllık Poliçe Riski:", "Est. Annual Policy Risk:")}</span>
+                    <span style="color:#38bdf8; font-weight:700; font-family:'Space Grotesk','Inter',sans-serif; font-size:20px;">${estimated_cost:.2f}M</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -3429,18 +3310,18 @@ elif st.session_state.active_page == PAGES[2]:
         st.subheader(T("📦 B2B SaaS Paketleri", "📦 B2B SaaS Tiers"))
 
         st.markdown(f"""
-            <div class="card" style="border-left: 3px solid #3b82f6;">
-                <strong style="color:white; font-size:12px;">BASIC / STANDART</strong> — <span style="color:#06b6d4; font-size:11px;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
-                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Küçük Takımyıldız Operatörleri ve Üniversite Araştırmacıları. Manevra ve yakıt optimize edici.", "Target: Small Constellation Operators & University Researchers. Maneuver & fuel optimizer.")}</p>
+            <div class="card" style="border-top: 2px solid #3b82f6;">
+                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">BASIC / STANDART</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
+                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Küçük Takımyıldız Operatörleri ve Üniversite Araştırmacıları. Manevra ve yakıt optimize edici.", "Target: Small Constellation Operators & University Researchers. Maneuver & fuel optimizer.")}</p>
             </div>
-            <div class="card" style="border-left: 3px solid #06b6d4; background-color: #0e2433;">
-                <span style="background-color:#06b6d4; color:#0a0f1d; font-size:9px; font-weight:bold; padding:2px 6px; border-radius:10px; float:right;">{T("POPÜLER", "POPULAR")}</span>
-                <strong style="color:white; font-size:12px;">PRO / ENTERPRISE</strong> — <span style="color:#06b6d4; font-size:11px;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
-                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Ticari Uydu Filo Yöneticileri. Gerçek zamanlı anomali tespiti ve kesinti maliyeti analizi.", "Target: Commercial Satellite Fleet Managers. Real-time anomaly detection & outage cost analysis.")}</p>
+            <div class="card" style="border-top: 2px solid #06b6d4; background: linear-gradient(160deg, rgba(10,36,58,0.78), rgba(6,11,26,0.94));">
+                <span style="background-color:#06b6d4; color:#04121f; font-size:9.5px; font-weight:800; letter-spacing:0.08em; padding:3px 9px; border-radius:999px; float:right;">{T("POPÜLER", "POPULAR")}</span>
+                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">PRO / ENTERPRISE</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
+                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Ticari Uydu Filo Yöneticileri. Gerçek zamanlı anomali tespiti ve kesinti maliyeti analizi.", "Target: Commercial Satellite Fleet Managers. Real-time anomaly detection & outage cost analysis.")}</p>
             </div>
-            <div class="card" style="border-left: 3px solid #a855f7;">
-                <strong style="color:white; font-size:12px;">INSTITUTIONAL / INSURTECH</strong> — <span style="color:#a855f7; font-size:11px;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
-                <p style="color:#9ca3af; font-size:11px; margin-top:4px;">{T("Hedef: Uzay Savunma Ajansları ve Sigortacılar. Kümülatif risk modelleme ve özel poliçe fiyatlandırma matrisi.", "Target: Space Defense Agencies & Insurers. Cumulative risk modeling & custom policy pricing matrix.")}</p>
+            <div class="card" style="border-top: 2px solid #a855f7;">
+                <strong style="color:white; font-family:'Space Grotesk','Inter',sans-serif; font-size:14px;">INSTITUTIONAL / INSURTECH</strong> — <span style="color:#a855f7; font-size:11.5px; font-weight:600;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
+                <p style="color:#94a3b8; font-size:12.5px; line-height:1.6; margin:6px 0 0;">{T("Hedef: Uzay Savunma Ajansları ve Sigortacılar. Kümülatif risk modelleme ve özel poliçe fiyatlandırma matrisi.", "Target: Space Defense Agencies & Insurers. Cumulative risk modeling & custom policy pricing matrix.")}</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -3797,36 +3678,41 @@ else:
 
 st.markdown("""
     <style>
-    .st-key-sg_bot_fab { position: fixed; bottom: 22px; right: 22px; width: 60px; z-index: 999999; }
+    .st-key-sg_bot_fab { position: fixed; bottom: 22px; right: 22px; width: 56px; z-index: 999999; }
     .st-key-sg_bot_fab button {
-        width: 60px; height: 60px; border-radius: 50%; padding: 0; font-size: 26px;
-        background: linear-gradient(135deg, #0b4b94 0%, #0a2a5c 100%);
-        border: 1px solid #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.6);
+        width: 56px; height: 56px; border-radius: 50%; padding: 0; font-size: 24px;
+        background: rgba(6, 12, 30, 0.88);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+        transition: all 0.2s ease;
     }
+    .st-key-sg_bot_fab button:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.18); transform: translateY(-2px); }
     .st-key-sg_bot_win {
         position: fixed; bottom: 22px; right: 22px; width: min(340px, 92vw); max-height: 88vh;
-        overflow-y: auto; z-index: 999999; gap: 0.45rem !important; padding: 12px; border-radius: 16px;
-        background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(7,11,25,0.99) 100%);
-        border: 1px solid rgba(0,102,204,0.8);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 25px rgba(0,102,204,0.35);
+        overflow-y: auto; z-index: 999999; gap: 0.45rem !important; padding: 14px; border-radius: 18px;
+        background: linear-gradient(160deg, rgba(14, 24, 48, 0.96), rgba(6, 11, 26, 0.98));
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
     }
     .st-key-sg_bot_win [data-testid="stHorizontalBlock"] { gap: 0.4rem !important; }
     .st-key-sg_bot_win button {
-        background: #0f1b33; border: 1px solid #1e3a5f; border-radius: 10px;
-        padding: 4px 8px; min-height: 34px; line-height: 1.2;
+        background: rgba(8, 16, 38, 0.78); border: 1px solid rgba(56, 189, 248, 0.18); border-radius: 999px;
+        padding: 4px 10px; min-height: 34px; line-height: 1.2; transition: all 0.2s ease;
     }
-    .st-key-sg_bot_win button p { font-size: 11.5px; color: #cbd5e1; margin: 0; }
-    .st-key-sg_bot_win button:hover { border-color: #38bdf8; }
-    .st-key-sg_bot_win [data-baseweb="select"] > div { background: #0b1329; border-color: #1e3a5f; }
+    .st-key-sg_bot_win button p { font-size: 11.5px; color: #cbd5e1; margin: 0; font-weight: 500; }
+    .st-key-sg_bot_win button:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
+    .st-key-sg_bot_win [data-baseweb="select"] > div { background: rgba(8, 14, 32, 0.85); border-color: rgba(56, 189, 248, 0.18); border-radius: 12px; }
     .st-key-sg_bot_win [data-baseweb="select"] * { color: #e2e8f0 !important; font-size: 12px; }
-    .sg-title { color: #38bdf8; font-weight: 800; font-size: 13px; letter-spacing: 1px; padding-top: 6px; }
+    .sg-title { font-family: 'Space Grotesk', 'Inter', sans-serif; color: #38bdf8; font-weight: 700; font-size: 13px; letter-spacing: 0.12em; padding-top: 6px; }
     .sg-log {
         display: flex; flex-direction: column-reverse; gap: 6px; height: 210px; overflow-y: auto;
-        padding: 6px; background: rgba(2,6,23,0.6); border: 1px solid #12315a; border-radius: 10px;
+        padding: 8px; background: rgba(4, 8, 23, 0.75); border: 1px solid rgba(56, 189, 248, 0.16); border-radius: 14px;
     }
-    .sg-msg { font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 10px; max-width: 90%; color: #e2e8f0; }
-    .sg-bot { align-self: flex-start; background: #0e2433; border-left: 3px solid #38bdf8; }
-    .sg-user { align-self: flex-end; background: #1e3a8a; }
+    .sg-msg { font-size: 12px; line-height: 1.5; padding: 8px 11px; border-radius: 12px; max-width: 90%; color: #e2e8f0; }
+    .sg-bot { align-self: flex-start; background: rgba(14, 36, 58, 0.85); border: 1px solid rgba(56, 189, 248, 0.28); }
+    .sg-user { align-self: flex-end; background: rgba(56, 189, 248, 0.22); border: 1px solid rgba(56, 189, 248, 0.45); color: #fff; }
     </style>
 """, unsafe_allow_html=True)
 
