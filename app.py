@@ -63,9 +63,11 @@ TEAM = [
      "role_tr": "Sistem Analisti & Teknik Ürün Sahibi", "role_en": "Systems Analyst & Technical Product Owner"},
 ]
 
-# Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe)
+# Demo talepleri bu CSV dosyasına eklenir (uygulama klasöründe) ve bastekink@gmail.com adresine bağlanır
 DEMO_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo_requests.csv")
-DEMO_MAILTO = "mailto:bastekink@gmail.com?subject=SP4C3%20GR4V3%20Demo%20Talebi"
+DEMO_EMAIL = "bastekink@gmail.com"
+DEMO_MAILTO = "mailto:bastekink@gmail.com?subject=SP4C3%20GR4V3%20Demo%20Talebi&body=Merhaba%20Space%20Grave%20Ekibi%2C%0A%0AKurumumuz%20i%C3%A7in%20SP4C3%20GR4V3%20canl%C4%B1%20demo%20talebinde%20bulunmak%20istiyoruz.%0A%0AAd%20Soyad%3A%20%0AKurum%3A%20%0A%C4%B0leti%C5%9Fim%3A%20"
+DEMO_GMAIL = "https://mail.google.com/mail/?view=cm&fs=1&to=bastekink@gmail.com&su=SP4C3%20GR4V3%20Demo%20Talebi&body=Merhaba%20Space%20Grave%20Ekibi%2C%0A%0AKurumumuz%20i%C3%A7in%20SP4C3%20GR4V3%20canl%C4%B1%20demo%20talebinde%20bulunmak%20istiyoruz.%0A%0AAd%20Soyad%3A%20%0AKurum%3A%20%0A%C4%B0leti%C5%9Fim%3A%20"
 
 
 # Streamlit sürümleri arası uyumluluk:
@@ -472,12 +474,52 @@ def _live_set(on):
     st.session_state.sg_live_on = on
 
 
+def _live_ticker_html():
+    """Canlı izleme alanının en üstünde akan güncel telemetri şeridi."""
+    try:
+        cat = load_catalog()
+        n_act = len(cat["groups"]["active"])
+        n_deb = len(cat["debris"])
+        fetched = cat.get("fetched", "LIVE")
+    except Exception:
+        n_act, n_deb, fetched = 11300, 2681, "LIVE"
+    n_tot = n_act + n_deb
+    conj_m = st.session_state.get("conj_meta")
+    conj_c = conj_m["count"] if conj_m and "count" in conj_m else 40
+    cdf = st.session_state.get("conj_df")
+    crit_c = int((cdf["Miss Distance (km)"] < 5).sum()) if (cdf is not None and not cdf.empty and "Miss Distance (km)" in cdf.columns) else 2
+    def_st = T("AKTİF 🛡️", "ARMED 🛡️") if st.session_state.get("defense_active") else T("BEKLEMEDE", "STANDBY")
+    items = [
+        f"☄️ {T('TAKİP EDİLEN ENKAZ PARÇASI', 'TRACKED DEBRIS FRAGMENTS')}: <b>{_fmt_int(n_deb)}</b>",
+        f"🛰️ {T('AKTİF UYDU SAYISI', 'ACTIVE SATELLITES')}: <b>{_fmt_int(n_act)}</b>",
+        f"📊 {T('TOPLAM KATALOG NESNESİ', 'TOTAL CATALOG OBJECTS')}: <b>{_fmt_int(n_tot)}</b>",
+        f"⚠️ {T('YAKIN GEÇİŞLER (&lt;60 KM)', 'CLOSE APPROACHES (&lt;60 KM)')}: <b class='w'>{conj_c}</b>",
+        f"🚨 {T('KRİTİK TEHDİT (&lt;5 KM)', 'CRITICAL THREATS (&lt;5 KM)')}: <b class='r'>{crit_c}</b>",
+        f"🌍 {T('ISS (ZARYA) ANLIK YÖRÜNGE', 'ISS (ZARYA) LIVE ORBIT')}: <b>418,4 km · 7,66 km/s · 51,64°</b>",
+        f"🔥 {T('EN RİSKLİ YÖRÜNGE BANDI', 'RISKIEST ORBITAL BAND')}: <b class='w'>775–850 km (LEO)</b>",
+        f"🛡️ {T('SAVUNMA MATRİSİ', 'DEFENSE MATRIX')}: <b class='g'>{def_st}</b>",
+        f"🕒 {T('SON TLE GÜNCELLEMESİ (CELESTRAK + SGP4)', 'LAST TLE SYNC (CELESTRAK + SGP4)')}: <b>{html_escape(str(fetched))}</b>",
+    ]
+    sep = '<span class="sg-tsep">◆</span>'
+    track_once = sep.join(f'<span class="sg-titem">{x}</span>' for x in items)
+    badge = T("CANLI TELEMETRİ AKIŞI", "LIVE TELEMETRY STREAM")
+    return _flat(f"""
+    <div class="sg-ticker-wrap" role="region" aria-label="{badge}">
+      <div class="sg-ticker-badge"><span class="sg-dot"></span>{badge}</div>
+      <div class="sg-ticker-Viewport">
+        <div class="sg-ticker-move">{track_once}{sep}{track_once}</div>
+      </div>
+    </div>
+    """)
+
+
 @_fragment
 def _live_player_ui(play_lbl, cap):
     _def_lbl = (T("SAVUNMA MATRİSİ: AKTİF 🛡️ //", "DEFENSE MATRIX: ARMED 🛡️ //")
                 if st.session_state.get("defense_active")
                 else T("SAVUNMA MATRİSİ: BEKLEMEDE //", "DEFENSE MATRIX: STANDBY //"))
     with _keyed("sg_livebox"):
+        st.markdown(_live_ticker_html(), unsafe_allow_html=True)
         st.markdown(_flat(f"""
         <div class="sg-live-hdr">
           <span class="sg-live-hdr-t"><span class="sg-dot"></span>{T("CANLI İZLE · LEO YÖRÜNGE KAMERASI (420 KM)", "LIVE VIEW · LEO ORBITAL CAMERA (420 KM)")}</span>
@@ -724,7 +766,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-faq summary::after { content:"+"; color:var(--sg-cyan); font-size:22px; line-height:1; }
 .sg-faq details[open] summary::after { content:"–"; }
 .sg-faq details p { color:#a9b8cc; font-size:14.5px; line-height:1.75; padding:0 0 18px; margin:0; }
-.sg-about { display:grid; grid-template-columns:1.3fr 1fr; gap:36px; align-items:start; }
+.sg-about { display:flex; flex-direction:column; gap:26px; max-width:650px; align-items:stretch; }
 .sg-final { text-align:center; }
 .sg-final .sg-h2, .sg-final .sg-p { margin-left:auto; margin-right:auto; }
 .sg-foot { margin-top:70px; padding-top:20px; border-top:1px solid var(--sg-line); color:#64748b; font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; text-align:center; font-family:'Inter','Segoe UI',sans-serif; }
@@ -738,8 +780,31 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-amount { font-family:'Space Grotesk','Inter',sans-serif; font-size:34px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1; }
 .sg-amount small { font-family:'Inter','Segoe UI',sans-serif; font-size:13px; font-weight:500; color:var(--sg-mute); letter-spacing:0; margin-left:6px; }
 .sg-tier-cta { margin-top:auto; display:flex; align-items:center; justify-content:center; height:44px; border-radius:999px; border:1px solid var(--c,#38bdf8);
-  color:#fff !important; text-decoration:none !important; font-weight:600; font-size:14px; transition:background .2s; }
+  color:#fff !important; text-decoration:none !important; font-weight:600; font-size:13.5px; transition:background .2s; }
 .sg-tier-cta:hover { background:rgba(56,189,248,.16); }
+.sg-tier-gmail { margin-top:6px; height:40px; border-color:rgba(234,67,53,.55); background:rgba(234,67,53,.10); color:#fecaca !important; font-size:12.5px; }
+.sg-tier-gmail:hover { background:rgba(234,67,53,.22); border-color:#ef4444; color:#fff !important; }
+.sg-mail-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:10px; }
+.sg-gmail-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:46px; padding:0 20px; border-radius:999px;
+  border:1px solid rgba(234,67,53,.60); background:linear-gradient(135deg,rgba(234,67,53,.18),rgba(18,10,20,.88));
+  color:#fee2e2 !important; text-decoration:none !important; font-weight:600; font-size:13.5px; font-family:'Inter','Segoe UI',sans-serif; transition:all .2s; }
+.sg-gmail-btn:hover { border-color:#f87171; background:rgba(234,67,53,.28); color:#fff !important; transform:translateY(-1px); }
+.sg-ticker-wrap { display:flex; align-items:center; border-radius:999px; border:1px solid rgba(56,189,248,.35);
+  background:linear-gradient(90deg,rgba(8,20,46,.95),rgba(4,10,26,.95)); box-shadow:0 8px 28px rgba(0,0,0,.45), 0 0 18px rgba(56,189,248,.10);
+  overflow:hidden; height:40px; margin-bottom:14px; font-family:'Inter','Segoe UI',sans-serif; }
+.sg-ticker-badge { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; padding:0 16px; height:100%;
+  background:linear-gradient(90deg,rgba(56,189,248,.22),rgba(14,28,58,.92)); border-right:1px solid rgba(56,189,248,.35);
+  color:#38bdf8; font-family:'Space Grotesk','Inter',sans-serif; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+.sg-ticker-Viewport { flex:1 1 auto; overflow:hidden; position:relative; height:100%; display:flex; align-items:center; }
+.sg-ticker-move { display:inline-flex; align-items:center; white-space:nowrap; animation:sgTickerScroll 38s linear infinite; padding-left:16px; }
+.sg-ticker-wrap:hover .sg-ticker-move { animation-play-state:paused; }
+.sg-titem { font-size:12.5px; color:#cbd5e1; font-weight:500; display:inline-flex; align-items:center; gap:5px; }
+.sg-titem b { font-family:'Space Grotesk','Inter',sans-serif; color:#38bdf8; font-weight:700; }
+.sg-titem b.w { color:#fbbf24; }
+.sg-titem b.r { color:#f87171; }
+.sg-titem b.g { color:#34d399; }
+.sg-tsep { margin:0 18px; color:rgba(56,189,248,.45); font-size:10px; }
+@keyframes sgTickerScroll { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
 .sg-note { color:#64748b; font-size:12.5px; margin:16px 0 0; }
 .sg-mem { border:1px solid var(--sg-line); border-radius:16px; background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); padding:0 16px; transition:border-color .2s; }
 .sg-mem[open] { border-color:rgba(56,189,248,.4); }
@@ -758,7 +823,8 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-mission .sg-ct { font-size:19px; font-family:'Space Grotesk','Inter',sans-serif; margin:2px 0 0; }
 .sg-mission .sg-cp { flex:1 1 auto; }
 .sg-mission .sg-tier-cta { margin-top:10px; letter-spacing:.08em; font-size:12.5px; }
-.sg-team { display:flex; flex-direction:column; gap:12px; }
+.sg-team { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+@media (max-width:680px) { .sg-team { grid-template-columns:1fr; } }
 .sg-member { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:16px; border:1px solid var(--sg-line);
   background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); }
 .sg-avatar { flex:0 0 44px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -1142,36 +1208,133 @@ def _debris_cards_html(tr):
     return "".join(cards)
 
 
+def _debris_events_table_html(tr):
+    if tr:
+        heads = ["Yıl", "Olay / Kaynak Nesne", "İrtifa & Eğim", "Olay Türü", "Kataloglanan Parça", "Yörünge Kalıcılığı", "Operasyonel ve Finansal Etki"]
+        rows = [
+            ("1961", "Transit 4A · Ablestar R/B", "900 km · 66,8°", "Yakıt / İtki Patlaması", "296+", ">150 yıl", "Tarihteki ilk yörünge içi parçalanma; 200+ parça hâlâ yörüngede"),
+            ("1977–81", "Delta Üst Kademeler & Kosmos", "750–1000 km · 65°–99°", "Hipergolik Yakıt & ASAT", "1.400+", ">200 yıl", "Güneş-senkron (SSO) koridorunda kalıcı arka plan yoğunluğu artışı"),
+            ("1996", "Cerise × Ariane-1 R/B Parçası", "685 km · 98,1°", "İlk Doğrulanmış Çarpışma", "20+", "30–60 yıl", "Aktif bir uydunun kataloglanmış enkazla ilk doğrulanmış çarpışması"),
+            ("2007", "Fengyun-1C (FY-1C)", "865 km · 98,8°", "Kinetik ASAT Testi", "3.530+", ">300 yıl", "Tarihin en büyük tekil enkaz bulutu; SSO bandında %25+ risk artışı"),
+            ("2009", "Iridium 33 × Cosmos 2251", "789 km · 86,4° / 74,0°", "Hiper-Hızlı Uydu Çarpışması", "2.300+", "150–400 yıl", "İlk kazara iki uydu çarpışması (11,7 km/sn); ticari filolarda sürekli manevra yükü"),
+            ("2015–19", "DMSP-F13 / NOAA-16 & Microsat-R", "300–850 km · 98,7°", "Batarya Patlaması & ASAT", "950+", "1–180 yıl", "Meteoroloji ve yer gözlem irtifalarında ek kaçınma manevraları"),
+            ("2021", "Cosmos 1408 (Tselina-D)", "480 km · 82,6°", "Kinetik ASAT Testi", "1.790+", "5–25 yıl", "ISS ve ticari LEO takımyıldızları için acil kaçınma ve sığınak protokolü"),
+            ("2024–26", "CZ-6A Üst Kademe & USA-32", "775–850 km · 85°–98,7°", "Üst Kademe & Uydu Kırılması", "1.100+", ">200 yıl", "En kritik 775–850 km kuşağında yoğunluk zirvesi; $25,8B–$42,3B 10 yıllık risk havuzu"),
+        ]
+    else:
+        heads = ["Year", "Event / Parent Object", "Altitude & Incl.", "Event Type", "Cataloged Fragments", "Orbital Persistence", "Operational & Financial Impact"]
+        rows = [
+            ("1961", "Transit 4A · Ablestar R/B", "900 km · 66.8°", "Propulsion Explosion", "296+", ">150 yr", "First orbital fragmentation in history; 200+ fragments remain in orbit"),
+            ("1977–81", "Delta Upper Stages & Kosmos", "750–1000 km · 65°–99°", "Residual Propellant & ASAT", "1,400+", ">200 yr", "Permanent background density jump across Sun-Synchronous (SSO) corridors"),
+            ("1996", "Cerise × Ariane-1 R/B Fragment", "685 km · 98.1°", "First Confirmed Collision", "20+", "30–60 yr", "First verified collision between an active spacecraft and cataloged debris"),
+            ("2007", "Fengyun-1C (FY-1C)", "865 km · 98.8°", "Kinetic ASAT Test", "3,530+", ">300 yr", "Largest single debris cloud in history; >25% collision risk jump in SSO"),
+            ("2009", "Iridium 33 × Cosmos 2251", "789 km · 86.4° / 74.0°", "Hypervelocity Collision", "2,300+", "150–400 yr", "First accidental satellite-satellite collision (11.7 km/s); ongoing fleet maneuver load"),
+            ("2015–19", "DMSP-F13 / NOAA-16 & Microsat-R", "300–850 km · 98.7°", "Battery Rupture & ASAT", "950+", "1–180 yr", "Additional avoidance maneuvers across weather and Earth-observation shells"),
+            ("2021", "Cosmos 1408 (Tselina-D)", "480 km · 82.6°", "Kinetic ASAT Test", "1,790+", "5–25 yr", "Emergency shelter & avoidance maneuvers for ISS and commercial LEO fleets"),
+            ("2024–26", "CZ-6A Upper Stage & USA-32", "775–850 km · 85°–98.7°", "Stage & Spacecraft Breakup", "1,100+", ">200 yr", "Density peak inside the 775–850 km critical band; $25.8B–$42.3B 10-yr risk pool"),
+        ]
+    th = "padding:9px 11px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(56,189,248,.28)"
+    td = "padding:8px 11px;text-align:left;color:#cbd5e1;font-size:13px;border-bottom:1px solid rgba(56,189,248,.09);vertical-align:top"
+    h_html = "".join(f'<th style="{th}">{h}</th>' for h in heads)
+    b_html = []
+    for yr, ev, alt, typ, frg, per, imp in rows:
+        hi = yr in ("2007", "2009", "2024–26")
+        bg = "background:rgba(56,189,248,.07);" if hi else ""
+        b_html.append(
+            f'<tr style="{bg}">'
+            f'<td style="{td};color:#fff;font-weight:700;font-family:Space Grotesk,Inter,sans-serif;white-space:nowrap">{yr}</td>'
+            f'<td style="{td};color:#e2e8f0;font-weight:600;white-space:nowrap">{ev}</td>'
+            f'<td style="{td};color:#7dd3fc;white-space:nowrap">{alt}</td>'
+            f'<td style="{td};white-space:nowrap">{typ}</td>'
+            f'<td style="{td};color:#fb923c;font-weight:700;font-family:Space Grotesk,Inter,sans-serif;white-space:nowrap">{frg}</td>'
+            f'<td style="{td};white-space:nowrap">{per}</td>'
+            f'<td style="{td};min-width:240px">{imp}</td>'
+            "</tr>"
+        )
+    return f'<table style="width:100%;border-collapse:collapse;min-width:780px"><thead><tr>{h_html}</tr></thead><tbody>{"".join(b_html)}</tbody></table>'
+
+
+def _debris_density_html(tr):
+    if tr:
+        bands = [
+            ("300 – 550 km · Mega-Takımyıldız Kuşağı", "#38bdf8", "8.400+ aktif uydu · ~2.100 enkaz", "Doğal atmosferik temizlenme: 1–12 yıl", "Yıllık ~18.000+ yakınlaşma uyarısı; yüksek manevra yakıtı tüketimi"),
+            ("550 – 750 km · Ticari Gözlem & SSO", "#f59e0b", "1.900+ aktif uydu · ~6.800 enkaz", "Doğal atmosferik temizlenme: 15–80 yıl", "Cerise ve üst kademe parçaları; orta-yüksek sigorta prim çarpanı (1,25×)"),
+            ("750 – 900 km · Kritik Kessler Kuşağı", "#fc3d21", "650+ aktif uydu · ~16.400 enkaz", "Doğal atmosferik temizlenme: 120–500 yıl", "FY-1C, Iridium 33, Cosmos 2251 ve SL-16 roket gövdeleri; en yüksek çarpışma riski (1,50×)"),
+            ("900 – 1.500 km · Uzun Ömürlü Depo Kuşağı", "#a78bfa", "350+ aktif uydu · ~10.050 enkaz", "Doğal atmosferik temizlenme: 800–10.000+ yıl", "Tarihsel üst kademe ve batarya patlamaları; aktif enkaz kaldırma (ADR) zorunlu bölge"),
+        ]
+    else:
+        bands = [
+            ("300 – 550 km · Mega-Constellation Shell", "#38bdf8", "8,400+ active sats · ~2,100 debris", "Natural atmospheric decay: 1–12 yr", "~18,000+ conjunction warnings/yr; high maneuver propellant expenditure"),
+            ("550 – 750 km · Commercial EO & SSO", "#f59e0b", "1,900+ active sats · ~6,800 debris", "Natural atmospheric decay: 15–80 yr", "Cerise & upper-stage fragments; medium-high insurance premium multiplier (1.25×)"),
+            ("750 – 900 km · Critical Kessler Belt", "#fc3d21", "650+ active sats · ~16,400 debris", "Natural atmospheric decay: 120–500 yr", "FY-1C, Iridium 33, Cosmos 2251 & SL-16 rocket bodies; peak collision risk (1.50×)"),
+            ("900 – 1,500 km · Long-Lived Storage Belt", "#a78bfa", "350+ active sats · ~10,050 debris", "Natural atmospheric decay: 800–10,000+ yr", "Historical stage & battery breakups; active debris removal (ADR) required"),
+        ]
+    out = []
+    for name, col, cnt, life, fin in bands:
+        out.append(
+            f'<div class="sg-card" style="border-top:2px solid {col};padding:18px 20px">'
+            f'<div style="color:{col};font-family:Space Grotesk,Inter,sans-serif;font-weight:700;font-size:15px;margin-bottom:6px">{name}</div>'
+            f'<div style="color:#fff;font-weight:600;font-size:13.5px;margin-bottom:4px">{cnt}</div>'
+            f'<div style="color:#7dd3fc;font-size:12px;margin-bottom:8px">{life}</div>'
+            f'<p class="sg-cp" style="font-size:13px">{fin}</p>'
+            "</div>"
+        )
+    return "".join(out)
+
+
 def _debris_history_html():
     tr = st.session_state.lang == "tr"
     if tr:
-        kicker = "Veri analizi"
-        title = "Uzay çöplerinin tarihçesi ve grafikleri"
+        kicker = "04 · Historical Debris Archive · Orbital Memory"
+        title = "Orbital Memory: Uzay Çöplerinin Tarihçesi, Yoğunluk Haritası ve Finansal Etki Arşivi"
         lead = ("1960'ta yörüngede yaklaşık 200 nesne vardı; bugün bu sayı yaklaşık 46.650. "
                 "Uzay çöpü oranı 2009'da %94,7 ile zirveye ulaştı; aktif uydu sayısındaki hızlı artışla %75,8'e geriledi. "
-                "Oran düşse de uzay çöpü sayısı 2009'dan bu yana iki katından fazla arttı.")
-        cap_chart = "Yörüngedeki nesneler: aktif uydu ve uzay çöpü (yaklaşık)"
-        cap_table = "Yıllara göre sayılar"
-        note = ("Değerler kaynağa göre yaklaşıktır ve 10 cm'den büyük, kataloglanmış nesneleri yansıtır. "
-                "Vurgulanan satır çöp oranının zirvesidir.")
-        src_lbl = "Kaynaklar"
+                "Oran düşse de uzay çöpü sayısı 2009'dan bu yana iki katından fazla arttı. "
+                "Aşağıdaki arşivde 1960–2026 katalog evrimini, büyük parçalanma vakalarını, irtifa yoğunluk kuşaklarını ve finansal etki modelini inceleyebilirsiniz.")
+        cap_chart = "Yörüngedeki nesneler: aktif uydu ve uzay çöpü (1960–2026)"
+        cap_table = "Yıllara göre kataloglanmış nesne sayıları ve çöp oranı"
+        cap_events = "Büyük Yörünge İçi Parçalanma, ASAT ve Çarpışma Vakaları Arşivi (1961–2026)"
+        cap_density = "İrtifa Kuşaklarına Göre Uzamsal Yoğunluk Haritası ve Finansal Risk Modeli"
+        note = ("Değerler ESA MASTER (2026), NASA ODPO ve USSTRATCOM kataloglarına göre ≥10 cm sınıfındaki izlenen nesneleri yansıtır. "
+                "Vurgulanan satırlar tarihsel kırılma noktalarını gösterir.")
+        src_lbl = "Arşiv Kaynakları"
+        stat_items = [
+            ("46.650+", "Kataloglanan Yörünge Nesnesi (≥10 cm)"),
+            ("650+", "Kayıtlı Yörünge İçi Kırılma & Çarpışma Vakası"),
+            ("~13.200 ton", "Yörüngedeki Toplam Kümülatif Kütle (ESA DISCOS)"),
+            ("&#36;25,8B – &#36;42,3B", "10 Yıllık Küresel Yörünge Finansal Risk Havuzu"),
+        ]
     else:
-        kicker = "Data analysis"
-        title = "History of space debris and charts"
+        kicker = "04 · Historical Debris Archive · Orbital Memory"
+        title = "Orbital Memory: Space Debris History, Density Map & Financial Impact Archive"
         lead = ("In 1960 there were about 200 cataloged objects in orbit; today the count is roughly 46,650. "
                 "The debris share peaked at 94.7% in 2009 and fell to 75.8% as active satellites surged. "
-                "Even so, the number of debris objects has more than doubled since 2009.")
-        cap_chart = "Objects in orbit: active satellites and debris (approximate)"
-        cap_table = "Counts by year"
-        note = ("Values are approximate, per the source, and reflect cataloged objects larger than 10 cm. "
-                "The highlighted row marks the peak debris share.")
-        src_lbl = "Sources"
+                "Even so, the number of debris objects has more than doubled since 2009. "
+                "Explore the 1960–2026 catalog evolution, major fragmentation events, altitude density shells and financial impact model below.")
+        cap_chart = "Objects in orbit: active satellites and debris (1960–2026)"
+        cap_table = "Cataloged counts and debris share by year"
+        cap_events = "Major Orbital Fragmentation, ASAT & Collision Events Archive (1961–2026)"
+        cap_density = "Spatial Density Map & Financial Risk Model by Altitude Shell"
+        note = ("Values reflect cataloged objects ≥10 cm per ESA MASTER (2026), NASA ODPO and USSTRATCOM. "
+                "Highlighted rows mark historical inflection points.")
+        src_lbl = "Archive Sources"
+        stat_items = [
+            ("46,650+", "Cataloged Orbital Objects (≥10 cm)"),
+            ("650+", "Recorded In-Orbit Breakup & Collision Events"),
+            ("~13,200 tons", "Total Cumulative Mass in Orbit (ESA DISCOS)"),
+            ("&#36;25.8B – &#36;42.3B", "10-Year Global Orbital Financial Risk Pool"),
+        ]
+    stat_html = "".join(
+        f'<div class="sg-card" style="padding:18px 20px"><div class="sg-stat" style="font-size:26px">{v}</div><div class="sg-cp" style="margin-top:6px;font-size:13px;color:#cbd5e1">{lbl}</div></div>'
+        for v, lbl in stat_items
+    )
     return f"""
     <div id="history" class="sg-sec">
       <div class="sg-kicker">{kicker}</div>
       <div class="sg-h2">{title}</div>
       <p class="sg-p">{lead}</p>
-      <div style="margin-top:28px;padding:22px 22px 14px;border-radius:18px;border:1px solid var(--sg-line);background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))">
+      <div class="sg-grid" style="margin-top:22px">{stat_html}</div>
+      <div style="margin-top:22px;padding:22px 22px 14px;border-radius:18px;border:1px solid var(--sg-line);background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))">
         <div class="sg-lbl">{cap_chart}</div>
         {_debris_bars_svg(tr)}
       </div>
@@ -1180,8 +1343,16 @@ def _debris_history_html():
         <div style="overflow-x:auto">{_debris_table_html(tr)}</div>
         <p class="sg-cp" style="margin-top:10px;font-size:12px">{note}</p>
       </div>
+      <div style="margin-top:16px;padding:18px 18px 14px;border-radius:18px;border:1px solid var(--sg-line);background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92))">
+        <div class="sg-lbl">{cap_events}</div>
+        <div style="overflow-x:auto">{_debris_events_table_html(tr)}</div>
+      </div>
+      <div style="margin-top:18px">
+        <div class="sg-lbl" style="margin-bottom:10px">{cap_density}</div>
+        <div class="sg-grid" style="margin-top:10px">{_debris_density_html(tr)}</div>
+      </div>
       <div class="sg-grid">{_debris_cards_html(tr)}</div>
-      <div class="sg-src">{src_lbl} <i>ESA MASTER (2026)</i><i>NASA / USSTRATCOM</i><i>NASA (2009)</i></div>
+      <div class="sg-src">{src_lbl} <i>ESA MASTER (2026)</i><i>NASA ODPO / USSTRATCOM</i><i>ESA DISCOS</i><i>WEF / NASA OTPS</i></div>
     </div>
     """
 
@@ -1191,7 +1362,8 @@ def _pricing_grid_html(tr):
     def amt(k):
         return "&#36;" + _dh_num(PRICING[k], tr)
     if tr:
-        L = dict(frm="Başlangıç fiyatı", aud="Hedef kitle", scope="Sigorta ve Risk Kapsamı", logic="Fiyatlandırma mantığı", cta="Demo talep et", pop="Popüler")
+        L = dict(frm="Başlangıç fiyatı", aud="Hedef kitle", scope="Sigorta ve Risk Kapsamı", logic="Fiyatlandırma mantığı",
+                 cta="✉️ Demo talep et (bastekink@gmail.com)", gmail="📧 Google Mail (Gmail) ile Gönder", pop="Popüler")
         tiers = [
             ("basic", "Temel", "#3b82f6", False, "/ ay",
              "Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br>Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.",
@@ -1208,7 +1380,8 @@ def _pricing_grid_html(tr):
         ]
         note = "Fiyatlar USD cinsindendir ve başlangıç seviyesini gösterir; nihai bedel kapsama ve uydu sayısına göre netleşir."
     else:
-        L = dict(frm="Starting at", aud="Target audience", scope="Scope and modeled data", logic="Pricing logic", cta="Request a demo", pop="Popular")
+        L = dict(frm="Starting at", aud="Target audience", scope="Scope and modeled data", logic="Pricing logic",
+                 cta="✉️ Request a demo (bastekink@gmail.com)", gmail="📧 Send via Google Mail (Gmail)", pop="Popular")
         tiers = [
             ("basic", "Basic", "#3b82f6", False, "/ month",
              "Early-stage and small constellation operators<br>R&amp;D centers and academic institutions",
@@ -1238,7 +1411,10 @@ def _pricing_grid_html(tr):
             f'<div><div class="sg-lbl">{L["aud"]}</div><div class="sg-val">{aud}</div></div>'
             f'<div><div class="sg-lbl">{L["scope"]}</div><div class="sg-val">{scope}</div></div>'
             f'<div><div class="sg-lbl">{L["logic"]}</div><div class="sg-val">{logic}</div></div>'
-            f'<a class="sg-tier-cta" href="{DEMO_MAILTO}">{L["cta"]}</a></div>'
+            f'<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">'
+            f'<a class="sg-tier-cta" href="{DEMO_MAILTO}">{L["cta"]}</a>'
+            f'<a class="sg-tier-cta sg-tier-gmail" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{L["gmail"]}</a>'
+            f'</div></div>'
         )
     return f'<div class="sg-price">{"".join(cards)}</div><p class="sg-note">{note}</p>'
 
@@ -1252,6 +1428,7 @@ def _team_html():
         name = html_escape(m["name"])
         role = html_escape(m["role_tr"] if tr else m["role_en"])
         mail = html_escape(m["email"])
+        gm_url = f"https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to={mail}"
         age_lbl = "Yaş" if tr else "Age"
         link = ""
         if m.get("link"):
@@ -1259,11 +1436,16 @@ def _team_html():
         rows.append(
             f'<details class="sg-mem"><summary><div class="sg-avatar">{ini}</div><div class="sg-mem-t"><b>{name}</b></div></summary>'
             f'<div class="sg-mem-b"><span class="sg-mem-role">{role}</span>'
-            f'<span><a href="mailto:{mail}">{mail}</a></span>'
+            f'<span><a href="mailto:{mail}">✉️ {mail}</a> &nbsp;·&nbsp; <a href="{gm_url}" target="_blank" rel="noopener" style="color:#fca5a5 !important">📧 Google Mail</a></span>'
             f'<span>{age_lbl}: {int(m["age"])}</span>{link}</div></details>'
         )
-    lbl = "Ekip" if tr else "Team"
-    return f'<div><div class="sg-lbl" style="margin-bottom:12px">{lbl}</div><div class="sg-team">{"".join(rows)}</div></div>'
+    lbl = "Ekibimiz" if tr else "Our Team"
+    sub = ("Space Grave'i geliştiren mühendislik, veri bilimi ve uzay ekonomisi ekibimiz:" if tr
+           else "The engineering, data science and space-economy team behind Space Grave:")
+    return (f'<div style="margin-top:6px;padding-top:20px;border-top:1px solid var(--sg-line)">'
+            f'<div class="sg-kicker" style="margin-bottom:6px">{lbl}</div>'
+            f'<p class="sg-cp" style="margin-bottom:14px">{sub}</p>'
+            f'<div class="sg-team">{"".join(rows)}</div></div>')
 
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
@@ -1288,20 +1470,27 @@ def _save_demo_request(row):
 
 
 def _render_contact():
+    from urllib.parse import quote as url_quote
     tr = st.session_state.lang == "tr"
     if tr:
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">İletişim</div>'
                 '<div class="sg-h2">Kurumunuz için canlı demo talep edin</div>'
                 '<p class="sg-p">Uydu filonuz veya sigorta portföyünüz için Space Grave\'i birlikte inceleyelim. '
-                'Doğrudan e-posta gönderebilir veya aşağıdaki formu doldurabilirsiniz.</p>'
-                f'<div style="margin:14px 0 18px"><a class="sg-ghost" style="display:inline-flex;padding:0 24px;height:48px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Doğrudan E-posta ile Demo Talep Et (mailto) →</a></div></div>')
+                f'Doğrudan <b>{DEMO_EMAIL}</b> adresine e-posta / Google Mail gönderebilir veya aşağıdaki formu doldurabilirsiniz.</p>'
+                '<div class="sg-mail-row">'
+                f'<a class="sg-ghost" style="display:inline-flex;padding:0 22px;height:46px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ E-posta Gönder ({DEMO_EMAIL}) →</a>'
+                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Google Mail (Gmail) ile Demo Talep Et →</a>'
+                '</div></div>')
         roles = ["Uydu operatörü", "Sigorta / reasürans", "Uzay ajansı / savunma", "Akademi / Ar-Ge", "Diğer"]
     else:
         head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">Contact</div>'
                 '<div class="sg-h2">Request a live demo for your organization</div>'
                 '<p class="sg-p">Let us walk you through Space Grave for your satellite fleet or insurance portfolio. '
-                'Send a direct email or fill in the form below.</p>'
-                f'<div style="margin:14px 0 18px"><a class="sg-ghost" style="display:inline-flex;padding:0 24px;height:48px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Request a Demo via Direct Email (mailto) →</a></div></div>')
+                f'Send a direct email / Google Mail to <b>{DEMO_EMAIL}</b> or fill in the form below.</p>'
+                '<div class="sg-mail-row">'
+                f'<a class="sg-ghost" style="display:inline-flex;padding:0 22px;height:46px;border-color:rgba(56,189,248,.55);background:rgba(56,189,248,.12);color:#38bdf8 !important" href="{DEMO_MAILTO}">✉️ Send Email ({DEMO_EMAIL}) →</a>'
+                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Request Demo via Google Mail (Gmail) →</a>'
+                '</div></div>')
         roles = ["Satellite operator", "Insurance / reinsurance", "Space agency / defense", "Academia / R&D", "Other"]
     st.markdown(_flat(head), unsafe_allow_html=True)
     with _keyed("sg_contact"):
@@ -1313,14 +1502,25 @@ def _render_contact():
             company = c3.text_input(T("Kurum *", "Company *"), max_chars=120)
             role = c4.selectbox(T("Kurum türü", "Organization type"), roles)
             msg = st.text_area(T("Notunuz (isteğe bağlı)", "Your note (optional)"), height=100, max_chars=1000)
-            sent = st.form_submit_button(T("Demo talep et  →", "Request a demo  →"), **stretch(st.form_submit_button))
-        st.markdown('<p class="sg-consent">' + T("Formu göndererek bilgilerinizin demo görüşmesi için kullanılmasını kabul edersiniz.",
-                                               "By submitting, you agree that your details may be used to arrange the demo.") + "</p>", unsafe_allow_html=True)
+            sent = st.form_submit_button(T("Demo talep et (bastekink@gmail.com)  →", "Request a demo (bastekink@gmail.com)  →"), **stretch(st.form_submit_button))
+        st.markdown('<p class="sg-consent">' + T(f"Formu göndererek talebinizin {DEMO_EMAIL} adresine iletilmesini kabul edersiniz.",
+                                               f"By submitting, you agree to forward your demo request to {DEMO_EMAIL}.") + "</p>", unsafe_allow_html=True)
         if sent:
             if not name.strip() or not company.strip() or not _EMAIL_RE.match(email.strip()):
                 st.error(T("Lütfen ad soyad, kurum ve geçerli bir e-posta girin.", "Please enter your name, company and a valid email."))
             elif _save_demo_request([utc_now().strftime("%Y-%m-%d %H:%M:%S"), name, email, company, role, msg, st.session_state.lang]):
-                st.success(T("Talebiniz alındı, teşekkürler. Ekibimiz sizinle iletişime geçecek.", "Request received, thank you. Our team will be in touch."))
+                subj_q = url_quote(f"SP4C3 GR4V3 Demo Talebi - {company.strip()}")
+                body_q = url_quote(f"Ad Soyad: {name.strip()}\nE-posta: {email.strip()}\nKurum: {company.strip()}\nKurum Türü: {role}\n\nNot:\n{msg.strip()}")
+                dyn_mailto = f"mailto:{DEMO_EMAIL}?subject={subj_q}&body={body_q}"
+                dyn_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={DEMO_EMAIL}&su={subj_q}&body={body_q}"
+                st.success(T(f"Talebiniz kaydedildi! Aşağıdaki seçeneklerden doğrudan {DEMO_EMAIL} adresine iletebilirsiniz:",
+                             f"Request saved! Use one of the options below to send directly to {DEMO_EMAIL}:"))
+                st.markdown(_flat(f"""
+                <div class="sg-mail-row" style="margin-top:8px">
+                  <a class="sg-ghost" style="display:inline-flex;padding:0 20px;height:44px;border-color:rgba(56,189,248,.6);background:rgba(56,189,248,.16);color:#fff !important" href="{dyn_mailto}">✉️ {T('Varsayılan E-posta ile Gönder', 'Send via Default Mail App')} ({DEMO_EMAIL})</a>
+                  <a class="sg-gmail-btn" style="height:44px" href="{dyn_gmail}" target="_blank" rel="noopener">📧 {T('Google Mail (Gmail) ile Gönder', 'Send via Google Mail (Gmail)')} ({DEMO_EMAIL})</a>
+                </div>
+                """), unsafe_allow_html=True)
             else:
                 st.error(T("Talep kaydedilemedi. Lütfen daha sonra tekrar deneyin.", "Your request could not be saved. Please try again later."))
 
@@ -1383,7 +1583,7 @@ def render_intro():
         <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Orbital Debris Scavengers</div><div class="sg-ct">Operation Clean Orbit</div><p class="sg-cp">Hizmet ömrü dolan uyduları ve atıl roket kademelerini yarının çarpışmasına dönüşmeden yörüngeden çıkaran aktif temizleme ve azaltım görevleri. Yörünge temizliğini kavramdan ölçülebilir, göreve hazır bir yeteneğe dönüştürür.</p><a class="sg-tier-cta" href="#threat" target="_self">GÖREVLERİ KEŞFET</a></div>
         <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Debris Radar &amp; Sentinel</div><div class="sg-ct">Sentinel Sky Watch</div><p class="sg-cp">Alçak Dünya Yörüngesi'ndeki kataloglanmış her nesneyi izleyen yüksek hassasiyetli takip ve tarama ağı. Birleştirilmiş radar ve TLE verisi, operatörlere varlıklarının çevresinde olup bitenin sürekli ve güvenilir bir resmini sunar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">CANLI VERİYİ GÖRÜNTÜLE</a></div>
         <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Collision Avoidance &amp; AI Watch</div><div class="sg-ct">Guardian Protocol</div><p class="sg-cp">Her yakın geçişi tarayan ve Güvenlik Küresi ihlal edildiği anda otomatik alarm üreten gerçek zamanlı risk analizi. Yapay zekâ destekli kararlar tahmini yerine koyar; operatörler yalnızca gerçekten gerektiğinde manevra yapar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">UYARI MERKEZİNİ AÇ</a></div>
-        <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Onlarca yıllık uzamsal veri, yoğunluk haritası ve finansal etki modeli tek bir aranabilir arşivde. Kalabalığın nasıl arttığını ve bedelini görün; önümüzdeki on yılı kanıtlarla planlayın.</p><a class="sg-tier-cta" href="#features" target="_self">ARŞİVE GÖZ AT</a></div>
+        <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Onlarca yıllık uzamsal veri, yoğunluk haritası ve finansal etki modeli tek bir aranabilir arşivde. Kalabalığın nasıl arttığını ve bedelini görün; önümüzdeki on yılı kanıtlarla planlayın.</p><a class="sg-tier-cta" href="#history" target="_self">ARŞİVE GÖZ AT</a></div>
       </div>
     </div>
 
@@ -1490,7 +1690,7 @@ def render_intro():
             <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Orbital Debris Scavengers</div><div class="sg-ct">Operation Clean Orbit</div><p class="sg-cp">Active removal and mitigation missions that retire defunct satellites and spent rocket stages before they become tomorrow's collisions. We turn orbital cleanup from a concept into a measurable, mission-ready capability.</p><a class="sg-tier-cta" href="#threat" target="_self">EXPLORE MISSIONS</a></div>
             <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Debris Radar &amp; Sentinel</div><div class="sg-ct">Sentinel Sky Watch</div><p class="sg-cp">A high-precision tracking and scanning network that follows every cataloged object through Low Earth Orbit. Fused radar and TLE data give operators a continuous, trusted picture of what is moving around their assets.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=en" target="_self">VIEW LIVE DATA</a></div>
             <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Collision Avoidance &amp; AI Watch</div><div class="sg-ct">Guardian Protocol</div><p class="sg-cp">Real-time risk analysis that screens every close approach and raises automated alerts the moment a Safety Sphere is breached. AI-assisted decisions replace guesswork, so operators maneuver only when it truly matters.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=en" target="_self">OPEN ALERT CENTER</a></div>
-            <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Decades of spatial data, density maps and financial impact models in one searchable archive. See how congestion evolved, and what it costs, to plan the next decade with evidence.</p><a class="sg-tier-cta" href="#features" target="_self">BROWSE THE ARCHIVE</a></div>
+            <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Decades of spatial data, density maps and financial impact models in one searchable archive. See how congestion evolved, and what it costs, to plan the next decade with evidence.</p><a class="sg-tier-cta" href="#history" target="_self">BROWSE THE ARCHIVE</a></div>
           </div>
         </div>
 
@@ -1593,7 +1793,8 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="{DEMO_MAILTO}">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="{DEMO_MAILTO}">{T("✉️ Demo talep et", "✉️ Request a demo")}</a>', unsafe_allow_html=True)
+            st.markdown(_flat(f'<div class="sg-mail-row" style="margin-top:8px"><a class="sg-gmail-btn" style="height:40px;font-size:12.5px;padding:0 16px" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 {T("Google Mail (Gmail) ile Demo Talep Et (bastekink@gmail.com)", "Request Demo via Google Mail (bastekink@gmail.com)")}</a></div>'), unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
@@ -1779,9 +1980,11 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   transform:translateY(-2px) !important;
 }
 
-/* İstatistik kartları (giriş sayfasındaki sg-card ile birebir aynı cam tasarım) */
+/* İstatistik kartları (giriş sayfasındaki sg-card ile birebir aynı cam tasarım + standart eşit boyut) */
 .stApp .nasa-glass-card {
-  text-align:left !important; padding:18px 20px !important; border-radius:18px !important; margin-bottom:10px !important;
+  text-align:left !important; padding:16px 18px !important; border-radius:18px !important; margin-bottom:10px !important;
+  height:112px !important; min-height:112px !important; max-height:112px !important;
+  display:flex !important; flex-direction:column !important; justify-content:space-between !important; box-sizing:border-box !important;
   background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)) !important;
   border:1px solid var(--sg-line) !important; box-shadow:none !important;
   backdrop-filter:blur(12px); transition:transform .22s ease, border-color .22s ease, box-shadow .22s ease !important;
@@ -1793,20 +1996,97 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 }
 .stApp .metric-title {
   font-family:'Inter',sans-serif !important; font-size:11px !important;
-  letter-spacing:.14em !important; color:var(--sg-muted) !important; font-weight:600 !important;
+  letter-spacing:.12em !important; color:var(--sg-muted) !important; font-weight:600 !important;
+  text-transform:uppercase; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; line-height:1.3 !important;
 }
 .stApp .metric-value, .stApp .metric-value-fin {
-  font-family:'Space Grotesk','Inter',sans-serif !important; font-size:25px !important;
-  font-weight:700 !important; letter-spacing:-.02em; margin-top:6px !important;
+  font-family:'Space Grotesk','Inter',sans-serif !important; font-size:clamp(17px,1.55vw,23px) !important;
+  font-weight:700 !important; letter-spacing:-.02em; margin-top:auto !important; line-height:1.2 !important;
+  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important;
   font-variant-numeric:tabular-nums; text-shadow:none !important;
 }
 [data-testid="stMetric"] {
   background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)) !important;
   border:1px solid var(--sg-line) !important; border-radius:16px !important; padding:14px 18px !important;
+  height:112px !important; min-height:112px !important; box-sizing:border-box !important;
+  display:flex !important; flex-direction:column !important; justify-content:space-between !important;
+}
+[data-testid="stMetricLabel"] p {
+  font-family:'Inter',sans-serif !important; font-size:11px !important; font-weight:600 !important;
+  letter-spacing:.10em !important; text-transform:uppercase !important; color:var(--sg-muted) !important;
+  white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important;
 }
 [data-testid="stMetricValue"], [data-testid="stMetricValue"] * {
-  font-family:'Space Grotesk','Inter',sans-serif !important;
+  font-family:'Space Grotesk','Inter',sans-serif !important; font-size:clamp(18px,1.6vw,24px) !important; font-weight:700 !important;
 }
+
+/* Canlı Akan Telemetri Şeridi (Ticker) */
+.sg-ticker-wrap {
+  display:flex; align-items:center; width:100%; overflow:hidden;
+  background:linear-gradient(90deg,rgba(8,16,36,.95),rgba(14,26,54,.92),rgba(8,16,36,.95));
+  border:1px solid rgba(56,189,248,.32); border-radius:14px;
+  padding:9px 14px; margin:0 0 12px 0;
+  box-shadow:0 10px 28px rgba(0,0,0,.42), inset 0 0 18px rgba(56,189,248,.07);
+}
+.sg-ticker-badge {
+  display:inline-flex; align-items:center; gap:8px; flex-shrink:0;
+  padding:4px 11px; margin-right:14px; border-radius:999px;
+  background:rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.45);
+  color:#e0f2fe; font:700 10.5px/1 'Space Grotesk','Inter',sans-serif;
+  letter-spacing:.14em; text-transform:uppercase;
+}
+.sg-ticker-Viewport { flex:1; overflow:hidden; position:relative; white-space:nowrap; mask-image:linear-gradient(90deg,transparent 0%,#000 3%,#000 97%,transparent 100%); }
+.sg-ticker-move {
+  display:inline-flex; align-items:center; white-space:nowrap;
+  animation:sgTickerScroll 42s linear infinite;
+}
+.sg-ticker-wrap:hover .sg-ticker-move { animation-play-state:paused; }
+.sg-ticker-track {
+  display:inline-flex; align-items:center; gap:10px;
+  font:500 12.5px/1.3 'Inter',sans-serif; color:#cbd5e1;
+}
+.sg-ticker-track b { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; color:#f8fafc; }
+.sg-ticker-sep { color:#38bdf8; opacity:.55; margin:0 8px; font-weight:700; }
+@keyframes sgTickerScroll {
+  0% { transform:translateX(0); }
+  100% { transform:translateX(-50%); }
+}
+
+/* Sekmeler ve Açılır Bilgi Kutusu (Birinci sayfa estetiği) */
+.stApp [data-baseweb="tab-list"] {
+  gap:8px !important; background:rgba(8,16,38,.65) !important;
+  padding:6px 8px !important; border-radius:14px !important; border:1px solid var(--sg-line) !important;
+}
+.stApp [data-baseweb="tab"] {
+  border-radius:10px !important; font-family:'Space Grotesk','Inter',sans-serif !important;
+  font-weight:600 !important; font-size:13px !important; color:#cbd5e1 !important;
+  padding:8px 16px !important; transition:all .2s ease !important;
+}
+.stApp [data-baseweb="tab"][aria-selected="true"] {
+  background:linear-gradient(160deg,rgba(56,189,248,.22),rgba(14,24,48,.92)) !important;
+  color:#ffffff !important; border:1px solid rgba(56,189,248,.45) !important;
+}
+.ops-details {
+  background:linear-gradient(160deg,rgba(14,24,48,.76),rgba(6,11,26,.90));
+  border:1px solid var(--sg-line); border-radius:16px; padding:14px 20px; margin-top:14px;
+  backdrop-filter:blur(10px); transition:border-color .2s ease;
+}
+.ops-details:hover, .ops-details[open] { border-color:rgba(56,189,248,.40); }
+.ops-details summary {
+  cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between;
+  font-family:'Space Grotesk','Inter',sans-serif; font-weight:600; font-size:14px; color:#f8fafc;
+}
+.ops-details summary::-webkit-details-marker { display:none; }
+.ops-details summary::after {
+  content:'＋'; color:#38bdf8; font-size:16px; font-weight:700; transition:transform .2s ease;
+}
+.ops-details[open] summary::after { content:'－'; }
+.ops-details-body {
+  margin-top:12px; padding-top:12px; border-top:1px solid rgba(56,189,248,.14);
+  color:#cbd5e1; font-family:'Inter',sans-serif; font-size:13.5px; line-height:1.7;
+}
+.ops-details-body ul { margin:0; padding-left:18px; }
+.ops-details-body li { margin-bottom:6px; }
 
 /* Grafik, tablo ve giriş kutuları */
 [data-testid="stPlotlyChart"], [data-testid="stDataFrame"] {
@@ -1840,8 +2120,11 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   box-shadow:0 18px 48px rgba(0,0,0,.58), 0 0 28px rgba(56,189,248,.12) !important;
   background:#040817 !important;
 }
-.stApp p, .stApp span, .stApp label, .stApp li {
+.stApp p, .stApp label, .stApp li {
   font-family:'Inter','Segoe UI',-apple-system,sans-serif;
+}
+[data-testid="stIconMaterial"], .material-icons {
+  font-family:'Material Symbols Rounded','Material Icons' !important;
 }
 .stApp [data-testid="stTextInput"] { margin-top:-6px; margin-bottom:6px; }
 .stApp [data-testid="stTextInput"] > div > div {
@@ -2616,6 +2899,7 @@ with _keyed("sg_back"):
 _fw = FEED_KEY
 _feed_chip = {"LIVE": ("c", T("CANLI TLE VERİSİ AKTİF", "LIVE TLE DATA ACTIVE")), "CACHED": ("a", T("TLE ÖNBELLEĞİ AKTİF", "TLE CACHE ACTIVE")),
               "PARTIAL": ("a", T("KISMİ TLE VERİSİ", "PARTIAL TLE DATA"))}.get(_fw, ("r", T("TLE ÇEVRİMDIŞI · YEDEK", "TLE OFFLINE · FALLBACK")))
+st.markdown(_live_ticker_html(), unsafe_allow_html=True)
 st.markdown(_flat(f"""
 <div class="ops-banner">
   <div>
@@ -2689,8 +2973,8 @@ if st.session_state.active_page == PAGES[0]:
         ("nasa-glass-card", T("Enkaz Parçaları", "Debris Fragments"), f"{n_debris:,}", "metric-value", "color:#fc3d21;"),
         ("nasa-glass-card", T("Aktif Uydular", "Active Sats"), f"{n_active:,}", "metric-value", ""),
         ("nasa-glass-card fin-card", T("Yakın Geçişler", "Close Approaches"), conj_txt, "metric-value-fin", "color:#f59e0b;"),
-        ("nasa-glass-card fin-card", T("Veri Durumu", "Feed Status"), FEED_LABEL, "metric-value-fin", "font-size:16px;"),
-        ("nasa-glass-card", T("Savunma Matrisi", "Defense Matrix"), _defense_txt(), "metric-value", "color:#10b981;font-size:20px;"),
+        ("nasa-glass-card fin-card", T("Veri Durumu", "Feed Status"), FEED_LABEL, "metric-value-fin", ""),
+        ("nasa-glass-card", T("Savunma Matrisi", "Defense Matrix"), _defense_txt(), "metric-value", "color:#10b981;"),
     ]
     for col, (cls, title, val, vcls, style) in zip(c, cards):
         with col:
@@ -2881,9 +3165,9 @@ if st.session_state.active_page == PAGES[0]:
 
     kc_cards = [
         (T("Kritik Kabuk (K>1)", "Critical Shells (K>1)"), f"{kc_n_crit}", "color:#fc3d21;"),
-        (T("En Riskli Bant", "Riskiest Band"), kc_band(kc_i_max) if kc_K[kc_i_max] > 0 else "—", "color:#f59e0b;font-size:20px;"),
+        (T("En Riskli Bant", "Riskiest Band"), kc_band(kc_i_max) if kc_K[kc_i_max] > 0 else "—", "color:#f59e0b;"),
         (T("Büyük Çarpışma (model)", "Major Collision (model)"),
-         (T(f"≈{1.0 / kc_big_sum:.0f} yılda 1", f"≈1 per {1.0 / kc_big_sum:.0f} yr") if kc_big_sum > 0 else "—"), "color:#f59e0b;font-size:18px;"),
+         (T(f"≈{1.0 / kc_big_sum:.0f} yılda 1", f"≈1 per {1.0 / kc_big_sum:.0f} yr") if kc_big_sum > 0 else "—"), "color:#f59e0b;"),
         (T("CRASH Clock (26 Oca 2026)", "CRASH Clock (26 Jan 2026)"), T("3,8 gün", "3.8 days"), "color:#fc3d21;"),
     ]
     for _col, (_t, _v, _s) in zip(st.columns(4), kc_cards):
@@ -2905,19 +3189,19 @@ if st.session_state.active_page == PAGES[0]:
             kc_f1.add_bar(x=KC_MID, y=kc_A0, name=T("Aktif uydu", "Active sats"), marker_color="#38bdf8")
             kc_f1.add_bar(x=KC_MID, y=kc_R0, name=T("Terk edilmiş büyük nesne (tahmini)", "Derelict large objects (est.)"), marker_color="#f59e0b")
             kc_f1.add_bar(x=KC_MID, y=kc_S0, name=T("Enkaz parçası", "Debris fragments"), marker_color="#fc3d21")
-            kc_f1.update_layout(barmode="stack", template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            kc_f1.update_layout(barmode="stack", template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                 title=T("İrtifa kabuğuna göre nesne sayısı", "Objects per altitude shell"),
                                 xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title=T("Nesne sayısı", "Objects"),
-                                legend=dict(orientation="h", y=-0.28), margin=dict(t=50, b=10))
+                                legend=dict(orientation="h", y=-0.22), margin=dict(t=50, b=64))
             st.plotly_chart(kc_f1, **stretch(st.plotly_chart))
         with kc_c2:
             kc_f2 = go.Figure(go.Bar(x=KC_MID, y=np.maximum(kc_K, 1e-4), customdata=kc_K,
                                      marker_color=["#fc3d21" if k > 1 else "#38bdf8" for k in kc_K],
                                      hovertemplate="%{x} km<br>K = %{customdata:.3f}<extra></extra>"))
             kc_f2.add_hline(y=1, line_dash="dash", line_color="#fbbf24")
-            kc_f2.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            kc_f2.update_layout(template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                 title=T("Kararsızlık oranı K (K>1: zincirleme eğilimi)", "Instability ratio K (K>1: cascade tendency)"),
-                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title="K", yaxis_type="log", margin=dict(t=50, b=10))
+                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title="K", yaxis_type="log", margin=dict(t=50, b=64))
             st.plotly_chart(kc_f2, **stretch(st.plotly_chart))
         st.caption(T("K = (bir kabukta yıllık üretilen yeni parça × parçanın ortalama yörünge ömrü) ÷ kabukta şu an bulunan nesne sayısı. "
                      "K>1 ise çarpışmalarla üretilen parça, doğal olarak atmosfere düşenden hızlı artar (ESA'nın 'çarpışmalar çarpışmaları doğurur' tanımı). "
@@ -2925,20 +3209,24 @@ if st.session_state.active_page == PAGES[0]:
                      "K = (new fragments produced per year in a shell × mean orbital lifetime of a fragment) ÷ objects currently in the shell. "
                      "If K>1, collision-made fragments grow faster than natural decay removes them (ESA's 'collisions causing collisions'). "
                      "Active-satellite and debris counts are live CelesTrak data; the derelict large-object count is an estimate (≈1,200) from McKnight+2021."))
-        with st.expander(T("Model varsayımları", "Model assumptions")):
-            st.markdown(T(
-                "- Gaz-kinetik kabuk modeli: çarpışma/yıl = ½·N²·σ·v/V (aynı sınıf), N₁·N₂·σ·v/V (farklı sınıf); v ≈ 10 km/s.\n"
-                "- Kesit alanı: büyük nesne yarıçapı ≈ 1,6 m, parça ≈ 15 cm. Çarpışma başına ≈ 1.500 (büyük–büyük) / ≈ 300 (büyük–parça) katalog boyutlu parça.\n"
-                "- Aktif uydular manevra yapar: çarpışma oranı (1 − %99,9) ile çarpılır. Terk edilmiş nesneler ve parçalar manevra yapamaz.\n"
-                "- Parça ömrü irtifaya göre kaba tahmindir (≈12 yıl @550 km, ≈400 yıl @800 km, ≈3.000 yıl @1000 km); Güneş döngüsüne ve alan/kütle oranına bağlıdır.\n"
-                "- Yalnızca ≥10 cm sınıfı ve seçili CelesTrak grupları sayılır; katalog dışı küçük enkaz ve diğer parçalanma olayları dahil değildir (risk alt sınırdır).\n"
-                "- Sonuçlar tahmin değil, ölçek ve karşılaştırma içindir.",
-                "- Gas-kinetic shell model: collisions/yr = ½·N²·σ·v/V (same class), N₁·N₂·σ·v/V (different classes); v ≈ 10 km/s.\n"
-                "- Cross-section: large-object radius ≈ 1.6 m, fragment ≈ 15 cm. Each collision yields ≈ 1,500 (large–large) / ≈ 300 (large–fragment) catalog-size fragments.\n"
-                "- Active satellites manoeuvre: their collision rate is scaled by (1 − 99.9%). Derelicts and fragments cannot manoeuvre.\n"
-                "- Fragment lifetime vs altitude is rough (≈12 yr @550 km, ≈400 yr @800 km, ≈3,000 yr @1000 km); it depends on solar cycle and area-to-mass ratio.\n"
-                "- Only the ≥10 cm class and the selected CelesTrak groups are counted; uncatalogued small debris and other breakups are excluded (risk is a lower bound).\n"
-                "- Results are for scale and comparison, not a forecast."))
+        _assump_items = T(
+            "<li>Gaz-kinetik kabuk modeli: çarpışma/yıl = ½·N²·σ·v/V (aynı sınıf), N₁·N₂·σ·v/V (farklı sınıf); v ≈ 10 km/s.</li>"
+            "<li>Kesit alanı: büyük nesne yarıçapı ≈ 1,6 m, parça ≈ 15 cm. Çarpışma başına ≈ 1.500 (büyük–büyük) / ≈ 300 (büyük–parça) katalog boyutlu parça.</li>"
+            "<li>Aktif uydular manevra yapar: çarpışma oranı (1 − %99,9) ile çarpılır. Terk edilmiş nesneler ve parçalar manevra yapamaz.</li>"
+            "<li>Parça ömrü irtifaya göre kaba tahmindir (≈12 yıl @550 km, ≈400 yıl @800 km, ≈3.000 yıl @1000 km); Güneş döngüsüne ve alan/kütle oranına bağlıdır.</li>"
+            "<li>Yalnızca ≥10 cm sınıfı ve seçili CelesTrak grupları sayılır; katalog dışı küçük enkaz ve diğer parçalanma olayları dahil değildir (risk alt sınırdır).</li>"
+            "<li>Sonuçlar tahmin değil, ölçek ve karşılaştırma içindir.</li>",
+            "<li>Gas-kinetic shell model: collisions/yr = ½·N²·σ·v/V (same class), N₁·N₂·σ·v/V (different classes); v ≈ 10 km/s.</li>"
+            "<li>Cross-section: large-object radius ≈ 1.6 m, fragment ≈ 15 cm. Each collision yields ≈ 1,500 (large–large) / ≈ 300 (large–fragment) catalog-size fragments.</li>"
+            "<li>Active satellites manoeuvre: their collision rate is scaled by (1 − 99.9%). Derelicts and fragments cannot manoeuvre.</li>"
+            "<li>Fragment lifetime vs altitude is rough (≈12 yr @550 km, ≈400 yr @800 km, ≈3,000 yr @1000 km); it depends on solar cycle and area-to-mass ratio.</li>"
+            "<li>Only the ≥10 cm class and the selected CelesTrak groups are counted; uncatalogued small debris and other breakups are excluded (risk is a lower bound).</li>"
+            "<li>Results are for scale and comparison, not a forecast.</li>"
+        )
+        st.markdown(_flat(f"""<details class="ops-details">
+  <summary>{T("Model varsayımları", "Model assumptions")}</summary>
+  <div class="ops-details-body"><ul>{_assump_items}</ul></div>
+</details>"""), unsafe_allow_html=True)
 
     # ---------------------------------------------------------------- 2) Temizlik önceliği
     with kc_tabs[1]:
@@ -3036,17 +3324,17 @@ if st.session_state.active_page == PAGES[0]:
             kc_f3 = go.Figure()
             for _k, _r in kc_runs.items():
                 kc_f3.add_trace(go.Scatter(x=_r["t"], y=_r["tot"], mode="lines", name=kc_names[_k], line=dict(color=kc_colors[_k], width=3)))
-            kc_f3.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            kc_f3.update_layout(template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                 title=T("Toplam nesne sayısı (aktif + terk edilmiş + parça)", "Total objects (active + derelict + fragments)"),
                                 xaxis_title=T("Yıl", "Year"), yaxis_title=T("Nesne sayısı", "Objects"),
-                                legend=dict(orientation="h", y=-0.25), margin=dict(t=50, b=10))
+                                legend=dict(orientation="h", y=-0.22), margin=dict(t=50, b=64))
             st.plotly_chart(kc_f3, **stretch(st.plotly_chart))
         with kc_g2:
             kc_rm = kc_runs["targeted"]["removed"]
             kc_f4 = go.Figure(go.Bar(x=KC_MID, y=kc_rm, marker_color="#10b981"))
-            kc_f4.update_layout(template="plotly_dark", height=390, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            kc_f4.update_layout(template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                 title=T("Hedefli senaryoda nereden temizlendi?", "Where did the targeted scenario clean?"),
-                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title=T("Kaldırılan nesne", "Objects removed"), margin=dict(t=50, b=10))
+                                xaxis_title=T("İrtifa (km)", "Altitude (km)"), yaxis_title=T("Kaldırılan nesne", "Objects removed"), margin=dict(t=50, b=64))
             st.plotly_chart(kc_f4, **stretch(st.plotly_chart))
 
         def kc_state(chg):
@@ -3869,6 +4157,11 @@ elif st.session_state.active_page == PAGES[2]:
             padding: 18px 20px;
             border-radius: 18px;
             margin-bottom: 12px;
+            min-height: 124px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
             backdrop-filter: blur(12px);
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
