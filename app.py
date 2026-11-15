@@ -1843,6 +1843,24 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .stApp p, .stApp span, .stApp label, .stApp li {
   font-family:'Inter','Segoe UI',-apple-system,sans-serif;
 }
+.stApp [data-testid="stTextInput"] { margin-top:-6px; margin-bottom:6px; }
+.stApp [data-testid="stTextInput"] > div > div {
+  background:rgba(8,16,38,.88) !important;
+  border:1px solid rgba(56,189,248,.32) !important;
+  border-radius:10px !important;
+  transition:border-color .18s ease, box-shadow .18s ease;
+}
+.stApp [data-testid="stTextInput"] > div > div:focus-within {
+  border-color:#38bdf8 !important;
+  box-shadow:0 0 12px rgba(56,189,248,.28) !important;
+}
+.stApp [data-testid="stTextInput"] input {
+  color:#f8fafc !important;
+  font-family:'Space Grotesk','Inter',sans-serif !important;
+  font-weight:600 !important;
+  font-size:13px !important;
+  padding:6px 10px !important;
+}
 
 /* Sade ve şık veri tablosu (Koyu Uzay & Neon Mavi/Beyaz Teması) */
 .ops-tbl-bar {
@@ -1947,6 +1965,10 @@ SIM_HTML = r"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 .zc.a{background:linear-gradient(160deg,rgba(245,158,11,.13),rgba(18,14,8,.92));border-color:rgba(245,158,11,.50)}
 .zc.g{background:linear-gradient(160deg,rgba(16,185,129,.13),rgba(6,18,16,.92));border-color:rgba(16,185,129,.50)}
 select,input[type=range]{width:100%;background:rgba(8,16,38,.85);color:#e2e8f0;border:1px solid rgba(56,189,248,.22);border-radius:10px;padding:5px 8px}
+.num-row{display:flex;align-items:center;gap:6px;width:100%}
+.num-row input[type=range]{flex:1;min-width:85px}
+.num-in{width:76px;background:rgba(6,12,30,.92);color:#f8fafc;border:1px solid rgba(56,189,248,.36);border-radius:8px;padding:4px 7px;font-family:'Space Grotesk','Inter',sans-serif;font-weight:600;font-size:12px;text-align:right;outline:none}
+.num-in:focus{border-color:#38bdf8;box-shadow:0 0 10px rgba(56,189,248,.32)}
 button{background:linear-gradient(135deg,#fc3d21,#c42a12);color:#fff;border:0;border-radius:999px;padding:7px 14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
 button.s{background:rgba(14,24,48,.85);border:1px solid rgba(56,189,248,.32)}
 button.s:hover{border-color:#38bdf8;background:rgba(56,189,248,.18)}
@@ -1978,9 +2000,9 @@ table{width:100%;margin-top:6px;border-collapse:collapse}td{padding:4px 6px;bord
 @media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px auto 190px;height:auto}.side{grid-row:auto;grid-column:1}.map-box{height:340px}}
 #zones{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:4px 10px 16px;align-items:stretch}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
 <div class="ctl">
-<label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><input id="m" type="range" min="50" max="5000" step="10"></label>
-<label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><input id="ar" type="range" min="0.1" max="30" step="0.1"></label>
-<label><span data-i data-tr="Giriş açısı (120 km)" data-en="Entry angle (120 km)"></span><span><b id="anv"></b> °</span><input id="an" type="range" min="0.5" max="45" step="0.1"></label>
+<label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><div class="num-row"><input id="m" type="range" min="50" max="5000" step="0.01"><input id="mn" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 1200,50)"></div></label>
+<label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><div class="num-row"><input id="ar" type="range" min="0.1" max="30" step="0.01"><input id="arn" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 11,13)"></div></label>
+<label><span data-i data-tr="Giriş açısı (120 km)" data-en="Entry angle (120 km)"></span><span><b id="anv"></b> °</span><div class="num-row"><input id="an" type="range" min="0.5" max="45" step="0.01"><input id="ann" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 3,25)"></div></label>
 <label><span data-i data-tr="Malzeme" data-en="Material"></span><select id="mt"></select></label>
 <label><span data-i data-tr="Hedef yüzey / düşüş bölgesi" data-en="Target surface / impact region"></span><select id="rg"></select></label>
 <label><span data-i data-tr="Düşüş bölgesi nüfus yoğunluğu" data-en="Impact-region population"></span><select id="pp"><option value="0.5">Ocean / Okyanus</option><option value="5">Remote / Ücra</option><option value="50">World avg / Dünya ort.</option><option value="300">Dense / Yoğun</option><option value="3000">Urban / Kent</option></select></label>
@@ -2219,15 +2241,20 @@ if(P.reg>=0){const r=D.regions[P.reg];h+=`<div class="kv"><span>${tx('Hedef yüz
  `<div class="tele-bar-w"><div class="tele-bar-lbl"><span>🔥 ${tx('Atmosferik Termal Sönümleme','Atmospheric Thermal Dissipation')}: %${thermPct.toFixed(1)}</span><span>☄️ ${tx('Yüzey Kinetik Payı','Surface Kinetic Share')}: %${(100-thermPct).toFixed(1)}</span></div><div class="tele-bar"><i style="width:${thermPct.toFixed(1)}%"></i></div></div>`+
  `</div>`;
  $('risk').innerHTML=h}
+const fmtV=v=>TR?(+v).toFixed(2).replace('.',','):(+v).toFixed(2);
 function recompute(){P={mass:+$('m').value,area:+$('ar').value,angle:+$('an').value,mat:+$('mt').value,pop:+$('pp').value,reg:+$('rg').value};if(P.reg>=0)P.pop=D.regions[P.reg][4];$('pp').disabled=P.reg>=0;
- ['m','ar','an'].forEach(i=>$(i+'v').textContent=$(i).value);mapPanLat=0;mapPanLon=0;sim();S.pk=Math.max(...S.main.rows.map(a=>a[5]),1e-9);S.tb=tb;T=0;flash=-1;riskUI();play=true}
+ ['m','ar','an'].forEach(i=>{$(i+'v').textContent=fmtV($(i).value);if($(i+'n')&&document.activeElement!==$(i+'n'))$(i+'n').value=fmtV($(i).value)});mapPanLat=0;mapPanLon=0;sim();S.pk=Math.max(...S.main.rows.map(a=>a[5]),1e-9);S.tb=tb;T=0;flash=-1;riskUI();play=true}
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.1);last=now;
  if(play){const base=Math.max(1,S.tmax/(+$('sp').value)),nb=S.tb>0&&Math.abs(T-S.tb)<10?.18:1;T+=dt*base*nb;if(T>=S.tmax){T=S.tmax;play=false}}
  drawSide(T);drawMap(T);drawChart(T);hud(T)}
 function init(){const mats=D.mats;$('mt').innerHTML=mats.map(m=>`<option value="${m[1]}">${TR?m[2]:m[0]}</option>`).join('');
  $('m').value=D.mass;$('ar').value=D.area;$('an').value=D.angle;$('mt').value=D.mat;$('pp').value=D.pop;
  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=tx(e.dataset.tr,e.dataset.en));
- $('rg').innerHTML=`<option value="-1">${tx('Doğal (TLE yer izi)','Natural (TLE ground track)')}</option>`+D.regions.map((r,i)=>`<option value="${i}">${TR?r[0]:r[1]}</option>`).join('');$('rg').value=-1;['m','ar','an','mt','pp','rg'].forEach(i=>$(i).oninput=recompute);$('pl').onclick=()=>{if(T>=S.tmax)T=0;play=!play};$('rs').onclick=()=>{T=0;play=true};
+ $('rg').innerHTML=`<option value="-1">${tx('Doğal (TLE yer izi)','Natural (TLE ground track)')}</option>`+D.regions.map((r,i)=>`<option value="${i}">${TR?r[0]:r[1]}</option>`).join('');$('rg').value=-1;['m','ar','an','mt','pp','rg'].forEach(i=>$(i).oninput=recompute);
+ ['m','ar','an'].forEach(i=>{const sl=$(i),nb=$(i+'n');if(!nb)return;nb.value=fmtV(sl.value);
+  const syncTxt=commit=>{const raw=nb.value.trim().replace(',','.');const v=parseFloat(raw);if(!isNaN(v)){const cl=Math.min(+sl.max,Math.max(+sl.min,v));sl.value=cl;if(commit)nb.value=fmtV(cl);recompute()}};
+  nb.addEventListener('input',()=>syncTxt(false));nb.addEventListener('change',()=>syncTxt(true));nb.addEventListener('blur',()=>syncTxt(true))});
+ $('pl').onclick=()=>{if(T>=S.tmax)T=0;play=!play};$('rs').onclick=()=>{T=0;play=true};
  $('scrub').oninput=e=>{T=e.target.value/1000*S.tmax;play=false};$('zi').onclick=()=>zoom=Math.min(zoom*1.6,8);$('zo').onclick=()=>zoom=Math.max(zoom/1.6,.5);
  $('mzi').onclick=()=>{mapZoom=Math.min(mapZoom*1.45,12);updateMapHdr()};
  $('mzo').onclick=()=>{mapZoom=Math.max(mapZoom/1.45,.35);updateMapHdr()};
@@ -2256,6 +2283,70 @@ def _sim_open():
 
 def _sim_close():
     st.session_state.sg_sim_mode = False
+
+
+def _fmt_num_str(val, decimals=2):
+    s = f"{float(val):.{decimals}f}"
+    return s.replace(".", ",") if st.session_state.get("lang", "tr") == "tr" else s
+
+
+def _parse_num_str(raw, min_v, max_v, fallback):
+    if raw is None:
+        return float(fallback)
+    s = str(raw).strip().replace(" ", "").replace(",", ".")
+    cleaned = []
+    dot_seen = False
+    for idx, ch in enumerate(s):
+        if ch in "+-" and idx == 0:
+            cleaned.append(ch)
+        elif ch.isdigit():
+            cleaned.append(ch)
+        elif ch == "." and not dot_seen:
+            cleaned.append(".")
+            dot_seen = True
+    s_clean = "".join(cleaned)
+    if not s_clean or s_clean in ("+", "-", "."):
+        return float(fallback)
+    try:
+        v = float(s_clean)
+    except ValueError:
+        return float(fallback)
+    return float(min(float(max_v), max(float(min_v), v)))
+
+
+def _slider_num(container, label, min_v, max_v, default_v, step_v, key, decimals=2):
+    """Sürgü (slider) + hemen altında klavyeden virgüllü/noktalı ondalık değer girilebilen senkronize kutu."""
+    min_f, max_f, def_f, step_f = float(min_v), float(max_v), float(default_v), float(step_v)
+    txt_key = f"{key}_txt"
+    if key not in st.session_state:
+        st.session_state[key] = def_f
+    else:
+        try:
+            st.session_state[key] = float(min(max_f, max(min_f, float(st.session_state[key]))))
+        except Exception:
+            st.session_state[key] = def_f
+
+    def _on_sl():
+        st.session_state[txt_key] = _fmt_num_str(st.session_state[key], decimals)
+
+    def _on_tx():
+        val = round(_parse_num_str(st.session_state.get(txt_key, ""), min_f, max_f, st.session_state.get(key, def_f)), decimals)
+        st.session_state[key] = val
+        st.session_state[txt_key] = _fmt_num_str(val, decimals)
+
+    fmt_sl = f"%.{decimals}f" if decimals > 0 else "%.0f"
+    val = container.slider(label, min_value=min_f, max_value=max_f, step=step_f, format=fmt_sl, key=key, on_change=_on_sl)
+    st.session_state[txt_key] = _fmt_num_str(val, decimals)
+    container.text_input(
+        T(f"{label} — Klavyeden değer girin", f"{label} — Type value"),
+        key=txt_key,
+        on_change=_on_tx,
+        label_visibility="collapsed",
+        placeholder=T("Klavyeden değer girin (örn. 11,13)", "Type value (e.g. 11.13)"),
+        help=T("Klavyeden virgül (,) veya nokta (.) kullanarak küsuratlı değer girebilirsiniz (Enter ile onaylayın).",
+               "You can type decimal values using a comma (,) or dot (.) and press Enter."),
+    )
+    return float(st.session_state[key])
 
 
 def _sim_orbit(name):
@@ -2927,9 +3018,9 @@ if st.session_state.active_page == PAGES[0]:
         st.markdown(T("Seçtiğin temizlik hızıyla önümüzdeki yıllarda nesne sayısının nasıl değişeceğini karşılaştır.",
                       "Compare how the object count evolves over the coming years at the cleanup rate you choose."))
         kc_s1, kc_s2, kc_s3 = st.columns(3)
-        kc_years = kc_s1.slider(T("Simülasyon süresi (yıl)", "Simulation horizon (years)"), 10, 100, 50, 5, key="sg_kc_years")
-        kc_rem = kc_s2.slider(T("Yılda temizlenen büyük nesne", "Large objects removed per year"), 0, 20, 5, key="sg_kc_rem")
-        kc_new = kc_s3.slider(T("Yılda yeni terk edilen büyük nesne", "New large objects abandoned per year"), 0, 40, 5, key="sg_kc_new")
+        kc_years = _slider_num(kc_s1, T("Simülasyon süresi (yıl)", "Simulation horizon (years)"), 10.0, 100.0, 50.0, 0.5, key="sg_kc_years", decimals=1)
+        kc_rem = _slider_num(kc_s2, T("Yılda temizlenen büyük nesne", "Large objects removed per year"), 0.0, 20.0, 5.0, 0.1, key="sg_kc_rem", decimals=2)
+        kc_new = _slider_num(kc_s3, T("Yılda yeni terk edilen büyük nesne", "New large objects abandoned per year"), 0.0, 40.0, 5.0, 0.1, key="sg_kc_new", decimals=2)
 
         kc_runs = {
             "none": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, 0, kc_new, "none"),
@@ -3732,8 +3823,8 @@ elif st.session_state.active_page == PAGES[2]:
               _CH[2]: f"Aktif × Enkaz ({SCREEN_N_ACTIVE} + {SCREEN_N_DEBRIS})"}
     choice = c1.selectbox(T("Taranacak katalog", "Catalog to screen"), _CH, index=2, key="sg_choice",
                           format_func=lambda x: _CH_TR.get(x, x) if st.session_state.get("lang", "tr") == "tr" else x)
-    hours = c2.slider(T("İleri bakış (saat)", "Look-ahead (hours)"), 1, 24, 12, key="sg_hours")
-    thr = c3.slider(T("Kaba tarama eşiği (km)", "Coarse screening threshold (km)"), 20, 120, 60, key="sg_thr")
+    hours = _slider_num(c2, T("İleri bakış (saat)", "Look-ahead (hours)"), 1.0, 24.0, 12.0, 0.1, key="sg_hours", decimals=2)
+    thr = _slider_num(c3, T("Kaba tarama eşiği (km)", "Coarse screening threshold (km)"), 20.0, 120.0, 60.0, 0.1, key="sg_thr", decimals=2)
 
     if st.button(T("🛰️ YAKINLAŞMA TARAMASINI BAŞLAT", "🛰️ RUN CONJUNCTION SCREENING"), type="primary", **stretch(st.button)):
         with st.spinner(T("SGP4 propagasyonu + KD-Tree taraması çalışıyor...", "Running SGP4 propagation + KD-Tree screening...")):
@@ -3942,8 +4033,8 @@ elif st.session_state.active_page == PAGES[2]:
         st.caption(T("Uydu kütlesi ve yörünge yoğunluğuna göre dinamik prim ayarlarını hesaplayın.",
                      "Calculate dynamic premium adjustments based on satellite mass and orbit density."))
 
-        sats = st.slider(T("Aktif Takımyıldız Büyüklüğü (Uydu):", "Active Constellation Size (Satellites):"),
-                         min_value=10, max_value=1000, value=120, key="sg_sats")
+        sats = _slider_num(st, T("Aktif Takımyıldız Büyüklüğü (Uydu):", "Active Constellation Size (Satellites):"),
+                           10.0, 1000.0, 120.0, 0.1, key="sg_sats", decimals=2)
 
         rocket_factor = st.selectbox(
             T("Yüksek Kütleli Roket Gövdesi Faktörü:", "High-Mass Rocket Body Factor:"),
@@ -4018,26 +4109,26 @@ elif st.session_state.active_page == PAGES[3]:
         if tgt == "CUSTOM OBJECT":
             return
         if tgt.startswith(("ISS", "CSS", "TIANGONG")):
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000, 28.0, "Titanium"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000.0, 28.0, "Titanium"
         elif "HST" in tgt or "HUBBLE" in tgt:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000, 22.0, "Aluminum alloy"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 5000.0, 22.0, "Aluminum alloy"
         elif "R/B" in tgt or "SL-" in tgt or "CZ-" in tgt or "FALCON" in tgt:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 3200, 14.5, "Stainless steel"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 3200.0, 14.5, "Stainless steel"
         elif "STARLINK" in tgt or "ONEWEB" in tgt:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 550, 3.8, "Aluminum alloy"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 550.0, 3.8, "Aluminum alloy"
         elif "DEB" in tgt:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 120, 0.6, "Aluminum alloy"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 120.0, 0.6, "Aluminum alloy"
         else:
-            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1400, 5.2, "Aluminum alloy"
+            st.session_state.sg_mass, st.session_state.sg_area, st.session_state.sg_material = 1400.0, 5.2, "Aluminum alloy"
 
     sat_names = df_api["Satellite Name"].tolist() if not df_api.empty else []
     st.selectbox(T("Hedef Enkaz / Uydu:", "Target Debris / Satellite:"), ["Custom object"] + sat_names, key="sg_target",
                  on_change=_on_target_change,
                  format_func=lambda x: T("Özel nesne", "Custom object") if x == "Custom object" else x)
     s1, s2, s3 = st.columns(3)
-    s1.slider(T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50, 5000, 1200, key="sg_mass")
-    s2.slider(T("Kesit alanı (m²)", "Cross-section area (m²)"), 0.1, 30.0, 4.0, key="sg_area")
-    s3.slider(T("120 km'de uçuş yolu açısı (°)", "Flight-path angle at 120 km (°)"), 0.5, 45.0, 3.0, key="sg_angle")
+    _slider_num(s1, T("Nesne Kütlesi (kg)", "Object Mass (kg)"), 50.0, 5000.0, 1200.0, 0.01, key="sg_mass", decimals=2)
+    _slider_num(s2, T("Kesit alanı (m²)", "Cross-section area (m²)"), 0.10, 30.00, 4.00, 0.01, key="sg_area", decimals=2)
+    _slider_num(s3, T("120 km'de uçuş yolu açısı (°)", "Flight-path angle at 120 km (°)"), 0.50, 45.00, 3.00, 0.01, key="sg_angle", decimals=2)
     st.selectbox(T("Baskın yapısal malzeme", "Dominant structural material"), list(MATERIALS.keys()), key="sg_material", format_func=_mat_name)
     _rk = _sim_risk(st.session_state.get("sg_target", "Custom object"))
     st.info(T(f"Risk analizi bağlantısı: {'tarama sonucu bulundu (' + str(_rk['n']) + ' yakın geçiş)' if _rk['n'] is not None else 'henüz tarama yok'}; hedefin TLE yörüngesi simülasyona otomatik aktarılır.",
