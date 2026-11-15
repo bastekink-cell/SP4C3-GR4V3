@@ -696,7 +696,8 @@ INTRO_CSS = """
 :root { --sg-cyan:#38bdf8; --sg-red:#fc3d21; --sg-green:#10b981; --sg-mute:#94a3b8; --sg-line:rgba(56,189,248,.16); }
 header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none !important; }
 .stApp { background:#040817; }
-[data-testid="stMain"], section.main, .main { scroll-behavior:smooth; }
+html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], section.main, .main { scroll-behavior:smooth; }
+#kurumsal-iletisim, #contact { scroll-margin-top:90px; }
 /* Canlı izlemeye geçerken eski giriş içeriği (soluk yazılar) ekranda kalmasın */
 .st-key-sg_fg [data-stale="true"], .st-key-sg_fg [data-stale="true"] * { visibility:hidden !important; }
 .stApp [data-testid="stAppViewContainer"] { overscroll-behavior:none; }
@@ -897,7 +898,7 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-amount { font-family:'Space Grotesk','Inter',sans-serif; font-size:34px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1; }
 .sg-amount small { font-family:'Inter','Segoe UI',sans-serif; font-size:13px; font-weight:500; color:var(--sg-mute); letter-spacing:0; margin-left:6px; }
 .sg-tier-cta { margin-top:auto; display:flex; align-items:center; justify-content:center; height:44px; border-radius:999px; border:1px solid var(--c,#38bdf8);
-  color:#fff !important; text-decoration:none !important; font-weight:600; font-size:13.5px; transition:background .2s; }
+  color:#fff !important; text-decoration:none !important; font-weight:600; font-size:13.5px; transition:background .2s; white-space:nowrap; text-align:center; }
 .sg-tier-cta:hover { background:rgba(56,189,248,.16); }
 .sg-tier-gmail { margin-top:6px; height:40px; border-color:rgba(234,67,53,.55); background:rgba(234,67,53,.10); color:#fecaca !important; font-size:12.5px; }
 .sg-tier-gmail:hover { background:rgba(234,67,53,.22); border-color:#ef4444; color:#fff !important; }
@@ -1540,7 +1541,7 @@ def _pricing_grid_html(tr):
         return "&#36;" + _dh_num(PRICING[k], tr)
     if tr:
         L = dict(frm="Başlangıç fiyatı", aud="Hedef kitle", scope="Sigorta ve Risk Kapsamı", logic="Fiyatlandırma mantığı",
-                 cta=f"📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL})", pop="Popüler")
+                 cta="Demo talep et", pop="Popüler")
         tiers = [
             ("basic", "Temel", "#3b82f6", False, "/ ay",
              "Erken aşama ve küçük ölçekli uydu takımyıldızı operatörleri.<br>Uzay teknolojileri Ar-Ge merkezleri ve akademik araştırma kurumları.",
@@ -1558,7 +1559,7 @@ def _pricing_grid_html(tr):
         note = "Fiyatlar USD cinsindendir ve başlangıç seviyesini gösterir; nihai bedel kapsama ve uydu sayısına göre netleşir."
     else:
         L = dict(frm="Starting at", aud="Target audience", scope="Scope and modeled data", logic="Pricing logic",
-                 cta=f"📧 Request Demo via Google Mail (Gmail) ({DEMO_EMAIL})", pop="Popular")
+                 cta="Request a Demo", pop="Popular")
         tiers = [
             ("basic", "Basic", "#3b82f6", False, "/ month",
              "Early-stage and small constellation operators<br>R&amp;D centers and academic institutions",
@@ -1589,7 +1590,7 @@ def _pricing_grid_html(tr):
             f'<div><div class="sg-lbl">{L["scope"]}</div><div class="sg-val">{scope}</div></div>'
             f'<div><div class="sg-lbl">{L["logic"]}</div><div class="sg-val">{logic}</div></div>'
             f'<div style="margin-top:auto">'
-            f'<a class="sg-tier-cta" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{L["cta"]}</a>'
+            f'<a class="sg-tier-cta" href="#kurumsal-iletisim">{L["cta"]}</a>'
             f'</div></div>'
         )
     return f'<div class="sg-price">{"".join(cards)}</div><p class="sg-note">{note}</p>'
@@ -1669,7 +1670,7 @@ def _render_contact():
         meta_3 = "<b>B2B &amp; InsurTech</b> Custom Integration"
 
     st.markdown(_flat(f"""
-    <div id="contact" class="sg-sec">
+    <div id="kurumsal-iletisim" class="sg-sec">
       <div class="sg-vip-wrap">
         <div class="sg-vip-beam"></div>
         <div class="sg-vip-card">
@@ -1715,7 +1716,7 @@ def render_intro():
     nav_html = f"""
     <div class="sg-nav">
       <a class="sg-logo" href="#top" title="Sayfanın en başına dön" onclick="{_top_js}"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
-      <div class="sg-links"><a href="#features">Özellikler</a><a href="#pricing">Fiyatlandırma</a><a href="#docs">Dokümantasyon</a><a href="#about">Hakkımızda</a><a href="#contact">İletişim</a></div>
+      <div class="sg-links"><a href="#features">Özellikler</a><a href="#pricing">Fiyatlandırma</a><a href="#docs">Dokümantasyon</a><a href="#about">Hakkımızda</a><a href="#kurumsal-iletisim">İletişim</a></div>
       <a class="sg-cta" href="?launch=1&amp;lang=tr" target="_self"><span class="l">Canlı İzlemeyi Başlat</span><span class="s">Canlı İzle</span></a>
     </div>
     <div class="sg-veil"></div>
@@ -1825,7 +1826,7 @@ def render_intro():
         nav_html = f"""
         <div class="sg-nav">
           <a class="sg-logo" href="#top" title="Back to top" onclick="{_top_js}"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
-          <div class="sg-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#docs">Docs</a><a href="#about">About</a><a href="#contact">Contact</a></div>
+          <div class="sg-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#docs">Docs</a><a href="#about">About</a><a href="#kurumsal-iletisim">Contact</a></div>
           <a class="sg-cta" href="?launch=1&amp;lang=en" target="_self"><span class="l">Start Live Tracking</span><span class="s">Live Map</span></a>
         </div>
         <div class="sg-veil"></div>
@@ -1964,7 +1965,7 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="#kurumsal-iletisim">{T("Demo talep et", "Request a Demo")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
