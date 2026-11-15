@@ -80,7 +80,7 @@ def stretch(fn, scroll_zoom=False):
     except (TypeError, ValueError):
         pass
     if fn is getattr(st, "plotly_chart", None):
-        out["config"] = {"scrollZoom": bool(scroll_zoom), "displaylogo": False}
+        out["config"] = {"scrollZoom": bool(scroll_zoom), "displaylogo": False, "responsive": True}
     return out
 
 
@@ -740,9 +740,10 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   box-shadow:0 10px 34px rgba(252,61,33,.32), inset 0 1px 0 rgba(255,255,255,.18) !important; transition:transform .2s ease, box-shadow .2s ease !important; }
 [class*="st-key-sg_launch"] button:hover { transform:translateY(-2px); box-shadow:0 16px 44px rgba(252,61,33,.48), inset 0 1px 0 rgba(255,255,255,.22) !important; }
 [class*="st-key-sg_launch"] button p { color:#fff !important; font-weight:700 !important; font-size:15px !important; letter-spacing:.01em; }
-.sg-ghost { display:flex; align-items:center; justify-content:center; height:54px; border-radius:999px; border:1px solid rgba(148,163,184,.35);
-  color:#e2e8f0 !important; text-decoration:none !important; font-weight:600; font-size:14.5px; transition:all .2s; font-family:'Inter','Segoe UI',sans-serif; }
-.sg-ghost:hover { border-color:var(--sg-cyan); color:#fff !important; background:rgba(56,189,248,.08); }
+.sg-ghost { display:flex; align-items:center; justify-content:center; height:54px; border-radius:999px; border:1px solid rgba(56,189,248,.48);
+  color:#e2e8f0 !important; text-decoration:none !important; font-weight:600; font-size:14.5px; transition:all .2s; font-family:'Inter','Segoe UI',sans-serif;
+  background:rgba(8,18,42,.55); box-shadow:0 8px 24px rgba(56,189,248,.10); }
+.sg-ghost:hover { border-color:var(--sg-cyan); color:#fff !important; background:rgba(56,189,248,.14); box-shadow:0 12px 30px rgba(56,189,248,.22); transform:translateY(-1px); }
 .sg-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1px; margin-top:34px; max-width:640px; border:1px solid var(--sg-line);
   border-radius:16px; overflow:hidden; background:var(--sg-line); font-family:'Inter','Segoe UI',sans-serif; }
 .sg-metric { background:rgba(6,12,30,.80); padding:14px 16px; }
@@ -948,26 +949,52 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
 .sg-member b { display:block; color:#fff; font-size:15px; font-weight:600; }
 .sg-member b a { color:#fff !important; text-decoration:none !important; border-bottom:1px solid rgba(56,189,248,.5); }
 .sg-member span { color:#94a3b8; font-size:13px; }
-.st-key-sg_contact { max-width:900px; margin:22px 0 0; padding:26px; border-radius:18px; border:1px solid var(--sg-line);
-  background:linear-gradient(160deg,rgba(14,24,48,.84),rgba(6,11,26,.92)); }
-.st-key-sg_contact label p { color:#cbd5e1 !important; font-size:13px !important; font-weight:500 !important; }
-.st-key-sg_contact div[data-baseweb="input"], .st-key-sg_contact div[data-baseweb="textarea"], .st-key-sg_contact div[data-baseweb="select"] > div {
-  background:#0b1329 !important; border-color:rgba(56,189,248,.25) !important; }
-.st-key-sg_contact input, .st-key-sg_contact textarea { color:#e2e8f0 !important; -webkit-text-fill-color:#e2e8f0 !important; background:transparent !important; }
-.st-key-sg_contact [data-testid="stForm"] { border:0 !important; padding:0 !important; }
-.st-key-sg_contact [data-testid="stFormSubmitButton"] button { height:50px; border-radius:999px !important; border:1px solid rgba(252,61,33,.9) !important;
-  background:linear-gradient(135deg,#fc3d21,#c42a12) !important; }
-.st-key-sg_contact [data-testid="stFormSubmitButton"] button p { color:#fff !important; font-weight:700 !important; }
-.sg-consent { color:#64748b; font-size:12px; margin:4px 0 0; }
-@media (max-width:1060px) { .sg-links { display:none; } .sg-nav { justify-content:space-between; } }
-@media (max-width:520px) {
-  .sg-logo { letter-spacing:.08em; font-size:13px; gap:8px; }
-  .sg-cta { padding:8px 13px; font-size:12px; }
-  .sg-cta .l { display:none; } .sg-cta .s { display:inline; }
-}
+/* VIP Holografik / Glassmorphism İletişim & Demo Komuta Paneli */
+.sg-vip-wrap { position:relative; max-width:920px; margin:26px auto 0; padding:2px; border-radius:26px; overflow:hidden;
+  background:rgba(14,24,48,.55); box-shadow:0 28px 72px rgba(0,0,0,.68), 0 0 48px rgba(56,189,248,.16); }
+.sg-vip-beam { position:absolute; inset:-65%; background:conic-gradient(from 0deg, transparent 0deg, rgba(56,189,248,.92) 48deg, #38bdf8 72deg, rgba(16,185,129,.78) 98deg, transparent 140deg, transparent 360deg);
+  animation:sgBeamSpin 6.5s linear infinite; pointer-events:none; }
+@keyframes sgBeamSpin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+.sg-vip-card { position:relative; z-index:1; border-radius:24px; padding:clamp(28px,4.5vw,48px) clamp(20px,4vw,44px);
+  background:radial-gradient(ellipse at 50% 0%, rgba(56,189,248,.16) 0%, rgba(10,20,46,.95) 48%, rgba(4,8,23,.98) 100%);
+  backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+  border:1px solid rgba(56,189,248,.24); overflow:hidden; text-align:center; }
+.sg-vip-nebula { position:absolute; width:420px; height:420px; left:50%; top:-160px; transform:translateX(-50%);
+  background:radial-gradient(circle, rgba(56,189,248,.22) 0%, rgba(16,185,129,.08) 42%, transparent 72%);
+  filter:blur(28px); pointer-events:none; animation:sgGlowFloat 7s ease-in-out infinite; }
+@keyframes sgGlowFloat { 0%, 100% { opacity:.72; transform:translateX(-50%) scale(1); } 50% { opacity:1; transform:translateX(-50%) scale(1.08); } }
+.sg-vip-badge { position:relative; z-index:2; display:inline-flex; align-items:center; gap:9px; padding:7px 16px; border-radius:999px;
+  border:1px solid rgba(56,189,248,.48); background:rgba(8,20,46,.78); color:#bae6fd;
+  font-family:'Space Grotesk','Inter',sans-serif; font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  box-shadow:0 0 20px rgba(56,189,248,.18); margin-bottom:18px; }
+.sg-vip-title { position:relative; z-index:2; font-family:'Space Grotesk','Inter',sans-serif;
+  font-size:clamp(26px,3.2vw,42px); font-weight:700; line-height:1.12; letter-spacing:-.02em; color:#fff; margin:0 0 12px; }
+.sg-vip-title em { font-style:normal; background:linear-gradient(90deg,#38bdf8,#7dd3fc,#34d399); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.sg-vip-sub { position:relative; z-index:2; max-width:650px; margin:0 auto 28px; color:#cbd5e1; font-size:15.5px; line-height:1.7; }
+.sg-vip-mail-box { position:relative; z-index:2; display:inline-flex; flex-direction:column; align-items:center; gap:8px;
+  padding:20px clamp(20px,4vw,42px); border-radius:20px; margin-bottom:26px; max-width:100%;
+  background:linear-gradient(160deg, rgba(14,32,68,.82), rgba(5,12,30,.94));
+  border:1px solid rgba(56,189,248,.42); box-shadow:inset 0 1px 0 rgba(255,255,255,.10), 0 0 34px rgba(56,189,248,.18); }
+.sg-vip-mail-lbl { font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:#7dd3fc; }
+.sg-vip-email { font-family:'Space Grotesk','Inter',sans-serif; font-size:clamp(18px,2.8vw,32px); font-weight:700; letter-spacing:-.01em;
+  color:#ffffff !important; text-decoration:none !important; word-break:break-word;
+  text-shadow:0 0 24px rgba(56,189,248,.58), 0 0 48px rgba(56,189,248,.24); transition:transform .22s ease, text-shadow .22s ease; }
+.sg-vip-email:hover { transform:scale(1.02); text-shadow:0 0 32px rgba(56,189,248,.85), 0 0 60px rgba(52,211,153,.35); }
+.sg-vip-actions { position:relative; z-index:2; display:flex; justify-content:center; flex-wrap:wrap; gap:14px; }
+.sg-vip-cta { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:54px; padding:12px 30px; border-radius:999px;
+  background:linear-gradient(135deg,#0ea5e9 0%,#2563eb 52%,#06b6d4 100%); background-size:200% 200%;
+  border:1px solid rgba(125,211,252,.78); color:#ffffff !important; text-decoration:none !important;
+  font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; font-size:15px; letter-spacing:.02em;
+  box-shadow:0 12px 36px rgba(14,165,233,.38), inset 0 1px 0 rgba(255,255,255,.28);
+  transition:transform .24s ease, box-shadow .24s ease, background-position .4s ease; }
+.sg-vip-cta:hover { transform:translateY(-3px) scale(1.02); background-position:100% 50%;
+  box-shadow:0 18px 46px rgba(56,189,248,.52), 0 0 28px rgba(56,189,248,.42); }
+.sg-vip-meta { position:relative; z-index:2; display:flex; justify-content:center; flex-wrap:wrap; gap:10px 22px; margin-top:24px;
+  padding-top:18px; border-top:1px solid rgba(56,189,248,.16); color:#94a3b8; font-size:12.5px; }
+.sg-vip-meta span { display:inline-flex; align-items:center; gap:7px; }
+.sg-vip-meta b { color:#e2e8f0; font-weight:600; }
 
-@keyframes sgUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
-@keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
+@media (max-width:1060px) { .sg-links { display:none; } .sg-nav { justify-content:space-between; } }
 @media (max-width:900px) {
   .sg-links { display:none; }
   .sg-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -975,7 +1002,41 @@ header[data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecor
   .sg-about { grid-template-columns:1fr; }
   .sg-veil { background:rgba(4,8,23,.62); }
 }
-@media (prefers-reduced-motion:reduce) { .sg-hero, .sg-dot { animation:none; } }
+@media (max-width:768px) {
+  .block-container, [data-testid="stMainBlockContainer"] { padding-left:1rem !important; padding-right:1rem !important; }
+  .sg-hero { padding-top:94px; }
+  .sg-h1 { font-size:clamp(26px,7.2vw,38px); margin:16px 0 14px; }
+  .sg-lead { font-size:15px; line-height:1.65; }
+  .sg-sec { margin-top:64px; }
+  .sg-grid, .sg-mgrid, .sg-price { grid-template-columns:1fr !important; gap:14px; }
+  .sg-card { padding:18px; }
+  .st-key-sg_livebox { padding:14px; border-radius:16px; }
+  .sg-live-hdr { flex-direction:column; align-items:flex-start; }
+  .sg-ticker-wrap { height:auto; min-height:38px; padding:6px 10px; }
+  .sg-ticker-badge { font-size:9.5px; padding:4px 9px; margin-right:8px; }
+  .sg-top { right:14px; bottom:56px; padding:9px 14px; font-size:12px; }
+  .sg-vip-card { padding:26px 18px; }
+  .sg-vip-mail-box { width:100%; padding:16px 14px; }
+  .sg-vip-cta { width:100%; font-size:14px; padding:12px 18px; }
+}
+@media (max-width:520px) {
+  .sg-logo { letter-spacing:.08em; font-size:13px; gap:8px; }
+  .sg-cta { padding:8px 13px; font-size:12px; }
+  .sg-cta .l { display:none; } .sg-cta .s { display:inline; }
+}
+@media (max-width:480px) {
+  .sg-metrics { grid-template-columns:1fr !important; }
+  .sg-metric b { font-size:19px; }
+  .sg-src i { margin-left:6px; margin-top:6px; display:inline-block; }
+  .sg-badge { font-size:10px; letter-spacing:.10em; padding:6px 11px; }
+  .sg-ghost, [class*="st-key-sg_launch"] button { height:48px !important; font-size:13.5px !important; }
+  .sg-mem-b { padding-left:14px; }
+  .sg-foot { font-size:10.5px; line-height:1.6; }
+}
+
+@keyframes sgUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes sgPulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.55); } 70% { box-shadow:0 0 0 9px rgba(16,185,129,0); } 100% { box-shadow:0 0 0 0 rgba(16,185,129,0); } }
+@media (prefers-reduced-motion:reduce) { .sg-hero, .sg-dot, .sg-vip-beam, .sg-vip-nebula { animation:none; } }
 </style>
 """
 
@@ -1585,143 +1646,53 @@ def _save_demo_request(row):
 
 
 def _render_contact():
-    from urllib.parse import quote as url_quote
     tr = st.session_state.lang == "tr"
     if tr:
-        head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">İletişim</div>'
-                '<div class="sg-h2">Kurumunuz için canlı demo talep edin</div>'
-                '<p class="sg-p">Uydu filonuz veya sigorta portföyünüz için Space Grave\'i birlikte inceleyelim. '
-                f'Doğrudan Google Mail (Gmail) üzerinden <b>{DEMO_EMAIL}</b> adresine ulaşabilir veya aşağıdaki formu doldurarak tüm bilgilerinizle birlikte gönderim ekranını açabilirsiniz.</p>'
-                '<div class="sg-mail-row">'
-                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL}) →</a>'
-                '</div></div>')
-        roles = ["Uydu operatörü", "Sigorta / reasürans", "Uzay ajansı / savunma", "Akademi / Ar-Ge", "Diğer"]
+        badge = "VIP İLETİŞİM & CANLI DEMO KOMUTA HATTI"
+        title = "Space Grave ile <em>Yörünge Güvencesi</em> Başlatın"
+        sub = ("Uydu filonuz, takımyıldız operasyonlarınız veya uzay sigortası portföyünüz için "
+               "özel canlı brifing ve teknik demo taleplerinizi doğrudan komuta merkezimize iletin.")
+        mail_lbl = "RESMİ KURUMSAL İLETİŞİM ADRESİ"
+        cta_lbl = "📧 Google Mail (Gmail) ile Canlı Demo Talep Et  →"
+        meta_1 = "<b>7/24</b> Hızlı Yanıt Hattı"
+        meta_2 = "<b>SGP4 + NASA OTPS</b> Canlı Brifing"
+        meta_3 = "<b>B2B &amp; InsurTech</b> Özel Entegrasyon"
     else:
-        head = ('<div id="contact" class="sg-sec"><div class="sg-kicker">Contact</div>'
-                '<div class="sg-h2">Request a live demo for your organization</div>'
-                '<p class="sg-p">Let us walk you through Space Grave for your satellite fleet or insurance portfolio. '
-                f'Reach out via Google Mail (Gmail) to <b>{DEMO_EMAIL}</b> or fill in the form below to open the compose screen with all your details pre-filled.</p>'
-                '<div class="sg-mail-row">'
-                f'<a class="sg-gmail-btn" href="{DEMO_GMAIL}" target="_blank" rel="noopener">📧 Request Demo via Google Mail (Gmail) ({DEMO_EMAIL}) →</a>'
-                '</div></div>')
-        roles = ["Satellite operator", "Insurance / reinsurance", "Space agency / defense", "Academia / R&D", "Other"]
-    st.markdown(_flat(head), unsafe_allow_html=True)
-    with _keyed("sg_contact"):
-        with st.form("sg_demo_form", clear_on_submit=False, border=False) if "border" in inspect.signature(st.form).parameters else st.form("sg_demo_form", clear_on_submit=False):
-            c1, c2 = st.columns(2)
-            name = c1.text_input(T("Ad Soyad *", "Full name *"), key="sg_dm_name", max_chars=100)
-            email = c2.text_input(T("İş e-postası *", "Work email *"), key="sg_dm_email", max_chars=150)
-            c3, c4 = st.columns(2)
-            company = c3.text_input(T("Kurum *", "Company *"), key="sg_dm_company", max_chars=120)
-            role = c4.selectbox(T("Kurum türü", "Organization type"), roles, key="sg_dm_role")
-            msg = st.text_area(T("Notunuz (isteğe bağlı)", "Your note (optional)"), key="sg_dm_msg", height=100, max_chars=1000)
-            sent = st.form_submit_button(
-                T(f"📧 Google Mail (Gmail) ile Demo Talep Et ({DEMO_EMAIL})  →",
-                  f"📧 Request a Demo via Google Mail (Gmail) ({DEMO_EMAIL})  →"),
-                **stretch(st.form_submit_button)
-            )
-        st.markdown('<p class="sg-consent">' + T(f"Formu göndererek talebinizin Google Mail (Gmail) üzerinden {DEMO_EMAIL} adresine iletilmesini kabul edersiniz.",
-                                               f"By submitting, you agree to forward your demo request via Google Mail (Gmail) to {DEMO_EMAIL}.") + "</p>", unsafe_allow_html=True)
-        # Tarayıcı pop-up engelleyicisine takılmadan doğrudan kullanıcı tıklaması anında form verilerini alıp Gmail sekmesini açan köprü
-        with _keyed("sg_scroll_fix"):
-            embed_html(f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;overflow:hidden"><script>
-            (function(){{
-              try {{
-                var d = window.parent.document;
-                var box = d.querySelector('.st-key-sg_contact');
-                if (!box) return;
-                var btn = box.querySelector('[data-testid="stFormSubmitButton"] button') || box.querySelector('button');
-                if (btn && !btn.dataset.sgGmailBound) {{
-                  btn.dataset.sgGmailBound = '1';
-                  btn.addEventListener('click', function() {{
-                    try {{
-                      var ins = box.querySelectorAll('input[type="text"]');
-                      var nm = (ins[0] ? ins[0].value : '').trim();
-                      var em = (ins[1] ? ins[1].value : '').trim();
-                      var co = (ins[2] ? ins[2].value : '').trim();
-                      var sel = box.querySelector('[data-baseweb="select"]');
-                      var rl = (sel ? sel.innerText : '').replace(/\\n/g, ' ').trim();
-                      var ta = box.querySelector('textarea');
-                      var nt = (ta ? ta.value : '').trim();
-                      if (nm && co && em.indexOf('@') > 0) {{
-                        var isTr = {json.dumps(bool(tr))};
-                        var su = isTr
-                          ? ('SP4C3 GR4V3 Canlı Demo Talebi - ' + co + ' (' + nm + ')')
-                          : ('SP4C3 GR4V3 Live Demo Request - ' + co + ' (' + nm + ')');
-                        var bd = isTr
-                          ? ('Merhaba Space Grave (SP4C3 GR4V3) Ekibi,\\n\\nKurumumuz için canlı demo talebinde bulunmak istiyoruz:\\n\\n'
-                             + 'Ad Soyad: ' + nm + '\\n'
-                             + 'İş E-postası: ' + em + '\\n'
-                             + 'Kurum: ' + co + '\\n'
-                             + 'Kurum Türü: ' + rl + '\\n\\n'
-                             + 'Notunuz:\\n' + (nt || '—') + '\\n')
-                          : ('Hello Space Grave (SP4C3 GR4V3) Team,\\n\\nWe would like to request a live demo for our organization:\\n\\n'
-                             + 'Full Name: ' + nm + '\\n'
-                             + 'Work Email: ' + em + '\\n'
-                             + 'Company: ' + co + '\\n'
-                             + 'Organization Type: ' + rl + '\\n\\n'
-                             + 'Note:\\n' + (nt || '—') + '\\n');
-                        var u = 'https://mail.google.com/mail/?view=cm&fs=1&to={DEMO_EMAIL}&su=' + encodeURIComponent(su) + '&body=' + encodeURIComponent(bd);
-                        window.parent.__sgLastOpenedGmail = u;
-                        window.parent.open(u, '_blank', 'noopener,noreferrer');
-                      }}
-                    }} catch(e) {{}}
-                  }}, true);
-                }}
-              }} catch(e) {{}}
-            }})();
-            </script></body></html>""", height=1)
-        if sent:
-            name_s, email_s, company_s, msg_s = name.strip(), email.strip(), company.strip(), msg.strip()
-            if not name_s or not company_s or not _EMAIL_RE.match(email_s):
-                st.error(T("Lütfen Ad Soyad, Kurum ve geçerli bir İş e-postası girin.", "Please enter your Full name, Company and a valid Work email."))
-            else:
-                _save_demo_request([utc_now().strftime("%Y-%m-%d %H:%M:%S"), name_s, email_s, company_s, role, msg_s, st.session_state.lang])
-                if tr:
-                    subj_txt = f"SP4C3 GR4V3 Canlı Demo Talebi - {company_s} ({name_s})"
-                    body_txt = (
-                        f"Merhaba Space Grave (SP4C3 GR4V3) Ekibi,\n\n"
-                        f"Kurumumuz için canlı demo talebinde bulunmak istiyoruz:\n\n"
-                        f"Ad Soyad: {name_s}\n"
-                        f"İş E-postası: {email_s}\n"
-                        f"Kurum: {company_s}\n"
-                        f"Kurum Türü: {role}\n\n"
-                        f"Notunuz:\n{msg_s or '—'}\n"
-                    )
-                else:
-                    subj_txt = f"SP4C3 GR4V3 Live Demo Request - {company_s} ({name_s})"
-                    body_txt = (
-                        f"Hello Space Grave (SP4C3 GR4V3) Team,\n\n"
-                        f"We would like to request a live demo for our organization:\n\n"
-                        f"Full Name: {name_s}\n"
-                        f"Work Email: {email_s}\n"
-                        f"Company: {company_s}\n"
-                        f"Organization Type: {role}\n\n"
-                        f"Note:\n{msg_s or '—'}\n"
-                    )
-                subj_q = url_quote(subj_txt)
-                body_q = url_quote(body_txt)
-                dyn_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={DEMO_EMAIL}&su={subj_q}&body={body_q}"
-                st.session_state.sg_demo_gmail_url = dyn_gmail
-                with _keyed("sg_scroll_fix"):
-                    embed_html(f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;overflow:hidden"><script>
-                    (function(){{
-                      try {{
-                        var u = {json.dumps(dyn_gmail)};
-                        if (window.parent.__sgLastOpenedGmail !== u) {{
-                          window.parent.__sgLastOpenedGmail = u;
-                          window.parent.open(u, '_blank', 'noopener,noreferrer');
-                        }}
-                      }} catch(e) {{}}
-                    }})();
-                    </script></body></html>""", height=1)
-                st.success(T(f"Talebiniz hazırlandı! Yeni sekmede Google Mail (Gmail) gönderim ekranı açıldı. Açılmadıysa aşağıdaki butona tıklayarak doğrudan {DEMO_EMAIL} adresine gönderebilirsiniz:",
-                             f"Your demo request is ready! Google Mail (Gmail) opened in a new tab. If blocked, click the button below to send directly to {DEMO_EMAIL}:"))
-                st.markdown(_flat(f"""
-                <div class="sg-mail-row" style="margin-top:8px">
-                  <a class="sg-gmail-btn" style="height:46px" href="{dyn_gmail}" target="_blank" rel="noopener">📧 {T('Google Mail (Gmail) Gönderim Ekranını Aç', 'Open Google Mail (Gmail) Compose Screen')} ({DEMO_EMAIL}) →</a>
-                </div>
-                """), unsafe_allow_html=True)
+        badge = "VIP CONTACT & LIVE DEMO COMMAND LINE"
+        title = "Launch <em>Orbital Assurance</em> with Space Grave"
+        sub = ("Send your private live briefing and technical demo requests for your satellite fleet, "
+               "constellation operations or space insurance portfolio directly to our command center.")
+        mail_lbl = "OFFICIAL CORPORATE CONTACT ADDRESS"
+        cta_lbl = "📧 Request a Live Demo via Google Mail (Gmail)  →"
+        meta_1 = "<b>24/7</b> Priority Response"
+        meta_2 = "<b>SGP4 + NASA OTPS</b> Live Briefing"
+        meta_3 = "<b>B2B &amp; InsurTech</b> Custom Integration"
+
+    st.markdown(_flat(f"""
+    <div id="contact" class="sg-sec">
+      <div class="sg-vip-wrap">
+        <div class="sg-vip-beam"></div>
+        <div class="sg-vip-card">
+          <div class="sg-vip-nebula"></div>
+          <div class="sg-vip-badge"><span class="sg-dot"></span>{badge}</div>
+          <div class="sg-vip-title">{title}</div>
+          <p class="sg-vip-sub">{sub}</p>
+          <div class="sg-vip-mail-box">
+            <span class="sg-vip-mail-lbl">{mail_lbl}</span>
+            <a class="sg-vip-email" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{DEMO_EMAIL}</a>
+          </div>
+          <div class="sg-vip-actions">
+            <a class="sg-vip-cta" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{cta_lbl}</a>
+          </div>
+          <div class="sg-vip-meta">
+            <span>🛰️ {meta_1}</span>
+            <span>⚡ {meta_2}</span>
+            <span>🛡️ {meta_3}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    """), unsafe_allow_html=True)
 
 
 def render_intro():
@@ -1780,10 +1751,10 @@ def render_intro():
       <div class="sg-h2">Dört sütun, tek hedef: güvenli yörünge</div>
       <p class="sg-p">Space Grave; temizlemeyi, izlemeyi, önlemeyi ve öğrenmeyi tek bir bütünün parçaları olarak ele alır.</p>
       <div class="sg-mgrid">
-        <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Orbital Debris Scavengers</div><div class="sg-ct">Operation Clean Orbit</div><p class="sg-cp">Hizmet ömrü dolan uyduları ve atıl roket kademelerini yarının çarpışmasına dönüşmeden yörüngeden çıkaran aktif temizleme ve azaltım görevleri. Yörünge temizliğini kavramdan ölçülebilir, göreve hazır bir yeteneğe dönüştürür.</p><a class="sg-tier-cta" href="#threat" target="_self">GÖREVLERİ KEŞFET</a></div>
-        <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Debris Radar &amp; Sentinel</div><div class="sg-ct">Sentinel Sky Watch</div><p class="sg-cp">Alçak Dünya Yörüngesi'ndeki kataloglanmış her nesneyi izleyen yüksek hassasiyetli takip ve tarama ağı. Birleştirilmiş radar ve TLE verisi, operatörlere varlıklarının çevresinde olup bitenin sürekli ve güvenilir bir resmini sunar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">CANLI VERİYİ GÖRÜNTÜLE</a></div>
-        <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Collision Avoidance &amp; AI Watch</div><div class="sg-ct">Guardian Protocol</div><p class="sg-cp">Her yakın geçişi tarayan ve Güvenlik Küresi ihlal edildiği anda otomatik alarm üreten gerçek zamanlı risk analizi. Yapay zekâ destekli kararlar tahmini yerine koyar; operatörler yalnızca gerçekten gerektiğinde manevra yapar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">UYARI MERKEZİNİ AÇ</a></div>
-        <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Historical Debris Archive</div><div class="sg-ct">Orbital Memory</div><p class="sg-cp">Onlarca yıllık uzamsal veri, yoğunluk haritası ve finansal etki modeli tek bir aranabilir arşivde. Kalabalığın nasıl arttığını ve bedelini görün; önümüzdeki on yılı kanıtlarla planlayın.</p><a class="sg-tier-cta" href="#history" target="_self">ARŞİVE GÖZ AT</a></div>
+        <div class="sg-card sg-mission" style="--c:#fc3d21"><div class="sg-step-n">01 · Yörünge Enkazı Temizliği</div><div class="sg-ct">Temiz Yörünge Operasyonu</div><p class="sg-cp">Hizmet ömrü dolan uyduları ve atıl roket kademelerini yarının çarpışmasına dönüşmeden yörüngeden çıkaran aktif temizleme ve azaltım görevleri. Yörünge temizliğini kavramdan ölçülebilir, göreve hazır bir yeteneğe dönüştürür.</p><a class="sg-tier-cta" href="#threat" target="_self">GÖREVLERİ KEŞFET</a></div>
+        <div class="sg-card sg-mission" style="--c:#38bdf8"><div class="sg-step-n">02 · Enkaz Radarı ve Gözcü</div><div class="sg-ct">Gök Gözcüsü Ağı</div><p class="sg-cp">Alçak Dünya Yörüngesi'ndeki kataloglanmış her nesneyi izleyen yüksek hassasiyetli takip ve tarama ağı. Birleştirilmiş radar ve TLE verisi, operatörlere varlıklarının çevresinde olup bitenin sürekli ve güvenilir bir resmini sunar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">CANLI VERİYİ GÖRÜNTÜLE</a></div>
+        <div class="sg-card sg-mission" style="--c:#f59e0b"><div class="sg-step-n">03 · Çarpışma Önleme ve Yapay Zekâ</div><div class="sg-ct">Koruyucu Protokol</div><p class="sg-cp">Her yakın geçişi tarayan ve Güvenlik Küresi ihlal edildiği anda otomatik alarm üreten gerçek zamanlı risk analizi. Yapay zekâ destekli kararlar tahmini yerine koyar; operatörler yalnızca gerçekten gerektiğinde manevra yapar.</p><a class="sg-tier-cta" href="?launch=1&amp;lang=tr" target="_self">UYARI MERKEZİNİ AÇ</a></div>
+        <div class="sg-card sg-mission" style="--c:#10b981"><div class="sg-step-n">04 · Tarihsel Enkaz Arşivi</div><div class="sg-ct">Yörünge Hafızası</div><p class="sg-cp">Onlarca yıllık uzamsal veri, yoğunluk haritası ve finansal etki modeli tek bir aranabilir arşivde. Kalabalığın nasıl arttığını ve bedelini görün; önümüzdeki on yılı kanıtlarla planlayın.</p><a class="sg-tier-cta" href="#history" target="_self">ARŞİVE GÖZ AT</a></div>
       </div>
     </div>
 
@@ -1846,7 +1817,7 @@ def render_intro():
     """
 
     foot_html = f"""
-    <div class="sg-foot">NASA Space Apps Challenge · JPL Command Center · SP4C3 GR4V3 &nbsp;|&nbsp; Veri: CelesTrak · Son güncelleme {CAT['fetched']}</div>
+    <div class="sg-foot">NASA Space Apps Challenge · JPL Komuta Merkezi · SP4C3 GR4V3 &nbsp;|&nbsp; Veri: CelesTrak · Son güncelleme {CAT['fetched']}</div>
     """
 
 
@@ -1993,7 +1964,7 @@ def render_intro():
             with b1:
                 st.button(T("Canlı İzlemeyi Başlat  →", "Start Live Tracking  →"), key="sg_launch", type="primary", on_click=_enter_app, **stretch(st.button))
             with b2:
-                st.markdown(f'<a class="sg-ghost" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{T("📧 Demo talep et", "📧 Request a demo")}</a>', unsafe_allow_html=True)
+                st.markdown(f'<a class="sg-ghost" href="{DEMO_GMAIL}" target="_blank" rel="noopener">{T("Demo talep et", "Request a demo")}</a>', unsafe_allow_html=True)
             st.markdown(_flat(metrics_html), unsafe_allow_html=True)
         st.markdown(_flat(sections_html), unsafe_allow_html=True)
         st.markdown(_flat(_debris_history_html()), unsafe_allow_html=True)
@@ -2473,6 +2444,41 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], 
 .ops-chip.warn { color:#fbbf24; border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.10); }
 .ops-chip.nom { color:#7dd3fc; border-color:rgba(56,189,248,.35); background:rgba(56,189,248,.08); }
 .ops-chip.crit { color:#f87171; border-color:rgba(239,68,68,.45); background:rgba(239,68,68,.10); }
+@media (max-width:768px) {
+  .block-container, [data-testid="stMainBlockContainer"] { padding:4.6rem 0.75rem 3.5rem !important; }
+  .sg-mnav { height:56px; padding:0 12px 0 148px; }
+  .st-key-sg_back { top:9px; left:12px; }
+  .st-key-sg_back .stButton > button { height:36px; padding:0 13px; }
+  .st-key-sg_back .stButton > button p { font-size:12px; }
+  .sg-mlive { padding:5px 10px; font-size:10.5px; }
+  .ops-banner { gap:12px; padding:6px 0 14px; }
+  .ops-title { font-size:clamp(22px,6.2vw,30px); }
+  .ops-led { padding:5px 10px; font-size:10px; letter-spacing:.08em; }
+  .sg-ticker-wrap { padding:7px 10px; border-radius:12px; }
+  .sg-ticker-badge { font-size:9.5px; padding:4px 9px; margin-right:8px; }
+  .stApp .nasa-glass-card, [data-testid="stMetric"] {
+    height:auto !important; min-height:86px !important; max-height:none !important; padding:12px 14px !important;
+  }
+  [class*="st-key-sg_nav_"] .stButton > button { min-height:40px !important; padding:6px 10px !important; }
+  [class*="st-key-sg_nav_"] .stButton > button p { font-size:12.5px !important; }
+  .stApp [data-baseweb="tab-list"] { flex-wrap:wrap !important; gap:6px !important; }
+  .stApp [data-baseweb="tab"] { font-size:12px !important; padding:6px 11px !important; }
+  .st-key-sg_def_cmd_bar .stButton > button {
+    height:auto !important; min-height:42px !important; padding:9px 12px !important; white-space:normal !important;
+  }
+  .st-key-sg_def_cmd_bar .stButton > button p { font-size:11.5px !important; line-height:1.35 !important; white-space:normal !important; }
+  .sg-def-panel { padding:13px 14px; }
+  .ops-tbl-bar { flex-wrap:wrap; padding:10px 12px; font-size:10.5px; }
+  .ops-tbl { font-size:12px; }
+  .ops-tbl th, .ops-tbl td { padding:8px 10px; }
+}
+@media (max-width:480px) {
+  .sg-mnav { padding:0 10px 0 132px; }
+  .st-key-sg_back .stButton > button { padding:0 10px; }
+  .ops-sub { font-size:12.5px; }
+  .sg-def-cell { padding:11px 12px; }
+  .sg-def-cell b { font-size:13px; }
+}
 @media (prefers-reduced-motion:reduce) { .sg-dot { animation:none; } }
 </style>
 """
@@ -2484,18 +2490,25 @@ def _back_to_intro():
 
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
-# Tüm plotly grafiklerine giriş temasıyla uyumlu tipografi ve renk paleti
-try:
-    import plotly.io as pio
-    pio.templates["plotly_dark"].layout.update(
-        font=dict(family="Inter, Segoe UI, sans-serif", color="#94a3b8", size=12),
-        colorway=["#38bdf8", "#f59e0b", "#fc3d21", "#10b981", "#a78bfa", "#7dd3fc"],
-        xaxis=dict(gridcolor="rgba(56,189,248,.09)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(56,189,248,.14)"),
-        yaxis=dict(gridcolor="rgba(56,189,248,.09)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(56,189,248,.14)"),
-        hoverlabel=dict(bgcolor="#081228", bordercolor="#38bdf8", font=dict(family="Inter, Segoe UI, sans-serif", color="#e2e8f0")),
-    )
-except Exception:
-    pass
+
+# Tüm plotly grafiklerine giriş temasıyla uyumlu tipografi ve renk paleti (bir kez önbelleğe alınır)
+@st.cache_resource
+def _init_plotly_dark_theme():
+    try:
+        import plotly.io as pio
+        pio.templates["plotly_dark"].layout.update(
+            font=dict(family="Inter, Segoe UI, sans-serif", color="#94a3b8", size=12),
+            colorway=["#38bdf8", "#f59e0b", "#fc3d21", "#10b981", "#a78bfa", "#7dd3fc"],
+            xaxis=dict(gridcolor="rgba(56,189,248,.09)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(56,189,248,.14)"),
+            yaxis=dict(gridcolor="rgba(56,189,248,.09)", linecolor="rgba(56,189,248,.22)", zerolinecolor="rgba(56,189,248,.14)"),
+            hoverlabel=dict(bgcolor="#081228", bordercolor="#38bdf8", font=dict(family="Inter, Segoe UI, sans-serif", color="#e2e8f0")),
+        )
+        return True
+    except Exception:
+        return False
+
+
+_init_plotly_dark_theme()
 # =====================================================================
 # SP4C3 GR4V3 — YENİDEN GİRİŞ SİMÜLASYON MODU (izole / odak modu)
 # Simülasyon açıkken aşağıdaki sitenin geri kalanı (navigasyon, sayfalar, bot, taramalar)
@@ -2571,19 +2584,21 @@ table{width:100%;margin-top:6px;border-collapse:collapse}td{padding:4px 6px;bord
 .map-box{position:relative;height:450px;border-radius:14px;overflow:hidden;border:1px solid rgba(56,189,248,.28);background:#061226;box-shadow:inset 0 0 24px rgba(0,0,0,.6)}
 .bar{display:flex;align-items:center;gap:8px;padding:6px 10px}#scrub{flex:1}
 @media(max-width:900px){.g{grid-template-columns:1fr;grid-template-rows:340px auto 190px;height:auto}.side{grid-row:auto;grid-column:1}.map-box{height:340px}}
+@media(max-width:768px){.ctl{gap:10px 12px;padding:10px}.ctl label{min-width:calc(50% - 8px);flex:1 1 calc(50% - 8px)}.tele-grid{grid-template-columns:1fr}.map-hdr{padding:8px 10px}.map-box{height:300px}.hud{font-size:11px;padding:8px 10px;top:10px;left:8px}}
+@media(max-width:480px){.ctl label{min-width:100%;flex:1 1 100%}.g{grid-template-rows:270px auto 175px;padding:8px}.map-box{height:250px}.zc{padding:12px}}
 #zones{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:4px 10px 16px;align-items:stretch}@media(max-width:900px){#zones{grid-template-columns:1fr}}</style></head><body>
 <div class="ctl">
-<label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><div class="num-row"><input id="m" type="range" min="50" max="5000" step="0.01"><input id="mn" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 1200,50)"></div></label>
-<label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><div class="num-row"><input id="ar" type="range" min="0.1" max="30" step="0.01"><input id="arn" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 11,13)"></div></label>
-<label><span data-i data-tr="Giriş açısı (120 km)" data-en="Entry angle (120 km)"></span><span><b id="anv"></b> °</span><div class="num-row"><input id="an" type="range" min="0.5" max="45" step="0.01"><input id="ann" class="num-in" type="text" inputmode="decimal" title="Klavyeden değer girin (örn. 3,25)"></div></label>
+<label><span data-i data-tr="Kütle" data-en="Mass"></span><span><b id="mv"></b> kg</span><div class="num-row"><input id="m" type="range" min="50" max="5000" step="0.01"><input id="mn" class="num-in" type="text" inputmode="decimal" data-ttr="Klavyeden değer girin (örn. 1200,50)" data-ten="Enter value from keyboard (e.g. 1200.50)"></div></label>
+<label><span data-i data-tr="Kesit alanı" data-en="Cross-section"></span><span><b id="arv"></b> m²</span><div class="num-row"><input id="ar" type="range" min="0.1" max="30" step="0.01"><input id="arn" class="num-in" type="text" inputmode="decimal" data-ttr="Klavyeden değer girin (örn. 11,13)" data-ten="Enter value from keyboard (e.g. 11.13)"></div></label>
+<label><span data-i data-tr="Giriş açısı (120 km)" data-en="Entry angle (120 km)"></span><span><b id="anv"></b> °</span><div class="num-row"><input id="an" type="range" min="0.5" max="45" step="0.01"><input id="ann" class="num-in" type="text" inputmode="decimal" data-ttr="Klavyeden değer girin (örn. 3,25)" data-ten="Enter value from keyboard (e.g. 3.25)"></div></label>
 <label><span data-i data-tr="Malzeme" data-en="Material"></span><select id="mt"></select></label>
 <label><span data-i data-tr="Hedef yüzey / düşüş bölgesi" data-en="Target surface / impact region"></span><select id="rg"></select></label>
-<label><span data-i data-tr="Düşüş bölgesi nüfus yoğunluğu" data-en="Impact-region population"></span><select id="pp"><option value="0.5">Ocean / Okyanus</option><option value="5">Remote / Ücra</option><option value="50">World avg / Dünya ort.</option><option value="300">Dense / Yoğun</option><option value="3000">Urban / Kent</option></select></label>
+<label><span data-i data-tr="Düşüş bölgesi nüfus yoğunluğu" data-en="Impact-region population"></span><select id="pp"><option value="0.5">Okyanus</option><option value="5">Ücra</option><option value="50">Dünya ort.</option><option value="300">Yoğun</option><option value="3000">Kent</option></select></label>
 <label><span data-i data-tr="Oynatma süresi (sn)" data-en="Playback length (s)"></span><select id="sp"><option value="60">60</option><option value="30" selected>30</option><option value="15">15</option></select></label>
 </div>
 <div class="bar"><button id="pl">⏯</button><button id="rs" class="s">↺</button><input id="scrub" type="range" min="0" max="1000" value="0"><b id="tt">0 s</b></div>
 <div class="g">
-<div class="box"><canvas id="side"></canvas><div class="hud">STATUS: <span id="st">—</span><br>ALT <span id="a">--</span> km · V <span id="v">--</span> km/s<br>TEMP <span id="t">--</span> °C · DECEL <span id="g">--</span> g<br>FLUX <span id="q">--</span> MW/m² · HEAT <span id="e">--</span></div><div class="zb"><button id="zi" class="s">+</button><button id="zo" class="s">−</button></div></div>
+<div class="box"><canvas id="side"></canvas><div class="hud"><span data-i data-tr="DURUM" data-en="STATUS"></span>: <span id="st">—</span><br><span data-i data-tr="İRTİFA" data-en="ALT"></span> <span id="a">--</span> km · <span data-i data-tr="HIZ" data-en="V"></span> <span id="v">--</span> km/s<br><span data-i data-tr="SICAKLIK" data-en="TEMP"></span> <span id="t">--</span> °C · <span data-i data-tr="İVME" data-en="DECEL"></span> <span id="g">--</span> g<br><span data-i data-tr="AKI" data-en="FLUX"></span> <span id="q">--</span> MW/m² · <span data-i data-tr="ISI" data-en="HEAT"></span> <span id="e">--</span></div><div class="zb"><button id="zi" class="s">+</button><button id="zo" class="s">−</button></div></div>
 <div class="box side"><div id="risk"></div></div>
 <div class="box" style="grid-row:2"><canvas id="chart"></canvas></div>
 </div>
@@ -2821,6 +2836,8 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  if(play){const base=Math.max(1,S.tmax/(+$('sp').value)),nb=S.tb>0&&Math.abs(T-S.tb)<10?.18:1;T+=dt*base*nb;if(T>=S.tmax){T=S.tmax;play=false}}
  drawSide(T);drawMap(T);drawChart(T);hud(T)}
 function init(){const mats=D.mats;$('mt').innerHTML=mats.map(m=>`<option value="${m[1]}">${TR?m[2]:m[0]}</option>`).join('');
+ $('pp').innerHTML=[['0.5',tx('Okyanus','Ocean')],['5',tx('Ücra bölge','Remote')],['50',tx('Dünya ort.','World avg')],['300',tx('Yoğun','Dense')],['3000',tx('Kent / Şehir','Urban')]].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('');
+ document.querySelectorAll('[data-ttr]').forEach(e=>e.title=tx(e.dataset.ttr,e.dataset.ten));
  $('m').value=D.mass;$('ar').value=D.area;$('an').value=D.angle;$('mt').value=D.mat;$('pp').value=D.pop;
  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=tx(e.dataset.tr,e.dataset.en));
  $('rg').innerHTML=`<option value="-1">${tx('Doğal (TLE yer izi)','Natural (TLE ground track)')}</option>`+D.regions.map((r,i)=>`<option value="${i}">${TR?r[0]:r[1]}</option>`).join('');$('rg').value=-1;['m','ar','an','mt','pp','rg'].forEach(i=>$(i).oninput=recompute);
@@ -3227,6 +3244,7 @@ if st.session_state.get("sg_sim_mode"):
 
 
 _feed_word = FEED_KEY
+_feed_badge = {"LIVE": T("CANLI", "LIVE"), "CACHED": T("ÖNBELLEK", "CACHED"), "PARTIAL": T("KISMİ", "PARTIAL")}.get(_feed_word, T("ÇEVRİMDIŞI", "OFFLINE"))
 _scroll_top_js = (
     "try{window.scrollTo({top:0,behavior:'smooth'});"
     "document.documentElement.scrollTo({top:0,behavior:'smooth'});"
@@ -3238,7 +3256,7 @@ st.markdown(_flat(f"""
     <div class="sg-mnav">
       <a href="#sg-cmd-top" class="sg-mlogo" onclick="{_scroll_top_js}" title="{T('Sayfanın en başına git', 'Scroll to top of page')}"><span class="sg-logo-mark"></span>SPACE GRAVE</a>
       <div class="sg-mnav-right">
-        <span class="sg-mlive"><span class="sg-dot{'' if _feed_word == 'LIVE' else ' warn'}"></span>{_feed_word}</span>
+        <span class="sg-mlive"><span class="sg-dot{'' if _feed_word == 'LIVE' else ' warn'}"></span>{_feed_badge}</span>
       </div>
     </div>
 """), unsafe_allow_html=True)
@@ -3257,7 +3275,7 @@ st.markdown(_flat(f"""
     <div class="ops-sub">{T("Küresel Uzay Çöpü Merkezi", "Global Space Debris Center")}</div>
   </div>
   <div class="ops-leds">
-    <span class="ops-led g">SYSTEM ONLINE</span>
+    <span class="ops-led g">{T("SİSTEM ÇEVRİMİÇİ", "SYSTEM ONLINE")}</span>
     <span class="ops-led {_feed_chip[0]}">{_feed_chip[1]}</span>
     <span class="ops-led c">SGP4 {T("MOTORU NORMAL", "PROPAGATOR NOMINAL")}</span>
   </div>
@@ -3759,71 +3777,133 @@ if st.session_state.active_page == PAGES[0]:
                      "Per Liou & Johnson the selection criterion is the highest mass × collision probability. Details and links are on the 'Current Risks & Sources' tab."))
 
     # ---------------------------------------------------------------- 3) Simülasyon
+    @st.cache_data(ttl=600, show_spinner=False)
+    def _kc_sim_cached(a0_tuple, r0_tuple, s0_tuple, years_v, rem_v, new_v, strat):
+        return kc_simulate(np.array(a0_tuple, dtype=float), np.array(r0_tuple, dtype=float), np.array(s0_tuple, dtype=float),
+                           float(years_v), float(rem_v), float(new_v), strat)
+
     with kc_tabs[2]:
-        st.markdown(T("Seçtiğin temizlik hızıyla önümüzdeki yıllarda nesne sayısının nasıl değişeceğini karşılaştır.",
-                      "Compare how the object count evolves over the coming years at the cleanup rate you choose."))
-        kc_s1, kc_s2, kc_s3 = st.columns(3)
-        kc_years = _slider_num(kc_s1, T("Simülasyon süresi (yıl)", "Simulation horizon (years)"), 10.0, 100.0, 50.0, 0.5, key="sg_kc_years", decimals=1)
-        kc_rem = _slider_num(kc_s2, T("Yılda temizlenen büyük nesne", "Large objects removed per year"), 0.0, 20.0, 5.0, 0.1, key="sg_kc_rem", decimals=2)
-        kc_new = _slider_num(kc_s3, T("Yılda yeni terk edilen büyük nesne", "New large objects abandoned per year"), 0.0, 40.0, 5.0, 0.1, key="sg_kc_new", decimals=2)
+        @_fragment
+        def _kc_simulation_tab_ui():
+            st.markdown(T("Seçtiğin temizlik hızıyla önümüzdeki yıllarda nesne sayısının nasıl değişeceğini karşılaştır.",
+                          "Compare how the object count evolves over the coming years at the cleanup rate you choose."))
+            kc_s1, kc_s2, kc_s3 = st.columns(3)
+            kc_years = _slider_num(kc_s1, T("Simülasyon süresi (yıl)", "Simulation horizon (years)"), 10.0, 100.0, 50.0, 0.5, key="sg_kc_years", decimals=1)
+            kc_rem = _slider_num(kc_s2, T("Yılda temizlenen büyük nesne", "Large objects removed per year"), 0.0, 20.0, 5.0, 0.1, key="sg_kc_rem", decimals=2)
+            kc_new = _slider_num(kc_s3, T("Yılda yeni terk edilen büyük nesne", "New large objects abandoned per year"), 0.0, 40.0, 5.0, 0.1, key="sg_kc_new", decimals=2)
 
-        kc_runs = {
-            "none": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, 0, kc_new, "none"),
-            "random": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, kc_rem, kc_new, "random"),
-            "targeted": kc_simulate(kc_A0, kc_R0, kc_S0, kc_years, kc_rem, kc_new, "targeted"),
-        }
-        kc_names = {"none": T("Temizlik yok", "No cleanup"), "random": T("Rastgele temizlik", "Random cleanup"),
-                    "targeted": T("Hedefli temizlik (en riskli bant)", "Targeted cleanup (riskiest band)")}
-        kc_colors = {"none": "#fc3d21", "random": "#f59e0b", "targeted": "#10b981"}
+            _a0_t, _r0_t, _s0_t = tuple(kc_A0.tolist()), tuple(kc_R0.tolist()), tuple(kc_S0.tolist())
+            kc_runs = {
+                "none": _kc_sim_cached(_a0_t, _r0_t, _s0_t, kc_years, 0.0, kc_new, "none"),
+                "random": _kc_sim_cached(_a0_t, _r0_t, _s0_t, kc_years, kc_rem, kc_new, "random"),
+                "targeted": _kc_sim_cached(_a0_t, _r0_t, _s0_t, kc_years, kc_rem, kc_new, "targeted"),
+            }
+            kc_names = {"none": T("Temizlik yok", "No cleanup"), "random": T("Rastgele temizlik", "Random cleanup"),
+                        "targeted": T("Hedefli temizlik (en riskli bant)", "Targeted cleanup (riskiest band)")}
+            kc_colors = {"none": "#fc3d21", "random": "#f59e0b", "targeted": "#10b981"}
 
-        kc_g1, kc_g2 = st.columns([3, 2])
-        with kc_g1:
-            kc_f3 = go.Figure()
+            _none_end = int(round(kc_runs["none"]["tot"][-1]))
+            _targ_end = int(round(kc_runs["targeted"]["tot"][-1]))
+            _prevented = int(round(max(0.0, kc_runs["none"]["frag"] - kc_runs["targeted"]["frag"])))
+            _tot_rem = float(kc_runs["targeted"]["removed"].sum())
+
+            _sim_kpis = [
+                (T("Temizlik Yok — Sonda Nesne", "No Cleanup — Final Objects"), _fmt_int(_none_end), "color:#fc3d21;"),
+                (T("Hedefli Temizlik — Sonda Nesne", "Targeted Cleanup — Final Objects"), _fmt_int(_targ_end), "color:#10b981;"),
+                (T("Önlenen Yeni Enkaz Parçası", "Prevented Debris Fragments"), _fmt_int(_prevented), "color:#38bdf8;"),
+                (T("Toplam Kaldırılan Büyük Nesne", "Total Large Objects Removed"), f"{_tot_rem:.1f}".replace(".", ",") if st.session_state.lang == "tr" else f"{_tot_rem:.1f}", "color:#f59e0b;"),
+            ]
+            for _kc_c, (_kt, _kv, _ks) in zip(st.columns(4), _sim_kpis):
+                with _kc_c:
+                    st.markdown(f'<div class="nasa-glass-card"><div class="metric-title">{_kt}</div><div class="metric-value" style="{_ks}">{_kv}</div></div>',
+                                unsafe_allow_html=True)
+
+            _rev_id = f"{kc_years:.1f}_{kc_rem:.2f}_{kc_new:.2f}_{st.session_state.lang}"
+            _y_all_min = min(float(np.min(_r["tot"])) for _r in kc_runs.values())
+            _y_all_max = max(float(np.max(_r["tot"])) for _r in kc_runs.values())
+            _y_pad = max((_y_all_max - _y_all_min) * 0.14, _y_all_max * 0.05, 50.0)
+
+            kc_g1, kc_g2 = st.columns([3, 2])
+            with kc_g1:
+                kc_f3 = go.Figure()
+                for _k, _r in kc_runs.items():
+                    kc_f3.add_trace(go.Scatter(
+                        x=_r["t"], y=_r["tot"], mode="lines", name=kc_names[_k],
+                        line=dict(color=kc_colors[_k], width=3),
+                        hovertemplate=f"<b>{kc_names[_k]}</b><br>{T('Yıl', 'Year')}: %{{x:.1f}}<br>{T('Toplam Nesne', 'Total Objects')}: %{{y:,.0f}}<extra></extra>",
+                    ))
+                    _end_x = float(_r["t"][-1])
+                    _end_y = float(_r["tot"][-1])
+                    _chg_p = (_end_y / max(float(_r["tot"][0]), 1.0) - 1.0) * 100.0
+                    kc_f3.add_annotation(
+                        x=_end_x, y=_end_y,
+                        text=f"{_fmt_int(int(round(_end_y)))} ({_chg_p:+.1f}%)",
+                        showarrow=False, xanchor="left", xshift=6,
+                        font=dict(color=kc_colors[_k], size=10.5),
+                    )
+                kc_f3.update_layout(
+                    template="plotly_dark", height=420, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    uirevision=_rev_id,
+                    title=T(f"Toplam nesne sayısı ({kc_years:.1f} yıl · -{kc_rem:.2f}/yıl temizlik)",
+                            f"Total objects ({kc_years:.1f} yr · -{kc_rem:.2f}/yr removal)"),
+                    xaxis=dict(title=T("Yıl", "Year"), range=[0, float(kc_years) * 1.15], gridcolor="rgba(56,189,248,0.08)"),
+                    yaxis=dict(title=T("Nesne sayısı", "Objects"), range=[max(0.0, _y_all_min - _y_pad), _y_all_max + _y_pad], gridcolor="rgba(56,189,248,0.10)"),
+                    legend=dict(orientation="h", y=-0.22), margin=dict(l=16, r=24, t=50, b=64),
+                )
+                st.plotly_chart(kc_f3, key="sg_kc_fig_tot", **stretch(st.plotly_chart))
+            with kc_g2:
+                kc_rm = kc_runs["targeted"]["removed"]
+                _rm_max = max(float(np.max(kc_rm)) * 1.24, 5.0)
+                kc_f4 = go.Figure(go.Bar(
+                    x=KC_MID, y=kc_rm, width=38, marker_color="#10b981",
+                    text=[f"{v:.1f}" if v >= 0.5 else "" for v in kc_rm],
+                    textposition="outside",
+                    hovertemplate="%{x:.0f} km<br>" + T("Kaldırılan nesne", "Objects removed") + ": %{y:.1f}<extra></extra>",
+                ))
+                if kc_rem <= 0.0 or float(kc_rm.sum()) <= 0.0:
+                    kc_f4.add_annotation(
+                        x=900, y=_rm_max * 0.5, showarrow=False,
+                        text=T("Yıllık temizlik = 0<br>Kaldırılan nesne yok", "Annual removal = 0<br>No objects removed"),
+                        font=dict(color="#94a3b8", size=13),
+                    )
+                kc_f4.update_layout(
+                    template="plotly_dark", height=420, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    uirevision=_rev_id,
+                    title=T("Hedefli senaryoda nereden temizlendi?", "Where did the targeted scenario clean?"),
+                    xaxis=dict(title=T("İrtifa (km)", "Altitude (km)"), range=[280, 1520], dtick=200, gridcolor="rgba(56,189,248,0.08)"),
+                    yaxis=dict(title=T("Kaldırılan nesne", "Objects removed"), range=[0, _rm_max], gridcolor="rgba(56,189,248,0.10)"),
+                    margin=dict(l=16, r=16, t=50, b=64),
+                )
+                st.plotly_chart(kc_f4, key="sg_kc_fig_rem", **stretch(st.plotly_chart))
+
+            def kc_state(chg):
+                return (T("🔴 Kontrolsüz artış", "🔴 Runaway growth") if chg > 25 else T("🟠 Artış sürüyor", "🟠 Still growing") if chg > 5
+                        else T("🟡 Yaklaşık sabit", "🟡 Roughly flat") if chg > -5 else T("🟢 Azalıyor", "🟢 Declining"))
+
+            kc_rows = []
             for _k, _r in kc_runs.items():
-                kc_f3.add_trace(go.Scatter(x=_r["t"], y=_r["tot"], mode="lines", name=kc_names[_k], line=dict(color=kc_colors[_k], width=3)))
-            kc_f3.update_layout(template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                title=T("Toplam nesne sayısı (aktif + terk edilmiş + parça)", "Total objects (active + derelict + fragments)"),
-                                xaxis=dict(title=T("Yıl", "Year"), gridcolor="rgba(56,189,248,0.08)"),
-                                yaxis=dict(title=T("Nesne sayısı", "Objects"), gridcolor="rgba(56,189,248,0.10)"),
-                                legend=dict(orientation="h", y=-0.22), margin=dict(l=16, r=16, t=50, b=64))
-            st.plotly_chart(kc_f3, **stretch(st.plotly_chart))
-        with kc_g2:
-            kc_rm = kc_runs["targeted"]["removed"]
-            kc_f4 = go.Figure(go.Bar(x=KC_MID, y=kc_rm, width=38, marker_color="#10b981",
-                                     hovertemplate="%{x:.0f} km<br>" + T("Kaldırılan nesne", "Objects removed") + ": %{y:.1f}<extra></extra>"))
-            kc_f4.update_layout(template="plotly_dark", height=410, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                title=T("Hedefli senaryoda nereden temizlendi?", "Where did the targeted scenario clean?"),
-                                xaxis=dict(title=T("İrtifa (km)", "Altitude (km)"), range=[280, 1520], dtick=200, gridcolor="rgba(56,189,248,0.08)"),
-                                yaxis=dict(title=T("Kaldırılan nesne", "Objects removed"), gridcolor="rgba(56,189,248,0.10)"),
-                                margin=dict(l=16, r=16, t=50, b=64))
-            st.plotly_chart(kc_f4, **stretch(st.plotly_chart))
+                _chg = (_r["tot"][-1] / max(_r["tot"][0], 1.0) - 1.0) * 100.0
+                kc_rows.append({T("Senaryo", "Scenario"): kc_names[_k], T("Sonda nesne sayısı", "Final objects"): _fmt_int(int(round(_r["tot"][-1]))),
+                                T("Değişim (%)", "Change (%)"): round(_chg, 1), T("Üretilen yeni parça", "New fragments made"): _fmt_int(int(round(_r["frag"]))),
+                                T("Büyük çarpışma (beklenen)", "Major collisions (expected)"): round(_r["big"], 2), T("Durum", "Status"): kc_state(_chg)})
+            st.markdown(_ops_table(pd.DataFrame(kc_rows), max_h=280,
+                                   title_tr="SİMÜLASYON SENARYO KARŞILAŞTIRMASI",
+                                   title_en="SIMULATION SCENARIO COMPARISON",
+                                   badge_tr="MODEL", badge_en="MODEL"), unsafe_allow_html=True)
 
-        def kc_state(chg):
-            return (T("🔴 Kontrolsüz artış", "🔴 Runaway growth") if chg > 25 else T("🟠 Artış sürüyor", "🟠 Still growing") if chg > 5
-                    else T("🟡 Yaklaşık sabit", "🟡 Roughly flat") if chg > -5 else T("🟢 Azalıyor", "🟢 Declining"))
+            kc_share = kc_rm / max(float(kc_rm.sum()), 1e-9) * 100.0
+            if kc_rem > 0 and kc_rm.sum() > 0:
+                _top = np.argsort(kc_share)[::-1][:2]
+                _txt = ", ".join(f"{kc_band(int(i))} (%{kc_share[i]:.0f})" for i in _top if kc_share[i] > 0.5)
+                st.success(T(f"Model önerisi: temizlik kapasiteni önce şu bantlara yönelt → {_txt}. Büyük nesneleri bu bantlardan almak en çok yeni parçayı önler.",
+                             f"Model suggestion: point your cleanup capacity at these bands first → {_txt}. Removing large objects there prevents the most new fragments."))
+            kc_base_chg = (kc_runs["none"]["tot"][-1] / max(kc_runs["none"]["tot"][0], 1.0) - 1.0) * 100.0
+            st.caption(T(f"Literatür karşılaştırması: NASA (Liou & Johnson) LEO'yu sabit tutmak için yılda ≈5 büyük nesne kaldırılmasını gerektiğini bulmuştur; "
+                         f"bu model temizlik yokken {kc_years} yılda %{kc_base_chg:+.0f} değişim gösteriyor. Eğitim amaçlı beklenen-değer modelidir.",
+                         f"Literature check: NASA (Liou & Johnson) found that ≈5 large objects/year must be removed to hold LEO constant; "
+                         f"this model shows {kc_base_chg:+.0f}% change over {kc_years} years without cleanup. Educational expected-value model."))
 
-        kc_rows = []
-        for _k, _r in kc_runs.items():
-            _chg = (_r["tot"][-1] / max(_r["tot"][0], 1.0) - 1.0) * 100.0
-            kc_rows.append({T("Senaryo", "Scenario"): kc_names[_k], T("Sonda nesne sayısı", "Final objects"): _fmt_int(int(round(_r["tot"][-1]))),
-                            T("Değişim (%)", "Change (%)"): round(_chg, 1), T("Üretilen yeni parça", "New fragments made"): _fmt_int(int(round(_r["frag"]))),
-                            T("Büyük çarpışma (beklenen)", "Major collisions (expected)"): round(_r["big"], 2), T("Durum", "Status"): kc_state(_chg)})
-        st.markdown(_ops_table(pd.DataFrame(kc_rows), max_h=280,
-                               title_tr="SİMÜLASYON SENARYO KARŞILAŞTIRMASI",
-                               title_en="SIMULATION SCENARIO COMPARISON",
-                               badge_tr="MODEL", badge_en="MODEL"), unsafe_allow_html=True)
-
-        kc_share = kc_rm / max(float(kc_rm.sum()), 1e-9) * 100.0
-        if kc_rem > 0 and kc_rm.sum() > 0:
-            _top = np.argsort(kc_share)[::-1][:2]
-            _txt = ", ".join(f"{kc_band(int(i))} (%{kc_share[i]:.0f})" for i in _top if kc_share[i] > 0.5)
-            st.success(T(f"Model önerisi: temizlik kapasiteni önce şu bantlara yönelt → {_txt}. Büyük nesneleri bu bantlardan almak en çok yeni parçayı önler.",
-                         f"Model suggestion: point your cleanup capacity at these bands first → {_txt}. Removing large objects there prevents the most new fragments."))
-        kc_base_chg = (kc_runs["none"]["tot"][-1] / max(kc_runs["none"]["tot"][0], 1.0) - 1.0) * 100.0
-        st.caption(T(f"Literatür karşılaştırması: NASA (Liou & Johnson) LEO'yu sabit tutmak için yılda ≈5 büyük nesne kaldırılmasını gerektiğini bulmuştur; "
-                     f"bu model temizlik yokken {kc_years} yılda %{kc_base_chg:+.0f} değişim gösteriyor. Eğitim amaçlı beklenen-değer modelidir.",
-                     f"Literature check: NASA (Liou & Johnson) found that ≈5 large objects/year must be removed to hold LEO constant; "
-                     f"this model shows {kc_base_chg:+.0f}% change over {kc_years} years without cleanup. Educational expected-value model."))
+        _kc_simulation_tab_ui()
 
     # ---------------------------------------------------------------- 4) Güncel riskler ve kaynaklar
     with kc_tabs[3]:
@@ -4851,16 +4931,16 @@ elif st.session_state.active_page == PAGES[2]:
 
         st.markdown(f"""
             <div class="card" style="border-left: 3px solid #38bdf8;">
-                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">BASIC / STANDART</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
+                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">{T("TEMEL / STANDART", "BASIC / STANDARD")}</strong> — <span style="color:#38bdf8; font-size:11.5px; font-weight:600;">{T("Sabit Ücret / Abonelik", "Flat-Rate / Sub")}</span>
                 <p style="color:#cbd5e1; font-size:12px; margin-top:6px; line-height:1.55;">{T("Hedef: Küçük Takımyıldız Operatörleri ve Üniversite Araştırmacıları. Manevra ve yakıt optimize edici.", "Target: Small Constellation Operators & University Researchers. Maneuver & fuel optimizer.")}</p>
             </div>
             <div class="card" style="border-left: 3px solid #10b981; background: linear-gradient(160deg, rgba(16, 40, 68, 0.90), rgba(8, 18, 38, 0.95));">
                 <span style="background:rgba(56,189,248,0.18); border:1px solid rgba(56,189,248,0.45); color:#bae6fd; font-size:9.5px; font-weight:700; padding:3px 9px; border-radius:999px; float:right; letter-spacing:0.08em;">{T("POPÜLER", "POPULAR")}</span>
-                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">PRO / ENTERPRISE</strong> — <span style="color:#34d399; font-size:11.5px; font-weight:600;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
+                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">{T("PROFESYONEL / KURUMSAL", "PRO / ENTERPRISE")}</strong> — <span style="color:#34d399; font-size:11.5px; font-weight:600;">{T("Kullanıma Dayalı API", "Usage-Based API")}</span>
                 <p style="color:#cbd5e1; font-size:12px; margin-top:6px; line-height:1.55;">{T("Hedef: Ticari Uydu Filo Yöneticileri. Gerçek zamanlı anomali tespiti ve kesinti maliyeti analizi.", "Target: Commercial Satellite Fleet Managers. Real-time anomaly detection & outage cost analysis.")}</p>
             </div>
             <div class="card" style="border-left: 3px solid #a78bfa;">
-                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">INSTITUTIONAL / INSURTECH</strong> — <span style="color:#c4b5fd; font-size:11.5px; font-weight:600;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
+                <strong style="color:#fff; font-family:'Space Grotesk',sans-serif; font-size:13px;">{T("KURUMSAL / INSURTECH", "INSTITUTIONAL / INSURTECH")}</strong> — <span style="color:#c4b5fd; font-size:11.5px; font-weight:600;">{T("Yıllık Sözleşme", "Annual Contract")}</span>
                 <p style="color:#cbd5e1; font-size:12px; margin-top:6px; line-height:1.55;">{T("Hedef: Uzay Savunma Ajansları ve Sigortacılar. Kümülatif risk modelleme ve özel poliçe fiyatlandırma matrisi.", "Target: Space Defense Agencies & Insurers. Cumulative risk modeling & custom policy pricing matrix.")}</p>
             </div>
         """, unsafe_allow_html=True)
